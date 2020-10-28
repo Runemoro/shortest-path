@@ -186,13 +186,7 @@ public class ShortestPathPlugin extends Plugin {
         }
     }
 
-    @Subscribe
-    public void onGameTick(GameTick tick) {
-        System.out.println(client.getLocalPlayer().getWorldLocation());
-    }
-
     private void setTarget(WorldPoint target) {
-        System.out.println(target);
         this.target = target;
         pathUpdateScheduled = true;
 
