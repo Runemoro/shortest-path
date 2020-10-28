@@ -103,7 +103,13 @@ public class ShortestPathPlugin extends Plugin {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
             while (scanner.hasNextLine()) {
-                String[] l = scanner.nextLine().split(" ");
+                String line = scanner.nextLine();
+
+                if (line.startsWith("#")) {
+                    continue;
+                }
+
+                String[] l = line.split(" ");
                 Positon a = new Positon(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
                 Positon b = new Positon(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
                 transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
