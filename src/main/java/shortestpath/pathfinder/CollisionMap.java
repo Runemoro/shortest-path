@@ -1,12 +1,10 @@
 package shortestpath.pathfinder;
 
-public class CollisionMap extends FlagMap {
-    public CollisionMap(int minX, int minY, int maxX, int maxY) {
-        super(minX, minY, maxX, maxY, 2);
-    }
+import java.util.Map;
 
-    public CollisionMap(byte[] data) {
-        super(data, 2);
+public class CollisionMap extends SplitFlagMap {
+    public CollisionMap(int regionSize, Map<Position, byte[]> compressedRegions) {
+        super(regionSize, compressedRegions, 2);
     }
 
     public boolean n(int x, int y, int z) {

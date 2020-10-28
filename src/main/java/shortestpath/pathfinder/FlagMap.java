@@ -3,7 +3,7 @@ package shortestpath.pathfinder;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 
-public abstract class FlagMap {
+public class FlagMap {
     public static final int PLANE_COUNT = 4;
     protected final BitSet flags;
     public final int minX;

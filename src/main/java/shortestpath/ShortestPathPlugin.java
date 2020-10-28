@@ -3,7 +3,10 @@ package shortestpath;
 import com.google.inject.Provides;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.*;
+import net.runelite.api.events.ClientTick;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOpened;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
@@ -18,15 +21,17 @@ import net.runelite.client.util.ImageUtil;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
 import shortestpath.pathfinder.Positon;
+import shortestpath.pathfinder.SplitFlagMap;
 
 import javax.inject.Inject;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @PluginDescriptor(name = "Shortest Path", description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)")
 public class ShortestPathPlugin extends Plugin {
@@ -49,11 +54,23 @@ public class ShortestPathPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        try (InputStream in = new GZIPInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map"))) {
-            map = new CollisionMap(Util.readAllBytes(in));
+        Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
+
+        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map"))) {
+            ZipEntry entry;
+            while ((entry = in.getNextEntry()) != null) {
+                String[] n = entry.getName().split("_");
+
+                compressedRegions.put(
+                        new SplitFlagMap.Position(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
+                        Util.readAllBytes(in)
+                );
+            }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
+
+        map = new CollisionMap(64, compressedRegions);
 
         running = true;
 
