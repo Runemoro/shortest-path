@@ -14,6 +14,7 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.geom.Area;
+import java.util.List;
 
 public class PathMapOverlay extends Overlay {
     private final Client client;
@@ -63,16 +64,24 @@ public class PathMapOverlay extends Overlay {
 
         mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
 
-        if (plugin.path != null) {
+        if (plugin.path != null && !plugin.pathUpdateScheduled) {
             for (WorldPoint point : plugin.path) {
-                drawOnMap(graphics, point);
+                drawOnMap(graphics, point, new Color(255, 0, 0, 255));
+            }
+        } else if (plugin.pathUpdateScheduled && plugin.pathfinder != null) {
+            List<WorldPoint> bestPath = plugin.pathfinder.currentBest();
+
+            if (bestPath != null) {
+                for (WorldPoint point : bestPath) {
+                    drawOnMap(graphics, point, new Color(0, 0, 255, 255));
+                }
             }
         }
 
         return null;
     }
 
-    private void drawOnMap(Graphics2D graphics, WorldPoint point) {
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, Color color) {
         Point start = worldMapOverlay.mapWorldPointToGraphicsPoint(point);
         Point end = worldMapOverlay.mapWorldPointToGraphicsPoint(point.dx(1).dy(-1));
 
@@ -84,7 +93,7 @@ public class PathMapOverlay extends Overlay {
             return;
         }
 
-        graphics.setColor(new Color(255, 0, 0, 255));
+        graphics.setColor(color);
         graphics.fillRect(start.getX(), start.getY(), end.getX() - start.getX(), end.getY() - start.getY());
     }
 

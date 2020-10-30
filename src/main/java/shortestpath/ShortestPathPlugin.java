@@ -4,10 +4,7 @@ import com.google.inject.Provides;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.ClientTick;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOpened;
-import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
@@ -51,8 +48,9 @@ public class ShortestPathPlugin extends Plugin {
     private Point lastMenuOpenedPoint;
     public WorldMapPoint marker;
     private static final BufferedImage MARKER_IMAGE = ImageUtil.getResourceStreamFromClass(ShortestPathPlugin.class, "/marker.png");
-    private boolean pathUpdateScheduled = false;
+    public boolean pathUpdateScheduled = false;
     public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
+    public Pathfinder pathfinder;
 
     @Override
     protected void startUp() {
@@ -101,10 +99,8 @@ public class ShortestPathPlugin extends Plugin {
                     if (target == null) {
                         path = null;
                     } else {
-                        path = path(client.getLocalPlayer().getWorldLocation(), target);
-
-
-
+                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target));
+                        path = pathfinder.find();
                         pathUpdateScheduled = false;
                     }
                 }
@@ -127,10 +123,6 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.add(pathMapOverlay);
     }
 
-    public List<WorldPoint> path(WorldPoint source, WorldPoint target) {
-        return new Pathfinder(map, transports, source, target, config.avoidWilderness() && !isInWilderness(target)).find();
-    }
-
     public static boolean isInWilderness(WorldPoint p) {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
                 WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
@@ -142,7 +134,7 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     @Subscribe
-    public void onClientTick(ClientTick tick) {
+    public void onGameTick(GameTick tick) {
         if (path != null) {
             if (!isNearPath()) {
                 if (config.cancelInstead()) {
@@ -171,7 +163,6 @@ public class ShortestPathPlugin extends Plugin {
     @Subscribe
     public void onMenuEntryAdded(MenuEntryAdded event) {
         final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
-
 
         if (map == null) {
             return;

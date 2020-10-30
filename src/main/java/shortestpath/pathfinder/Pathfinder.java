@@ -13,6 +13,7 @@ public class Pathfinder {
     private final Set<WorldPoint> visited = new HashSet<>();
     private final Map<WorldPoint, List<WorldPoint>> transports;
     private final boolean avoidWilderness;
+    private Node nearest;
 
     public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness) {
         this.map = map;
@@ -20,12 +21,12 @@ public class Pathfinder {
         this.target = target;
         this.start = new Node(start, null);
         this.avoidWilderness = avoidWilderness;
+        nearest = null;
     }
 
     public List<WorldPoint> find() {
         boundary.add(start);
 
-        Node nearest = null;
         int bestDistance = Integer.MAX_VALUE;
 
         while (!boundary.isEmpty()) {
@@ -87,6 +88,10 @@ public class Pathfinder {
         for (WorldPoint transport : transports.getOrDefault(node.position, new ArrayList<>())) {
             addNeighbor(node, transport);
         }
+    }
+
+    public List<WorldPoint> currentBest() {
+        return nearest==null ? null : nearest.path();
     }
 
     private void addNeighbor(Node node, WorldPoint neighbor) {
