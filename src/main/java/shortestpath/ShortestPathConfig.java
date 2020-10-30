@@ -5,7 +5,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.Range;
 
-@ConfigGroup("example")
+@ConfigGroup("shortestPath")
 public interface ShortestPathConfig extends Config {
     @ConfigItem(keyName = "drawTiles", name = "Draw path on tiles", description = "Whether the path should be drawn on the game tiles")
     default boolean drawTiles() {
@@ -42,5 +42,10 @@ public interface ShortestPathConfig extends Config {
     @Range(min = -1, max = 50)
     default int reachedDistance() {
         return 5;
+    }
+
+    @ConfigItem(keyName = "avoidWilderness", name = "Avoid wilderness", description = "Whether the wilderness should be avoided if possible (otherwise, will suggest using wilderness lever to travel from Edgeville to Ardougne)")
+    default boolean avoidWilderness() {
+        return true;
     }
 }

@@ -19,7 +19,8 @@ public class PathMapOverlay extends Overlay {
     private final Client client;
     private final ShortestPathPlugin plugin;
     private final ShortestPathConfig config;
-    @Inject private WorldMapOverlay worldMapOverlay;
+    @Inject
+    private WorldMapOverlay worldMapOverlay;
     private Area mapClipArea;
 
     @Inject
@@ -40,6 +41,24 @@ public class PathMapOverlay extends Overlay {
 
         if (client.getWidget(WidgetInfo.WORLD_MAP_VIEW) == null) {
             return null;
+        }
+
+        if (config.drawDebugInfo()) {
+            for (WorldPoint a : plugin.transports.keySet()) {
+                Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
+                if (mapA == null) {
+                    continue;
+                }
+
+                for (WorldPoint b : plugin.transports.get(a)) {
+                    Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b);
+                    if (mapB == null) {
+                        continue;
+                    }
+
+                    graphics.drawLine(mapA.getX(), mapA.getY(), mapB.getX(), mapB.getY());
+                }
+            }
         }
 
         mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());

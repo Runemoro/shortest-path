@@ -2,6 +2,7 @@ package shortestpath;
 
 import com.google.inject.Provides;
 import net.runelite.api.*;
+import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.MenuEntryAdded;
@@ -20,7 +21,6 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 import net.runelite.client.util.ImageUtil;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
-import shortestpath.pathfinder.Positon;
 import shortestpath.pathfinder.SplitFlagMap;
 
 import javax.inject.Inject;
@@ -29,12 +29,13 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @PluginDescriptor(name = "Shortest Path", description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)")
 public class ShortestPathPlugin extends Plugin {
+    private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
+    private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
     @Inject public Client client;
     @Inject public ShortestPathConfig config;
     @Inject public OverlayManager overlayManager;
@@ -51,6 +52,7 @@ public class ShortestPathPlugin extends Plugin {
     public WorldMapPoint marker;
     private static final BufferedImage MARKER_IMAGE = ImageUtil.getResourceStreamFromClass(ShortestPathPlugin.class, "/marker.png");
     private boolean pathUpdateScheduled = false;
+    public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
 
     @Override
     protected void startUp() {
@@ -72,6 +74,25 @@ public class ShortestPathPlugin extends Plugin {
 
         map = new CollisionMap(64, compressedRegions);
 
+        try {
+            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
+            Scanner scanner = new Scanner(s);
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+
+                if (line.startsWith("#")) {
+                    continue;
+                }
+
+                String[] l = line.split(" ");
+                WorldPoint a = new WorldPoint(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
+                WorldPoint b = new WorldPoint(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
+                transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
         running = true;
 
         new Thread(() -> {
@@ -81,6 +102,9 @@ public class ShortestPathPlugin extends Plugin {
                         path = null;
                     } else {
                         path = path(client.getLocalPlayer().getWorldLocation(), target);
+
+
+
                         pathUpdateScheduled = false;
                     }
                 }
@@ -104,45 +128,12 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public List<WorldPoint> path(WorldPoint source, WorldPoint target) {
-        List<Positon> path = new Pathfinder(map, loadTransports(), toPosition(source), toPosition(target)).find();
-
-        if (path == null) {
-            return null;
-        }
-
-        return path.stream().map(this::fromPosition).collect(Collectors.toList());
+        return new Pathfinder(map, transports, source, target, config.avoidWilderness() && !isInWilderness(target)).find();
     }
 
-    private Map<Positon, List<Positon>> loadTransports() {
-        Map<Positon, List<Positon>> transports = new HashMap<>();
-
-        try {
-            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
-            Scanner scanner = new Scanner(s);
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-
-                if (line.startsWith("#")) {
-                    continue;
-                }
-
-                String[] l = line.split(" ");
-                Positon a = new Positon(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
-                Positon b = new Positon(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
-                transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return transports;
-    }
-
-    private WorldPoint fromPosition(Positon position) {
-        return new WorldPoint(position.x, position.y, position.z);
-    }
-
-    private Positon toPosition(WorldPoint point) {
-        return new Positon(point.getX(), point.getY(), point.getPlane());
+    public static boolean isInWilderness(WorldPoint p) {
+        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
+                WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
     @Subscribe

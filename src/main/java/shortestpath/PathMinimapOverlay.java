@@ -71,7 +71,7 @@ public class PathMinimapOverlay extends Overlay {
             return;
         }
 
-        renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, new Color(255, 0, 0, 192));
+        renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, new Color(255, 0, 0, 255));
     }
 
     public static void renderMinimapRect(Client client, Graphics2D graphics, Point center, int width, int height, Color color) {
