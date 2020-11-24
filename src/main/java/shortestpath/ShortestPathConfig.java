@@ -12,6 +12,11 @@ public interface ShortestPathConfig extends Config {
         return true;
     }
 
+    @ConfigItem(keyName = "drawTileNumbers", name = "Draw tile numbers on tiles", description = "Whether the tile number should be drawn on the game tiles")
+    default boolean drawTileNumbers() {
+        return true;
+    }
+
     @ConfigItem(keyName = "drawMinimap", name = "Draw path on minimap", description = "Whether the path should be drawn on the minimap")
     default boolean drawMinimap() {
         return true;
