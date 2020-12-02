@@ -30,8 +30,8 @@ public class PathMapOverlay extends Overlay {
         this.plugin = plugin;
         this.config = config;
         setPosition(OverlayPosition.DYNAMIC);
-        setPriority(OverlayPriority.LOW);
-        setLayer(OverlayLayer.ABOVE_WIDGETS);
+        setPriority(OverlayPriority.HIGH);
+        setLayer(OverlayLayer.ABOVE_MAP);
     }
 
     @Override
