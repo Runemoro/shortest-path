@@ -4,7 +4,10 @@ import com.google.inject.Provides;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.*;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOpened;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
@@ -33,14 +36,22 @@ import java.util.zip.ZipInputStream;
 public class ShortestPathPlugin extends Plugin {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
-    @Inject public Client client;
-    @Inject public ShortestPathConfig config;
-    @Inject public OverlayManager overlayManager;
-    @Inject public PathTileOverlay pathOverlay;
-    @Inject public PathMinimapOverlay pathMinimapOverlay;
-    @Inject public PathMapOverlay pathMapOverlay;
-    @Inject private WorldMapPointManager worldMapPointManager;
-    @Inject private WorldMapOverlay worldMapOverlay;
+    @Inject
+    public Client client;
+    @Inject
+    public ShortestPathConfig config;
+    @Inject
+    public OverlayManager overlayManager;
+    @Inject
+    public PathTileOverlay pathOverlay;
+    @Inject
+    public PathMinimapOverlay pathMinimapOverlay;
+    @Inject
+    public PathMapOverlay pathMapOverlay;
+    @Inject
+    private WorldMapPointManager worldMapPointManager;
+    @Inject
+    private WorldMapOverlay worldMapOverlay;
     public CollisionMap map;
     public List<WorldPoint> path = null;
     private WorldPoint target = null;
@@ -51,6 +62,8 @@ public class ShortestPathPlugin extends Plugin {
     public boolean pathUpdateScheduled = false;
     public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
     public Pathfinder pathfinder;
+    private WorldPoint transportStart;
+    private MenuOptionClicked lastClick;
 
     @Override
     protected void startUp() {
@@ -162,6 +175,11 @@ public class ShortestPathPlugin extends Plugin {
 
     @Subscribe
     public void onMenuEntryAdded(MenuEntryAdded event) {
+        if (config.drawDebugInfo()) {
+            addMenuEntry(event, "Start");
+            addMenuEntry(event, "End");
+        }
+
         final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
 
         if (map == null) {
@@ -176,12 +194,31 @@ public class ShortestPathPlugin extends Plugin {
 
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) {
+        if (event.getMenuOption().equals("Start")) {
+            transportStart = client.getLocalPlayer().getWorldLocation();
+        }
+
+        if (event.getMenuOption().equals("End")) {
+            WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
+            System.out.println(
+                    "transports.add(objectTransport(" +
+                            "new Position(" + transportStart.getX() + ", " + transportStart.getY() + ", " + transportStart.getPlane() + ")," +
+                            " new Position(" + transportEnd.getX() + ", " + transportEnd.getY() + ", " + transportEnd.getPlane() + "), "
+                            + lastClick.getId() + ", \"" + lastClick.getMenuOption() + "\")); // " + lastClick.getMenuTarget());
+//            System.out.println(+" " + lastClick.getMenuTarget() + " (" + +"): " + +" -> " + transportEnd);
+            transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
+        }
+
         if (event.getMenuOption().equals("Set Target")) {
             setTarget(calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition()));
         }
 
         if (event.getMenuOption().equals("Clear Target")) {
             setTarget(null);
+        }
+
+        if (event.getMenuAction() != MenuAction.WALK) {
+            lastClick = event;
         }
     }
 
@@ -220,6 +257,10 @@ public class ShortestPathPlugin extends Plugin {
 
     private void addMenuEntry(MenuEntryAdded event, String option) {
         List<MenuEntry> entries = new LinkedList<>(Arrays.asList(client.getMenuEntries()));
+
+        if (entries.stream().anyMatch(e -> e.getOption().equals(option))) {
+            return;
+        }
 
         MenuEntry entry = new MenuEntry();
         entry.setOption(option);
