@@ -33,6 +33,25 @@ public class PathTileOverlay extends Overlay {
         if (config.drawDebugInfo()) {
             Tile[][] tiles = client.getScene().getTiles()[client.getPlane()];
 
+
+            for (WorldPoint a : plugin.transports.keySet()) {
+                drawTile(graphics, a, new Color(0, 255, 0, 128));
+
+                Point ca = tileCenter(a);
+
+                if (ca == null) {
+                    continue;
+                }
+
+                for (WorldPoint b : plugin.transports.get(a)) {
+                    Point cb = tileCenter(b);
+
+                    if (cb != null) {
+                        graphics.drawLine(ca.x, ca.y, cb.x, cb.y);
+                    }
+                }
+            }
+
             for (Tile[] row : tiles) {
                 for (Tile tile : row) {
                     if (tile == null) {
@@ -76,6 +95,26 @@ public class PathTileOverlay extends Overlay {
 
 
         return null;
+    }
+
+    private Point tileCenter(WorldPoint b) {
+        if (b.getPlane() != client.getPlane()) {
+            return null;
+        }
+
+        LocalPoint lp = LocalPoint.fromWorld(client, b);
+        if (lp == null) {
+            return null;
+        }
+
+        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+        if (poly == null) {
+            return null;
+        }
+
+        int cx = poly.getBounds().x + poly.getBounds().width / 2;
+        int cy = poly.getBounds().y + poly.getBounds().height / 2;
+        return new Point(cx, cy);
     }
 
     private void drawTile(Graphics2D graphics, WorldPoint point, int i, Color color) {
