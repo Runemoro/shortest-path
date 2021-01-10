@@ -32,7 +32,7 @@ public class PathMapOverlay extends Overlay {
         setPosition(OverlayPosition.DYNAMIC);
         setPriority(OverlayPriority.HIGH);
         setLayer(OverlayLayer.MANUAL);
-	drawAfterLayer(WidgetInfo.WORLD_MAP_VIEW);
+        drawAfterLayer(WidgetInfo.WORLD_MAP_VIEW);
     }
 
     @Override
