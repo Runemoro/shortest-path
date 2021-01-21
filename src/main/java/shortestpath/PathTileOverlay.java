@@ -87,8 +87,9 @@ public class PathTileOverlay extends Overlay {
         }
 
         if (config.drawTiles() && plugin.path != null) {
+            int i = 0;
             for (WorldPoint point : plugin.path) {
-                drawTile(graphics, point, new Color(255, 0, 0, 128));
+                drawTile(graphics, point, ++i, new Color(255, 0, 0, 128));
             }
         }
 
@@ -116,7 +117,7 @@ public class PathTileOverlay extends Overlay {
         return new Point(cx, cy);
     }
 
-    private void drawTile(Graphics2D graphics, WorldPoint point, Color color) {
+    private void drawTile(Graphics2D graphics, WorldPoint point, int i, Color color) {
         if (point.getPlane() != client.getPlane()) {
             return;
         }
@@ -133,5 +134,13 @@ public class PathTileOverlay extends Overlay {
 
         graphics.setColor(color);
         graphics.fill(poly);
+
+        if (config.drawTileNumbers()) {
+            String s = "" + i;
+            graphics.setColor(Color.WHITE);
+            int stringX = (int) (poly.getBounds().getCenterX() - graphics.getFontMetrics().getStringBounds(s, graphics).getWidth() / 2);
+            int stringY = (int) poly.getBounds().getCenterY();
+            graphics.drawString(s, stringX, stringY);
+        }
     }
 }
