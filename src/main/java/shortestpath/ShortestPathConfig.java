@@ -22,8 +22,13 @@ public interface ShortestPathConfig extends Config {
         return true;
     }
 
-    @ConfigItem(keyName = "drawDebugInfo", name = "Draw debug info", description = "Whether debugging info should be drawn")
-    default boolean drawDebugInfo() {
+    @ConfigItem(keyName = "drawCollisionMap", name = "Draw collision map", description = "Whether the collision map should be drawn")
+    default boolean drawCollisionMap() {
+        return false;
+    }
+
+    @ConfigItem(keyName = "drawTransports", name = "Draw transports", description = "Whether transports should be drawn")
+    default boolean drawTransports() {
         return false;
     }
 

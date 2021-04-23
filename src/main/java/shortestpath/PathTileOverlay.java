@@ -30,10 +30,7 @@ public class PathTileOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
-        if (config.drawDebugInfo()) {
-            Tile[][] tiles = client.getScene().getTiles()[client.getPlane()];
-
-
+        if (config.drawTransports()) {
             for (WorldPoint a : plugin.transports.keySet()) {
                 drawTile(graphics, a, new Color(0, 255, 0, 128));
 
@@ -50,9 +47,24 @@ public class PathTileOverlay extends Overlay {
                         graphics.drawLine(ca.x, ca.y, cb.x, cb.y);
                     }
                 }
-            }
 
-            for (Tile[] row : tiles) {
+                StringBuilder s = new StringBuilder();
+                for (WorldPoint b : plugin.transports.get(a)) {
+                    if (b.getPlane() > a.getPlane()) {
+                        s.append("+");
+                    } else if (b.getPlane() < a.getPlane()) {
+                        s.append("-");
+                    } else {
+                        s.append("=");
+                    }
+                }
+                graphics.setColor(Color.WHITE);
+                graphics.drawString(s.toString(), ca.x, ca.y);
+            }
+        }
+
+        if (config.drawCollisionMap()) {
+            for (Tile[] row : client.getScene().getTiles()[client.getPlane()]) {
                 for (Tile tile : row) {
                     if (tile == null) {
                         continue;

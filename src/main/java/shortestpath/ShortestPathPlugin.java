@@ -1,6 +1,7 @@
 package shortestpath;
 
 import com.google.inject.Provides;
+import net.runelite.api.Point;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
@@ -19,15 +20,19 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.Text;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
 import shortestpath.pathfinder.SplitFlagMap;
 
 import javax.inject.Inject;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -69,7 +74,7 @@ public class ShortestPathPlugin extends Plugin {
     protected void startUp() {
         Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
 
-        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map"))) {
+        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
             ZipEntry entry;
             while ((entry = in.getNextEntry()) != null) {
                 String[] n = entry.getName().split("_");
@@ -91,7 +96,7 @@ public class ShortestPathPlugin extends Plugin {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
 
-                if (line.startsWith("#")) {
+                if (line.startsWith("#") || line.isEmpty()) {
                     continue;
                 }
 
@@ -175,9 +180,10 @@ public class ShortestPathPlugin extends Plugin {
 
     @Subscribe
     public void onMenuEntryAdded(MenuEntryAdded event) {
-        if (config.drawDebugInfo()) {
+        if (config.drawTransports()) {
             addMenuEntry(event, "Start");
             addMenuEntry(event, "End");
+//            addMenuEntry(event, "Copy Position");
         }
 
         final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
@@ -200,15 +206,17 @@ public class ShortestPathPlugin extends Plugin {
 
         if (event.getMenuOption().equals("End")) {
             WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
-            System.out.println(
-                    "transports.add(objectTransport(" +
-                            "new Position(" + transportStart.getX() + ", " + transportStart.getY() + ", " + transportStart.getPlane() + ")," +
-                            " new Position(" + transportEnd.getX() + ", " + transportEnd.getY() + ", " + transportEnd.getPlane() + "), "
-                            + lastClick.getId() + ", \"" + lastClick.getMenuOption() + "\")); // " + lastClick.getMenuTarget());
-//            System.out.println(+" " + lastClick.getMenuTarget() + " (" + +"): " + +" -> " + transportEnd);
+            System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
+                    transportEnd.getX() + " " + transportEnd.getY() + " " + transportEnd.getPlane() + " " +
+                    lastClick.getMenuOption() + " " + Text.removeTags(lastClick.getMenuTarget()) + " " + lastClick.getId()
+            );
             transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
         }
 
+        if (event.getMenuOption().equals("Copy Position")) {
+            WorldPoint pos = client.getLocalPlayer().getWorldLocation();
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection("(" + pos.getX() + ", " + pos.getY() + ", " + pos.getPlane() + ")"), null);
+        }
         if (event.getMenuOption().equals("Set Target")) {
             setTarget(calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition()));
         }

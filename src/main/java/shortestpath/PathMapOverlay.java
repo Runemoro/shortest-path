@@ -44,7 +44,7 @@ public class PathMapOverlay extends Overlay {
             return null;
         }
 
-        if (config.drawDebugInfo()) {
+        if (config.drawTransports()) {
             for (WorldPoint a : plugin.transports.keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
                 if (mapA == null) {
