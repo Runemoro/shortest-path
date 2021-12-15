@@ -8,7 +8,6 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOpened;
-import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
@@ -68,7 +67,7 @@ public class ShortestPathPlugin extends Plugin {
     public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
     public Pathfinder pathfinder;
     private WorldPoint transportStart;
-    private MenuOptionClicked lastClick;
+    private MenuEntry lastClick;
 
     @Override
     protected void startUp() {
@@ -198,35 +197,34 @@ public class ShortestPathPlugin extends Plugin {
         }
     }
 
-    @Subscribe
-    public void onMenuOptionClicked(MenuOptionClicked event) {
-        if (event.getMenuOption().equals("Start")) {
+    private void onMenuOptionClicked(MenuEntry entry) {
+        if (entry.getOption().equals("Start")) {
             transportStart = client.getLocalPlayer().getWorldLocation();
         }
 
-        if (event.getMenuOption().equals("End")) {
+        if (entry.getOption().equals("End")) {
             WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
                     transportEnd.getX() + " " + transportEnd.getY() + " " + transportEnd.getPlane() + " " +
-                    lastClick.getMenuOption() + " " + Text.removeTags(lastClick.getMenuTarget()) + " " + lastClick.getId()
+                    lastClick.getOption() + " " + Text.removeTags(lastClick.getTarget()) + " " + lastClick.getIdentifier()
             );
             transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
         }
 
-        if (event.getMenuOption().equals("Copy Position")) {
+        if (entry.getOption().equals("Copy Position")) {
             WorldPoint pos = client.getLocalPlayer().getWorldLocation();
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection("(" + pos.getX() + ", " + pos.getY() + ", " + pos.getPlane() + ")"), null);
         }
-        if (event.getMenuOption().equals("Set Target")) {
+        if (entry.getOption().equals("Set Target")) {
             setTarget(calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition()));
         }
 
-        if (event.getMenuOption().equals("Clear Target")) {
+        if (entry.getOption().equals("Clear Target")) {
             setTarget(null);
         }
 
-        if (event.getMenuAction() != MenuAction.WALK) {
-            lastClick = event;
+        if (entry.getType() != MenuAction.WALK) {
+            lastClick = entry;
         }
     }
 
@@ -240,6 +238,7 @@ public class ShortestPathPlugin extends Plugin {
         } else {
             worldMapPointManager.removeIf(x -> x == marker);
             marker = new WorldMapPoint(target, MARKER_IMAGE);
+            marker.setName("Target");
             marker.setTarget(marker.getWorldPoint());
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
@@ -270,12 +269,13 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        MenuEntry entry = new MenuEntry();
-        entry.setOption(option);
-        entry.setTarget(event.getTarget());
-        entry.setType(MenuAction.RUNELITE.getId());
-        entries.add(0, entry);
-
-        client.setMenuEntries(entries.toArray(new MenuEntry[0]));
+        client.createMenuEntry(0)
+            .setOption(option)
+            .setTarget(event.getTarget())
+            .setParam0(event.getActionParam0())
+            .setParam1(event.getActionParam1())
+            .setIdentifier(event.getIdentifier())
+            .setType(MenuAction.RUNELITE)
+            .onClick(this::onMenuOptionClicked);
     }
 }
