@@ -5,15 +5,15 @@ import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
+import shortestpath.pathfinder.Pathfinder;
 
 import javax.inject.Inject;
 import java.awt.*;
-import java.util.Collection;
+import java.util.List;
 
 public class PathMinimapOverlay extends Overlay {
     private static final int TILE_WIDTH = 4;
@@ -35,12 +35,13 @@ public class PathMinimapOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
-        if (!config.drawMinimap()) {
+        if (!config.drawMinimap() || plugin.currentPath == null)
             return null;
-        }
 
-        if (plugin.path != null) {
-            for (WorldPoint point : plugin.path) {
+        List<WorldPoint> pathPoints = plugin.currentPath.getPath();
+        if (pathPoints != null) {
+            for (int i = 0; i < pathPoints.size(); i++) {
+                WorldPoint point = plugin.currentPath.getPath().get(i);
                 if (point.getPlane() != client.getPlane()) {
                     continue;
                 }

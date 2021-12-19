@@ -10,6 +10,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
+import shortestpath.pathfinder.Pathfinder;
 
 import javax.inject.Inject;
 import java.awt.*;
@@ -45,13 +46,13 @@ public class PathMapOverlay extends Overlay {
         }
 
         if (config.drawTransports()) {
-            for (WorldPoint a : plugin.transports.keySet()) {
+            for (WorldPoint a : plugin.pathfinder.transports.keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
                 if (mapA == null) {
                     continue;
                 }
 
-                for (WorldPoint b : plugin.transports.get(a)) {
+                for (WorldPoint b : plugin.pathfinder.transports.get(a)) {
                     Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b);
                     if (mapB == null) {
                         continue;
@@ -64,12 +65,16 @@ public class PathMapOverlay extends Overlay {
 
         mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
 
-        if (plugin.path != null && !plugin.pathUpdateScheduled) {
-            for (WorldPoint point : plugin.path) {
+        if (plugin.currentPath == null)
+            return null;
+
+        if (!plugin.updateScheduled) {
+            for (int i = 0; i < plugin.currentPath.getPath().size(); i++) {
+                WorldPoint point = plugin.currentPath.getPath().get(i);
                 drawOnMap(graphics, point, new Color(255, 0, 0, 255));
             }
-        } else if (plugin.pathUpdateScheduled && plugin.pathfinder != null) {
-            List<WorldPoint> bestPath = plugin.pathfinder.currentBest();
+        } else {
+            List<WorldPoint> bestPath = plugin.currentPath.currentBest();
 
             if (bestPath != null) {
                 for (WorldPoint point : bestPath) {
