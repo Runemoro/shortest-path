@@ -1,109 +1,147 @@
 package shortestpath.pathfinder;
 
+import net.runelite.api.Client;
+import net.runelite.api.Player;
+import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.ShortestPathConfig;
 import shortestpath.ShortestPathPlugin;
+import shortestpath.Util;
 
+import javax.inject.Inject;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class Pathfinder {
-    private final CollisionMap map;
-    private final Node start;
-    private final WorldPoint target;
-    private final List<Node> boundary = new LinkedList<>();
-    private final Set<WorldPoint> visited = new HashSet<>();
-    private final Map<WorldPoint, List<WorldPoint>> transports;
-    private final boolean avoidWilderness;
-    private Node nearest;
+    private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
+    private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 
-    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness) {
+    public final CollisionMap map;
+    public final Map<WorldPoint, List<WorldPoint>> transports;
+
+    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports) {
         this.map = map;
         this.transports = transports;
-        this.target = target;
-        this.start = new Node(start, null);
-        this.avoidWilderness = avoidWilderness;
-        nearest = null;
     }
 
-    public List<WorldPoint> find() {
-        boundary.add(start);
+    public static boolean isInWilderness(WorldPoint p) {
+        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
+                WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
+    }
 
-        int bestDistance = Integer.MAX_VALUE;
+    public class Path implements Runnable {
+        private final Node start;
+        public final WorldPoint target;
+        private final boolean avoidWilderness;
 
-        while (!boundary.isEmpty()) {
-            Node node = boundary.remove(0);
+        private final List<Node> boundary = new LinkedList<>();
+        private final Set<WorldPoint> visited = new HashSet<>();
 
-            if (node.position.equals(target)) {
-                return node.path();
+        public Node nearest;
+        private List<WorldPoint> path;
+
+        public boolean loading;
+
+        public Path(WorldPoint start, WorldPoint target, boolean avoidWilderness) {
+            this.target = target;
+            this.start = new Node(start, null);
+            this.avoidWilderness = avoidWilderness;
+            this.nearest = null;
+            this.loading = true;
+
+            new Thread(this).start();
+        }
+
+        private void addNeighbors(Node node) {
+            if (map.w(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY(), node.position.getPlane()));
             }
 
-            int distance = Math.max(Math.abs(node.position.getX() - target.getX()), Math.abs(node.position.getY() - target.getY()));
-            if (nearest == null || distance < bestDistance) {
-                nearest = node;
-                bestDistance = distance;
+            if (map.e(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY(), node.position.getPlane()));
             }
 
-            addNeighbors(node);
+            if (map.s(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX(), node.position.getY() - 1, node.position.getPlane()));
+            }
+
+            if (map.n(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX(), node.position.getY() + 1, node.position.getPlane()));
+            }
+
+            if (map.sw(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY() - 1, node.position.getPlane()));
+            }
+
+            if (map.se(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() - 1, node.position.getPlane()));
+            }
+
+            if (map.nw(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY() + 1, node.position.getPlane()));
+            }
+
+            if (map.ne(node.position.getX(), node.position.getY(), node.position.getPlane())) {
+                addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() + 1, node.position.getPlane()));
+            }
+
+            for (WorldPoint transport : transports.getOrDefault(node.position, new ArrayList<>())) {
+                addNeighbor(node, transport);
+            }
         }
 
-        if (nearest != null) {
-            return nearest.path();
+        public List<WorldPoint> currentBest() {
+            return nearest == null ? null : nearest.path();
         }
 
-        return null;
-    }
-
-    private void addNeighbors(Node node) {
-        if (map.w(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY(), node.position.getPlane()));
+        public List<WorldPoint> getPath() {
+            return this.path;
         }
 
-        if (map.e(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY(), node.position.getPlane()));
+        private void addNeighbor(Node node, WorldPoint neighbor) {
+            if (avoidWilderness && isInWilderness(neighbor)) {
+                return;
+            }
+
+            if (!visited.add(neighbor)) {
+                return;
+            }
+
+            boundary.add(new Node(neighbor, node));
         }
 
-        if (map.s(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX(), node.position.getY() - 1, node.position.getPlane()));
+        @Override
+        public void run() {
+            boundary.add(start);
+
+            int bestDistance = Integer.MAX_VALUE;
+
+            while (!boundary.isEmpty()) {
+                Node node = boundary.remove(0);
+
+                if (node.position.equals(target)) {
+                    this.path = node.path();
+                }
+
+                int distance = Math.max(Math.abs(node.position.getX() - target.getX()), Math.abs(node.position.getY() - target.getY()));
+                if (nearest == null || distance < bestDistance) {
+                    nearest = node;
+                    bestDistance = distance;
+                }
+
+                addNeighbors(node);
+            }
+
+            if (nearest != null) {
+                this.path = nearest.path();
+            }
+
+            this.loading = false;
         }
-
-        if (map.n(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX(), node.position.getY() + 1, node.position.getPlane()));
-        }
-
-        if (map.sw(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY() - 1, node.position.getPlane()));
-        }
-
-        if (map.se(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() - 1, node.position.getPlane()));
-        }
-
-        if (map.nw(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() - 1, node.position.getY() + 1, node.position.getPlane()));
-        }
-
-        if (map.ne(node.position.getX(), node.position.getY(), node.position.getPlane())) {
-            addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() + 1, node.position.getPlane()));
-        }
-
-        for (WorldPoint transport : transports.getOrDefault(node.position, new ArrayList<>())) {
-            addNeighbor(node, transport);
-        }
-    }
-
-    public List<WorldPoint> currentBest() {
-        return nearest==null ? null : nearest.path();
-    }
-
-    private void addNeighbor(Node node, WorldPoint neighbor) {
-        if (avoidWilderness && ShortestPathPlugin.isInWilderness(neighbor)) {
-            return;
-        }
-
-        if (!visited.add(neighbor)) {
-            return;
-        }
-
-        boundary.add(new Node(neighbor, node));
     }
 
     private static class Node {
