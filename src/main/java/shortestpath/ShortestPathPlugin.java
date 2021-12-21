@@ -38,8 +38,6 @@ import java.util.zip.ZipInputStream;
 
 @PluginDescriptor(name = "Shortest Path", description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)")
 public class ShortestPathPlugin extends Plugin {
-    private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
-    private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
     @Inject
     public Client client;
     @Inject
@@ -56,22 +54,22 @@ public class ShortestPathPlugin extends Plugin {
     private WorldMapPointManager worldMapPointManager;
     @Inject
     private WorldMapOverlay worldMapOverlay;
-    public CollisionMap map;
-    public List<WorldPoint> path = null;
-    private WorldPoint target = null;
-    private boolean running;
+
+    public Pathfinder pathfinder;
+    public Pathfinder.Path currentPath;
+
     private Point lastMenuOpenedPoint;
     public WorldMapPoint marker;
     private static final BufferedImage MARKER_IMAGE = ImageUtil.getResourceStreamFromClass(ShortestPathPlugin.class, "/marker.png");
-    public boolean pathUpdateScheduled = false;
-    public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
-    public Pathfinder pathfinder;
     private WorldPoint transportStart;
     private MenuEntry lastClick;
+
+    public boolean updateScheduled = true;
 
     @Override
     protected void startUp() {
         Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
+        HashMap<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
 
         try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
             ZipEntry entry;
@@ -86,8 +84,6 @@ public class ShortestPathPlugin extends Plugin {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-
-        map = new CollisionMap(64, compressedRegions);
 
         try {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
@@ -108,41 +104,29 @@ public class ShortestPathPlugin extends Plugin {
             throw new RuntimeException(e);
         }
 
-        running = true;
-
-        new Thread(() -> {
-            while (running) {
-                if (pathUpdateScheduled) {
-                    if (target == null) {
-                        path = null;
-                    } else {
-                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target));
-                        path = pathfinder.find();
-                        pathUpdateScheduled = false;
-                    }
-                }
-
-                Util.sleep(10);
-            }
-        }).start();
+        CollisionMap map = new CollisionMap(64, compressedRegions);
+        pathfinder = new Pathfinder(map, transports);
 
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);
         overlayManager.add(pathMapOverlay);
     }
 
+    public boolean isNearPath(WorldPoint location) {
+        for (WorldPoint point : currentPath.getPath()) {
+            if (location.distanceTo(point) < config.recalculateDistance()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @Override
     protected void shutDown() {
-        map = null;
-        running = false;
         overlayManager.remove(pathOverlay);
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.add(pathMapOverlay);
-    }
-
-    public static boolean isInWilderness(WorldPoint p) {
-        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
-                WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
     @Subscribe
@@ -152,29 +136,31 @@ public class ShortestPathPlugin extends Plugin {
 
     @Subscribe
     public void onGameTick(GameTick tick) {
-        if (path != null) {
-            if (!isNearPath()) {
+        Player localPlayer = client.getLocalPlayer();
+        if (localPlayer == null || currentPath == null)
+            return;
+
+        // Synchronize currentPath with "updateScheduled"
+        if (!currentPath.loading) {
+            updateScheduled = false;
+        }
+
+        WorldPoint currentLocation = localPlayer.getWorldLocation();
+        if (currentLocation.distanceTo(currentPath.target) < config.reachedDistance()) {
+            currentPath = null;
+        }
+
+        if (!updateScheduled) {
+            if (!isNearPath(currentLocation)) {
                 if (config.cancelInstead()) {
-                    target = null;
+                    currentPath = null;
+                    return;
                 }
 
-                pathUpdateScheduled = true;
-            }
-
-            if (client.getLocalPlayer().getWorldLocation().distanceTo(target) < config.reachedDistance()) {
-                target = null;
-                pathUpdateScheduled = true;
+                updateScheduled = true;
+                currentPath = pathfinder.new Path(currentLocation, currentPath.target, config.avoidWilderness());
             }
         }
-    }
-
-    private boolean isNearPath() {
-        for (WorldPoint point : path) {
-            if (client.getLocalPlayer().getWorldLocation().distanceTo(point) < config.recalculateDistance()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @Subscribe
@@ -182,14 +168,13 @@ public class ShortestPathPlugin extends Plugin {
         if (config.drawTransports()) {
             addMenuEntry(event, "Start");
             addMenuEntry(event, "End");
-//            addMenuEntry(event, "Copy Position");
+            // addMenuEntry(event, "Copy Position");
         }
 
         final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
 
-        if (map == null) {
+        if (map == null)
             return;
-        }
 
         if (map.getBounds().contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
             addMenuEntry(event, "Set Target");
@@ -198,22 +183,28 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     private void onMenuOptionClicked(MenuEntry entry) {
+        Player localPlayer = client.getLocalPlayer();
+        if (localPlayer == null)
+            return;
+
+        WorldPoint currentLocation = localPlayer.getWorldLocation();
         if (entry.getOption().equals("Start")) {
-            transportStart = client.getLocalPlayer().getWorldLocation();
+            transportStart = currentLocation;
         }
 
         if (entry.getOption().equals("End")) {
-            WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
-                    transportEnd.getX() + " " + transportEnd.getY() + " " + transportEnd.getPlane() + " " +
+                    currentLocation.getX() + " " + currentLocation.getY() + " " + currentLocation.getPlane() + " " +
                     lastClick.getOption() + " " + Text.removeTags(lastClick.getTarget()) + " " + lastClick.getIdentifier()
             );
-            transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
+            pathfinder.transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(currentLocation);
         }
 
         if (entry.getOption().equals("Copy Position")) {
-            WorldPoint pos = client.getLocalPlayer().getWorldLocation();
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection("(" + pos.getX() + ", " + pos.getY() + ", " + pos.getPlane() + ")"), null);
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(
+                    new StringSelection("(" + currentLocation.getX() + ", "
+                            + currentLocation.getY() + ", "
+                            + currentLocation.getPlane() + ")"), null);
         }
         if (entry.getOption().equals("Set Target")) {
             setTarget(calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition()));
@@ -229,12 +220,16 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     private void setTarget(WorldPoint target) {
-        this.target = target;
-        pathUpdateScheduled = true;
+        Player localPlayer = client.getLocalPlayer();
+        if (localPlayer == null)
+            return;
+
+        updateScheduled = true;
 
         if (target == null) {
             worldMapPointManager.remove(marker);
             marker = null;
+            currentPath = null;
         } else {
             worldMapPointManager.removeIf(x -> x == marker);
             marker = new WorldMapPoint(target, MARKER_IMAGE);
@@ -242,6 +237,7 @@ public class ShortestPathPlugin extends Plugin {
             marker.setTarget(marker.getWorldPoint());
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
+            currentPath = pathfinder.new Path(localPlayer.getWorldLocation(), target, config.avoidWilderness());
         }
     }
 
