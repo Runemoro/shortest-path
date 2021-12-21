@@ -1,20 +1,13 @@
 package shortestpath.pathfinder;
 
-import net.runelite.api.Client;
-import net.runelite.api.Player;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
-import shortestpath.ShortestPathConfig;
-import shortestpath.ShortestPathPlugin;
-import shortestpath.Util;
-
-import javax.inject.Inject;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 public class Pathfinder {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
@@ -29,8 +22,7 @@ public class Pathfinder {
     }
 
     public static boolean isInWilderness(WorldPoint p) {
-        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
-                WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
+        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 || WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
     public class Path implements Runnable {
@@ -125,6 +117,8 @@ public class Pathfinder {
 
                 if (node.position.equals(target)) {
                     this.path = node.path();
+                    this.loading = false;
+                    return;
                 }
 
                 int distance = Math.max(Math.abs(node.position.getX() - target.getX()), Math.abs(node.position.getY() - target.getY()));

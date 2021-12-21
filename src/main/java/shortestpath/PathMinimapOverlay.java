@@ -1,5 +1,10 @@
 package shortestpath;
 
+import com.google.inject.Inject;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
@@ -9,11 +14,6 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
-import shortestpath.pathfinder.Pathfinder;
-
-import javax.inject.Inject;
-import java.awt.*;
-import java.util.List;
 
 public class PathMinimapOverlay extends Overlay {
     private static final int TILE_WIDTH = 4;
@@ -35,24 +35,41 @@ public class PathMinimapOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
-        if (!config.drawMinimap() || plugin.currentPath == null)
+        if (!config.drawMinimap() || plugin.currentPath == null) {
             return null;
+        }
 
-        List<WorldPoint> pathPoints = plugin.currentPath.getPath();
-        if (pathPoints != null) {
-            for (WorldPoint pathPoint : pathPoints) {
-                if (pathPoint.getPlane() != client.getPlane()) {
-                    continue;
+        if (!plugin.currentPath.loading) {
+            List<WorldPoint> pathPoints = plugin.currentPath.getPath();
+            if (pathPoints != null) {
+                for (WorldPoint pathPoint : pathPoints) {
+                    if (pathPoint.getPlane() != client.getPlane()) {
+                        continue;
+                    }
+
+                    drawOnMinimap(graphics, pathPoint, config.colourPath());
                 }
-
-                drawOnMinimap(graphics, pathPoint);
+            }
+        } else {
+            List<WorldPoint> bestPath = plugin.currentPath.currentBest();
+            if (bestPath != null) {
+                for (WorldPoint pathPoint : bestPath) {
+                    if (pathPoint.getPlane() != client.getPlane()) {
+                        continue;
+                    }
+                    drawOnMinimap(graphics, pathPoint, config.colourPathCalculating());
+                }
             }
         }
 
         return null;
     }
 
-    private void drawOnMinimap(Graphics2D graphics, WorldPoint point) {
+    private void drawOnMinimap(Graphics2D graphics, WorldPoint point, Color color) {
+        if (client.getLocalPlayer() == null) {
+            return;
+        }
+
         WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
 
         if (point.distanceTo(playerLocation) >= 50) {
@@ -71,7 +88,7 @@ public class PathMinimapOverlay extends Overlay {
             return;
         }
 
-        renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, new Color(255, 0, 0, 255));
+        renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, color);
     }
 
     public static void renderMinimapRect(Client client, Graphics2D graphics, Point center, int width, int height, Color color) {

@@ -1,5 +1,12 @@
 package shortestpath;
 
+import com.google.inject.Inject;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Polygon;
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Tile;
@@ -9,11 +16,6 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
-import shortestpath.pathfinder.Pathfinder;
-
-import javax.inject.Inject;
-import java.awt.*;
-import java.util.List;
 
 public class PathTileOverlay extends Overlay {
     private final Client client;
@@ -32,12 +34,13 @@ public class PathTileOverlay extends Overlay {
 
     private void renderTransports(Graphics2D graphics) {
         for (WorldPoint a : plugin.pathfinder.transports.keySet()) {
-            drawTile(graphics, a, new Color(0, 255, 0, 128));
+            drawTile(graphics, a, config.colourTransports(), -1);
 
             Point ca = tileCenter(a);
 
-            if (ca == null)
+            if (ca == null) {
                 continue;
+            }
 
             for (WorldPoint b : plugin.pathfinder.transports.get(a)) {
                 Point cb = tileCenter(b);
@@ -90,7 +93,7 @@ public class PathTileOverlay extends Overlay {
                     int stringY = (int) tilePolygon.getBounds().getCenterY();
                     graphics.drawString(s, stringX, stringY);
                 } else if (!s.isEmpty()) {
-                    graphics.setColor(new Color(0, 128, 255, 128));
+                    graphics.setColor(config.colourCollisionMap());
                     graphics.fill(tilePolygon);
                 }
             }
@@ -99,17 +102,39 @@ public class PathTileOverlay extends Overlay {
 
     @Override
     public Dimension render(Graphics2D graphics) {
-        if (config.drawTransports())
+        if (config.drawTransports()) {
             this.renderTransports(graphics);
+        }
 
-        if (config.drawCollisionMap())
+        if (config.drawCollisionMap()) {
             this.renderCollisionMap(graphics);
+        }
 
         if (config.drawTiles() && plugin.currentPath != null) {
-            List<WorldPoint> pathPoints = plugin.currentPath.getPath();
-            if (pathPoints != null) {
-                for (WorldPoint point : pathPoints) {
-                    drawTile(graphics, point, new Color(255, 0, 0, 128));
+            int counter = 0;
+            if (!plugin.currentPath.loading) {
+                List<WorldPoint> pathPoints = plugin.currentPath.getPath();
+                if (pathPoints != null) {
+                    for (WorldPoint point : pathPoints) {
+                        drawTile(graphics, point, new Color(
+                            config.colourPath().getRed(),
+                            config.colourPath().getGreen(),
+                            config.colourPath().getBlue(),
+                            config.colourPath().getAlpha() / 2),
+                            counter++);
+                    }
+                }
+            } else {
+                List<WorldPoint> bestPath = plugin.currentPath.currentBest();
+                if (bestPath != null) {
+                    for (WorldPoint point : bestPath) {
+                        drawTile(graphics, point, new Color(
+                            config.colourPathCalculating().getRed(),
+                            config.colourPathCalculating().getGreen(),
+                            config.colourPathCalculating().getBlue(),
+                            config.colourPathCalculating().getAlpha() / 2),
+                            counter++);
+                    }
                 }
             }
         }
@@ -137,7 +162,7 @@ public class PathTileOverlay extends Overlay {
         return new Point(cx, cy);
     }
 
-    private void drawTile(Graphics2D graphics, WorldPoint point, Color color) {
+    private void drawTile(Graphics2D graphics, WorldPoint point, Color color, int counter) {
         if (point.getPlane() != client.getPlane()) {
             return;
         }
@@ -154,5 +179,19 @@ public class PathTileOverlay extends Overlay {
 
         graphics.setColor(color);
         graphics.fill(poly);
+
+        if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
+            if (TileCounter.REMAINING.equals(config.showTileCounter())) {
+                counter = (!plugin.currentPath.loading ?
+                    plugin.currentPath.getPath().size() : plugin.currentPath.currentBest().size()) - counter - 1;
+            }
+            String counterText = Integer.toString(counter);
+            graphics.setColor(Color.WHITE);
+            graphics.drawString(
+                counterText,
+                (int) (poly.getBounds().getCenterX() -
+                    graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2),
+                (int) poly.getBounds().getCenterY());
+        }
     }
 }

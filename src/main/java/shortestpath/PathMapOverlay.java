@@ -1,5 +1,12 @@
 package shortestpath;
 
+import com.google.inject.Inject;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.geom.Area;
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
@@ -10,19 +17,15 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
-import shortestpath.pathfinder.Pathfinder;
-
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.geom.Area;
-import java.util.List;
 
 public class PathMapOverlay extends Overlay {
     private final Client client;
     private final ShortestPathPlugin plugin;
     private final ShortestPathConfig config;
+
     @Inject
     private WorldMapOverlay worldMapOverlay;
+
     private Area mapClipArea;
 
     @Inject
@@ -32,7 +35,8 @@ public class PathMapOverlay extends Overlay {
         this.config = config;
         setPosition(OverlayPosition.DYNAMIC);
         setPriority(OverlayPriority.LOW);
-        setLayer(OverlayLayer.ABOVE_WIDGETS);
+        setLayer(OverlayLayer.MANUAL);
+        drawAfterLayer(WidgetInfo.WORLD_MAP_VIEW);
     }
 
     @Override
@@ -65,20 +69,21 @@ public class PathMapOverlay extends Overlay {
 
         mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
 
-        if (plugin.currentPath == null)
+        if (plugin.currentPath == null) {
             return null;
+        }
 
-        if (!plugin.updateScheduled) {
+        if (!plugin.currentPath.loading) {
             for (int i = 0; i < plugin.currentPath.getPath().size(); i++) {
                 WorldPoint point = plugin.currentPath.getPath().get(i);
-                drawOnMap(graphics, point, new Color(255, 0, 0, 255));
+                drawOnMap(graphics, point, config.colourPath());
             }
         } else {
             List<WorldPoint> bestPath = plugin.currentPath.currentBest();
 
             if (bestPath != null) {
                 for (WorldPoint point : bestPath) {
-                    drawOnMap(graphics, point, new Color(0, 0, 255, 255));
+                    drawOnMap(graphics, point, config.colourPathCalculating());
                 }
             }
         }
@@ -94,12 +99,18 @@ public class PathMapOverlay extends Overlay {
             return;
         }
 
-        if (!mapClipArea.contains(start.getX(), start.getY()) || !mapClipArea.contains(end.getX(), end.getY())) {
+        int x = start.getX();
+        int y = start.getY();
+        final int width = end.getX() - x;
+        final int height = end.getY() - y;
+        x -= width / 2;
+        if (!mapClipArea.contains(x, y)) {
             return;
         }
+        y -= height / 2;
 
         graphics.setColor(color);
-        graphics.fillRect(start.getX(), start.getY(), end.getX() - start.getX(), end.getY() - start.getY());
+        graphics.fillRect(x, y, width, height);
     }
 
     private Area getWorldMapClipArea(Rectangle baseRectangle) {
