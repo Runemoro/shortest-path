@@ -95,7 +95,7 @@ public class Pathfinder {
         }
 
         private void addNeighbor(Node node, WorldPoint neighbor) {
-            if (avoidWilderness && isInWilderness(neighbor)) {
+            if (avoidWilderness && isInWilderness(neighbor) && !isInWilderness(node.position) && !isInWilderness(target)) {
                 return;
             }
 
