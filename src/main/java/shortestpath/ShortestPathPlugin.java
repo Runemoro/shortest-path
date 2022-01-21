@@ -87,8 +87,6 @@ public class ShortestPathPlugin extends Plugin {
     private WorldPoint transportStart;
     private MenuEntry lastClick;
 
-    public boolean updateScheduled = true;
-
     @Override
     protected void startUp() {
         Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
@@ -137,7 +135,7 @@ public class ShortestPathPlugin extends Plugin {
 
     public boolean isNearPath(WorldPoint location) {
         for (WorldPoint point : currentPath.getPath()) {
-            if (location.distanceTo(point) < config.recalculateDistance()) {
+            if (config.recalculateDistance() < 0 || location.distanceTo2D(point) < config.recalculateDistance()) {
                 return true;
             }
         }
@@ -149,7 +147,7 @@ public class ShortestPathPlugin extends Plugin {
     protected void shutDown() {
         overlayManager.remove(pathOverlay);
         overlayManager.remove(pathMinimapOverlay);
-        overlayManager.add(pathMapOverlay);
+        overlayManager.remove(pathMapOverlay);
     }
 
     @Subscribe
@@ -164,26 +162,18 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        // Synchronize currentPath with "updateScheduled"
-        if (!currentPath.loading) {
-            updateScheduled = false;
-        }
-
         WorldPoint currentLocation = localPlayer.getWorldLocation();
         if (currentLocation.distanceTo(currentPath.target) < config.reachedDistance()) {
             currentPath = null;
         }
 
-        if (!updateScheduled) {
-            if (!isNearPath(currentLocation)) {
-                if (config.cancelInstead()) {
-                    currentPath = null;
-                    return;
-                }
-
-                updateScheduled = true;
-                currentPath = pathfinder.new Path(currentLocation, currentPath.target, config.avoidWilderness());
+        if (!isNearPath(currentLocation)) {
+            if (config.cancelInstead()) {
+                currentPath = null;
+                return;
             }
+
+            currentPath = pathfinder.new Path(currentLocation, currentPath.target, config.avoidWilderness());
         }
     }
 
@@ -261,7 +251,6 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (entry.getOption().equals(SET) && entry.getTarget().equals(START)) {
-            updateScheduled = true;
             currentPath = pathfinder.new Path(getSelectedWorldPoint(), currentPath.target, config.avoidWilderness());
         }
 
@@ -291,8 +280,6 @@ public class ShortestPathPlugin extends Plugin {
         if (localPlayer == null) {
             return;
         }
-
-        updateScheduled = true;
 
         if (target == null) {
             worldMapPointManager.remove(marker);

@@ -81,13 +81,13 @@ public interface ShortestPathConfig extends Config {
     }
 
     @Range(
-        min = 1,
-        max = 1000
+        min = -1,
+        max = 20000
     )
     @ConfigItem(
         keyName = "recalculateDistance",
         name = "Recalculate distance",
-        description = "Distance from the path the player should be for it to be recalculated",
+        description = "Distance from the path the player should be for it to be recalculated (-1 for never)",
         position = 7
     )
     default int recalculateDistance() {
