@@ -27,7 +27,7 @@ public class Pathfinder {
 
     public class Path implements Runnable {
         private final Node start;
-        public final WorldPoint target;
+        private final WorldPoint target;
         private final boolean avoidWilderness;
 
         private final List<Node> boundary = new LinkedList<>();
@@ -92,6 +92,14 @@ public class Pathfinder {
 
         public List<WorldPoint> getPath() {
             return this.path;
+        }
+
+        public WorldPoint getStart() {
+            return start.position;
+        }
+
+        public WorldPoint getTarget() {
+            return target;
         }
 
         private void addNeighbor(Node node, WorldPoint neighbor) {
