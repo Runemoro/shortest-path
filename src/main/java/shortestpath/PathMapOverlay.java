@@ -49,6 +49,8 @@ public class PathMapOverlay extends Overlay {
             return null;
         }
 
+        mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
+
         if (config.drawTransports()) {
             for (WorldPoint a : plugin.pathfinder.transports.keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
@@ -62,12 +64,11 @@ public class PathMapOverlay extends Overlay {
                         continue;
                     }
 
+                    graphics.setClip(mapClipArea);
                     graphics.drawLine(mapA.getX(), mapA.getY(), mapB.getX(), mapB.getY());
                 }
             }
         }
-
-        mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
 
         if (plugin.currentPath == null) {
             return null;
