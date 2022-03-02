@@ -52,6 +52,7 @@ public class PathMapOverlay extends Overlay {
         mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
 
         if (config.drawTransports()) {
+            graphics.setClip(mapClipArea);
             for (WorldPoint a : plugin.pathfinder.transports.keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
                 if (mapA == null) {
@@ -64,7 +65,6 @@ public class PathMapOverlay extends Overlay {
                         continue;
                     }
 
-                    graphics.setClip(mapClipArea);
                     graphics.drawLine(mapA.getX(), mapA.getY(), mapB.getX(), mapB.getY());
                 }
             }
