@@ -34,7 +34,7 @@ public class Pathfinder {
         private final Set<WorldPoint> visited = new HashSet<>();
 
         public Node nearest;
-        private List<WorldPoint> path;
+        private List<WorldPoint> path = new ArrayList<>();
 
         public boolean loading;
 
@@ -129,7 +129,7 @@ public class Pathfinder {
                     return;
                 }
 
-                int distance = Math.max(Math.abs(node.position.getX() - target.getX()), Math.abs(node.position.getY() - target.getY()));
+                int distance = node.position.distanceTo(target);
                 if (nearest == null || distance < bestDistance) {
                     nearest = node;
                     bestDistance = distance;
