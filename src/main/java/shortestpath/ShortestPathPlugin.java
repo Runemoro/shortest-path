@@ -1,6 +1,8 @@
 package shortestpath;
 
 import com.google.inject.Provides;
+import java.awt.geom.Area;
+import java.awt.geom.Ellipse2D;
 import net.runelite.api.Point;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
@@ -209,11 +211,7 @@ public class ShortestPathPlugin extends Plugin {
 
         final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
 
-        if (map == null) {
-            return;
-        }
-
-        if (map.getBounds().contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
+        if (map != null && map.getBounds().contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
             addMenuEntry(event, SET, TARGET, 0);
             if (currentPath != null) {
                 if (currentPath.getTarget() != null) {
@@ -221,6 +219,13 @@ public class ShortestPathPlugin extends Plugin {
                     addMenuEntry(event, CLEAR, PATH, 0);
                 }
             }
+        }
+
+        final Area minimap = getMinimapClipArea();
+
+        if (minimap != null && currentPath != null &&
+            minimap.contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
+            addMenuEntry(event, CLEAR, PATH, 0);
         }
     }
 
@@ -337,5 +342,27 @@ public class ShortestPathPlugin extends Plugin {
             .setIdentifier(event.getIdentifier())
             .setType(MenuAction.RUNELITE)
             .onClick(this::onMenuOptionClicked);
+    }
+
+    private Widget getMinimapDrawWidget() {
+        if (client.isResized()) {
+            if (client.getVar(Varbits.SIDE_PANELS) == 1) {
+                return client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_DRAW_AREA);
+            }
+            return client.getWidget(WidgetInfo.RESIZABLE_MINIMAP_STONES_DRAW_AREA);
+        }
+        return client.getWidget(WidgetInfo.FIXED_VIEWPORT_MINIMAP_DRAW_AREA);
+    }
+
+    private Area getMinimapClipArea() {
+        Widget minimapDrawArea = getMinimapDrawWidget();
+
+        if (minimapDrawArea == null || minimapDrawArea.isHidden()) {
+            return null;
+        }
+
+        Rectangle bounds = minimapDrawArea.getBounds();
+
+        return new Area(new Ellipse2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight()));
     }
 }
