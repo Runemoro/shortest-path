@@ -134,8 +134,8 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public boolean isNearPath(WorldPoint location) {
-        if (currentPath == null) {
-            return false;
+        if (currentPath == null || currentPath.getPath() == null || currentPath.getPath().isEmpty()) {
+            return true;
         }
 
         for (WorldPoint point : currentPath.getPath()) {
