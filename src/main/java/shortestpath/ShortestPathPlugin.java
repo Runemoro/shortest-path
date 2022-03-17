@@ -1,11 +1,33 @@
 package shortestpath;
 
+import com.google.inject.Inject;
 import com.google.inject.Provides;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import net.runelite.api.Client;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.api.*;
-import net.runelite.api.coords.WorldArea;
+import net.runelite.api.RenderOverview;
+import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
@@ -27,18 +49,6 @@ import net.runelite.client.util.Text;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
 import shortestpath.pathfinder.SplitFlagMap;
-
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.datatransfer.StringSelection;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 @PluginDescriptor(
     name = "Shortest Path",
@@ -306,11 +316,11 @@ public class ShortestPathPlugin extends Plugin {
         }
     }
 
-    private WorldPoint calculateMapPoint(Point point) {
+    public WorldPoint calculateMapPoint(Point point) {
         float zoom = client.getRenderOverview().getWorldMapZoom();
         RenderOverview renderOverview = client.getRenderOverview();
         final WorldPoint mapPoint = new WorldPoint(renderOverview.getWorldMapPosition().getX(), renderOverview.getWorldMapPosition().getY(), 0);
-        final Point middle = worldMapOverlay.mapWorldPointToGraphicsPoint(mapPoint);
+        final Point middle = mapWorldPointToGraphicsPoint(mapPoint);
 
         if (point == null || middle == null) {
             return null;
@@ -320,6 +330,40 @@ public class ShortestPathPlugin extends Plugin {
         final int dy = (int) ((-(point.getY() - middle.getY())) / zoom);
 
         return mapPoint.dx(dx).dy(dy);
+    }
+
+    public Point mapWorldPointToGraphicsPoint(WorldPoint worldPoint)
+    {
+        RenderOverview ro = client.getRenderOverview();
+
+        float pixelsPerTile = ro.getWorldMapZoom();
+
+        Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
+        if (map != null) {
+            Rectangle worldMapRect = map.getBounds();
+
+            int widthInTiles = (int) Math.ceil(worldMapRect.getWidth() / pixelsPerTile);
+            int heightInTiles = (int) Math.ceil(worldMapRect.getHeight() / pixelsPerTile);
+
+            Point worldMapPosition = ro.getWorldMapPosition();
+
+            int yTileMax = worldMapPosition.getY() - heightInTiles / 2;
+            int yTileOffset = (yTileMax - worldPoint.getY() - 1) * -1;
+            int xTileOffset = worldPoint.getX() + widthInTiles / 2 - worldMapPosition.getX();
+
+            int xGraphDiff = ((int) (xTileOffset * pixelsPerTile));
+            int yGraphDiff = (int) (yTileOffset * pixelsPerTile);
+
+            yGraphDiff -= pixelsPerTile - Math.ceil(pixelsPerTile / 2);
+            xGraphDiff += pixelsPerTile - Math.ceil(pixelsPerTile / 2);
+
+            yGraphDiff = worldMapRect.height - yGraphDiff;
+            yGraphDiff += (int) worldMapRect.getY();
+            xGraphDiff += (int) worldMapRect.getX();
+
+            return new Point(xGraphDiff, yGraphDiff);
+        }
+        return null;
     }
 
     @Provides
