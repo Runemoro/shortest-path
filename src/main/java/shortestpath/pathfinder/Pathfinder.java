@@ -2,7 +2,6 @@ package shortestpath.pathfinder;
 
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathPlugin;
-import shortestpath.Transport;
 
 import java.util.*;
 
@@ -12,19 +11,17 @@ public class Pathfinder {
     private final WorldPoint target;
     private final List<Node> boundary = new LinkedList<>();
     private final Set<WorldPoint> visited = new HashSet<>();
-    private final Map<WorldPoint, List<Transport>> transports;
+    private final Map<WorldPoint, List<WorldPoint>> transports;
     private final boolean avoidWilderness;
     private Node nearest;
-    private final int agilityLevel;
 
-    public Pathfinder(CollisionMap map, Map<WorldPoint, List<Transport>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness, int agilityLevel) {
+    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness) {
         this.map = map;
         this.transports = transports;
         this.target = target;
         this.start = new Node(start, null);
         this.avoidWilderness = avoidWilderness;
         nearest = null;
-        this.agilityLevel = agilityLevel;
     }
 
     public List<WorldPoint> find() {
@@ -35,34 +32,24 @@ public class Pathfinder {
         while (!boundary.isEmpty()) {
             Node node = boundary.remove(0);
 
-            // if we are on the target block, return a path to this block
             if (node.position.equals(target)) {
                 return node.path();
             }
 
-            // add all the neighbouring blocks to this node to the graph 
-            addNeighbors(node);
-
-            int distance = node.position.distanceTo2D(target);
-
+            int distance = Math.max(Math.abs(node.position.getX() - target.getX()), Math.abs(node.position.getY() - target.getY()));
             if (nearest == null || distance < bestDistance) {
                 nearest = node;
                 bestDistance = distance;
             }
 
-            // Check this node for valid transports
-            for (Transport transport : transports.getOrDefault(node.position, new ArrayList<>())) {
-                if (canPlayerUseTransport(transport)) {
-                    addNeighbor(node, transport.getOrigin());
-                    addNeighbor(node, transport.getDestination());
-                } else if (bestDistance == distance) {
-                    // Player cannot use this tile, push out the bestDistance to allow selection of a new node
-                    bestDistance += 1;
-                }
-            }
+            addNeighbors(node);
         }
 
-        return currentBest();
+        if (nearest != null) {
+            return nearest.path();
+        }
+
+        return null;
     }
 
     private void addNeighbors(Node node) {
@@ -97,15 +84,14 @@ public class Pathfinder {
         if (map.ne(node.position.getX(), node.position.getY(), node.position.getPlane())) {
             addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() + 1, node.position.getPlane()));
         }
-    }
 
-    private boolean canPlayerUseTransport(Transport transport) {
-        // Currently, only supports agility level check
-        return agilityLevel >= transport.getAgilityLevelRequired();
+        for (WorldPoint transport : transports.getOrDefault(node.position, new ArrayList<>())) {
+            addNeighbor(node, transport);
+        }
     }
 
     public List<WorldPoint> currentBest() {
-        return nearest == null ? null : nearest.path();
+        return nearest==null ? null : nearest.path();
     }
 
     private void addNeighbor(Node node, WorldPoint neighbor) {

@@ -3884,6 +3884,3 @@
 # Karamja
 2910 3049 0 2906 3049 0 Cross A wooden log 23644
 2906 3049 0 2910 3049 0 Cross A wooden log 23644
-
-# Feldip Hills
-2546 2873 0 2546 2871 0 Climb Rocks 31757 "10 Agility"
