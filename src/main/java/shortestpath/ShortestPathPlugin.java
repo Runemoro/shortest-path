@@ -1,6 +1,7 @@
 package shortestpath;
 
 import com.google.inject.Provides;
+
 import net.runelite.api.Point;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
@@ -65,7 +66,7 @@ public class ShortestPathPlugin extends Plugin {
     public WorldMapPoint marker;
     private static final BufferedImage MARKER_IMAGE = ImageUtil.getResourceStreamFromClass(ShortestPathPlugin.class, "/marker.png");
     public boolean pathUpdateScheduled = false;
-    public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
+    public final Map<WorldPoint, List<Transport>> transports = new HashMap<>();
     public Pathfinder pathfinder;
     private WorldPoint transportStart;
     private MenuOptionClicked lastClick;
@@ -93,6 +94,7 @@ public class ShortestPathPlugin extends Plugin {
         try {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
+            
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
 
@@ -100,11 +102,13 @@ public class ShortestPathPlugin extends Plugin {
                     continue;
                 }
 
-                String[] l = line.split(" ");
-                WorldPoint a = new WorldPoint(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
-                WorldPoint b = new WorldPoint(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
-                transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
+                Transport transport = new Transport(line);
+                WorldPoint origin = transport.getOrigin();
+
+                transports.computeIfAbsent(origin, k-> new ArrayList<>()).add(transport);
             }
+
+            scanner.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -117,7 +121,8 @@ public class ShortestPathPlugin extends Plugin {
                     if (target == null) {
                         path = null;
                     } else {
-                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target));
+                        int agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
+                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target), agilityLevel);
                         path = pathfinder.find();
                         pathUpdateScheduled = false;
                     }
@@ -206,11 +211,14 @@ public class ShortestPathPlugin extends Plugin {
 
         if (event.getMenuOption().equals("End")) {
             WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
+
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
                     transportEnd.getX() + " " + transportEnd.getY() + " " + transportEnd.getPlane() + " " +
                     lastClick.getMenuOption() + " " + Text.removeTags(lastClick.getMenuTarget()) + " " + lastClick.getId()
             );
-            transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
+
+            Transport transport = new Transport(transportStart, transportEnd);
+            transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transport);
         }
 
         if (event.getMenuOption().equals("Copy Position")) {
@@ -242,6 +250,7 @@ public class ShortestPathPlugin extends Plugin {
             marker = new WorldMapPoint(target, MARKER_IMAGE);
             marker.setTarget(marker.getWorldPoint());
             marker.setJumpOnClick(true);
+            marker.setName("Shortest Path");
             worldMapPointManager.add(marker);
         }
     }
@@ -270,12 +279,9 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        MenuEntry entry = new MenuEntry();
+        MenuEntry entry = client.createMenuEntry(0);
         entry.setOption(option);
         entry.setTarget(event.getTarget());
-        entry.setType(MenuAction.RUNELITE.getId());
-        entries.add(0, entry);
-
-        client.setMenuEntries(entries.toArray(new MenuEntry[0]));
+        entry.setType(MenuAction.RUNELITE);
     }
 }
