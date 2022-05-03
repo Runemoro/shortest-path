@@ -51,8 +51,8 @@ public class PathMapOverlay extends Overlay {
                     continue;
                 }
 
-                for (WorldPoint b : plugin.transports.get(a)) {
-                    Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b);
+                for (Transport b : plugin.transports.get(a)) {
+                    Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b.getOrigin());
                     if (mapB == null) {
                         continue;
                     }
