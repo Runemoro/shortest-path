@@ -180,12 +180,13 @@ public class ShortestPathPlugin extends Plugin {
 
         WorldPoint currentLocation = localPlayer.getWorldLocation();
         if (currentLocation.distanceTo(currentPath.getTarget()) < config.reachedDistance()) {
-            currentPath = null;
+            setTarget(null);
+            return;
         }
 
         if (!isNearPath(currentLocation)) {
             if (config.cancelInstead()) {
-                currentPath = null;
+                setTarget(null);
                 return;
             }
 
