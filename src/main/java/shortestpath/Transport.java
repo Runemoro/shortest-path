@@ -1,4 +1,5 @@
 package shortestpath;
+
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
 

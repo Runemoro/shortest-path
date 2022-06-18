@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
@@ -39,6 +40,9 @@ public class PathMinimapOverlay extends Overlay {
             return null;
         }
 
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        graphics.setClip(plugin.getMinimapClipArea());
+
         if (!plugin.currentPath.loading) {
             List<WorldPoint> pathPoints = plugin.currentPath.getPath();
             if (pathPoints != null) {
@@ -66,16 +70,6 @@ public class PathMinimapOverlay extends Overlay {
     }
 
     private void drawOnMinimap(Graphics2D graphics, WorldPoint point, Color color) {
-        if (client.getLocalPlayer() == null) {
-            return;
-        }
-
-        WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
-
-        if (point.distanceTo(playerLocation) >= 50) {
-            return;
-        }
-
         LocalPoint lp = LocalPoint.fromWorld(client, point);
 
         if (lp == null) {

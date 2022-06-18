@@ -97,7 +97,6 @@ public class Pathfinder {
 
             for (Transport transport : transports.getOrDefault(node.position, new ArrayList<>())) {
                 if (canPlayerUseTransport(transport)) {
-                    addNeighbor(node, transport.getOrigin());
                     addNeighbor(node, transport.getDestination());
                 }
             }

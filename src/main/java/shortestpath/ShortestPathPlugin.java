@@ -2,10 +2,12 @@ package shortestpath;
 
 import com.google.inject.Inject;
 import com.google.inject.Provides;
+import java.awt.Color;
+import java.awt.Polygon;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
-import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -27,6 +29,7 @@ import net.runelite.api.MenuEntry;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.api.RenderOverview;
+import net.runelite.api.SpriteID;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
@@ -36,6 +39,7 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.JagexColors;
@@ -86,6 +90,9 @@ public class ShortestPathPlugin extends Plugin {
     public PathMapOverlay pathMapOverlay;
 
     @Inject
+    private SpriteManager spriteManager;
+
+    @Inject
     private WorldMapPointManager worldMapPointManager;
 
     @Inject
@@ -98,6 +105,11 @@ public class ShortestPathPlugin extends Plugin {
     public WorldMapPoint marker;
     private WorldPoint transportStart;
     private MenuEntry lastClick;
+    private Shape minimapClipFixed;
+    private Shape minimapClipResizeable;
+    private BufferedImage minimapSpriteFixed;
+    private BufferedImage minimapSpriteResizeable;
+    private Rectangle lastMinimapRectangle = new Rectangle(-1, -1, 0, 0);
 
     @Override
     protected void startUp() {
@@ -231,7 +243,7 @@ public class ShortestPathPlugin extends Plugin {
             }
         }
 
-        final Area minimap = getMinimapClipArea();
+        final Shape minimap = getMinimapClipArea();
 
         if (minimap != null && currentPath != null &&
             minimap.contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
@@ -400,7 +412,7 @@ public class ShortestPathPlugin extends Plugin {
         return client.getWidget(WidgetInfo.FIXED_VIEWPORT_MINIMAP_DRAW_AREA);
     }
 
-    private Area getMinimapClipArea() {
+    private Shape getMinimapClipAreaSimple() {
         Widget minimapDrawArea = getMinimapDrawWidget();
 
         if (minimapDrawArea == null || minimapDrawArea.isHidden()) {
@@ -409,6 +421,88 @@ public class ShortestPathPlugin extends Plugin {
 
         Rectangle bounds = minimapDrawArea.getBounds();
 
-        return new Area(new Ellipse2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight()));
+        return new Ellipse2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight());
+    }
+
+    public Shape getMinimapClipArea() {
+        Widget minimapWidget = getMinimapDrawWidget();
+
+        if (minimapWidget == null || minimapWidget.isHidden() || !lastMinimapRectangle.equals(minimapWidget.getBounds())) {
+            minimapClipFixed = null;
+            minimapClipResizeable = null;
+            minimapSpriteFixed = null;
+            minimapSpriteResizeable = null;
+            if (minimapWidget != null) {
+                lastMinimapRectangle = minimapWidget.getBounds();
+            }
+        }
+
+        if (client.isResized()) {
+            if (minimapClipResizeable != null) {
+                return minimapClipResizeable;
+            }
+            if (minimapSpriteResizeable == null) {
+                minimapSpriteResizeable = spriteManager.getSprite(SpriteID.RESIZEABLE_MODE_MINIMAP_ALPHA_MASK, 0);
+            }
+            if (minimapSpriteResizeable != null) {
+                minimapClipResizeable = bufferedImageToPolygon(minimapSpriteResizeable);
+                return minimapClipResizeable;
+            }
+            return getMinimapClipAreaSimple();
+        }
+        if (minimapClipFixed != null) {
+            return minimapClipFixed;
+        }
+        if (minimapSpriteFixed == null) {
+            minimapSpriteFixed = spriteManager.getSprite(SpriteID.FIXED_MODE_MINIMAP_ALPHA_MASK, 0);
+        }
+        if (minimapSpriteFixed != null) {
+            minimapClipFixed = bufferedImageToPolygon(minimapSpriteFixed);
+            return minimapClipFixed;
+        }
+        return getMinimapClipAreaSimple();
+    }
+
+    private Polygon bufferedImageToPolygon(BufferedImage image)
+    {
+        Color outsideColour = null;
+        Color previousColour;
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+        List<java.awt.Point> points = new ArrayList<>();
+        for (int y = 0; y < height; y++) {
+            previousColour = outsideColour;
+            for (int x = 0; x < width; x++) {
+                int rgb = image.getRGB(x, y);
+                int a = (rgb & 0xff000000) >>> 24;
+                int r   = (rgb & 0x00ff0000) >> 16;
+                int g = (rgb & 0x0000ff00) >> 8;
+                int b  = (rgb & 0x000000ff) >> 0;
+                Color colour = new Color(r, g, b, a);
+                if (x == 0 && y == 0) {
+                    outsideColour = colour;
+                    previousColour = colour;
+                }
+                if (!colour.equals(outsideColour) && previousColour.equals(outsideColour)) {
+                    points.add(new java.awt.Point(x, y));
+                }
+                if ((colour.equals(outsideColour) || x == (width - 1)) && !previousColour.equals(outsideColour)) {
+                    points.add(0, new java.awt.Point(x, y));
+                }
+                previousColour = colour;
+            }
+        }
+        int offsetX = 0;
+        int offsetY = 0;
+        Widget minimapDrawWidget = getMinimapDrawWidget();
+        if (minimapDrawWidget != null) {
+            offsetX = minimapDrawWidget.getBounds().x;
+            offsetY = minimapDrawWidget.getBounds().y;
+        }
+        Polygon polygon = new Polygon();
+        for (java.awt.Point point : points) {
+            polygon.addPoint(point.x + offsetX, point.y + offsetY);
+        }
+        return polygon;
     }
 }
