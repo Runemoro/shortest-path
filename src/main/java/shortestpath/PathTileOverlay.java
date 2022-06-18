@@ -42,8 +42,8 @@ public class PathTileOverlay extends Overlay {
                 continue;
             }
 
-            for (WorldPoint b : plugin.pathfinder.transports.get(a)) {
-                Point cb = tileCenter(b);
+            for (Transport b : plugin.pathfinder.transports.get(a)) {
+                Point cb = tileCenter(b.getOrigin());
 
                 if (cb != null) {
                     graphics.drawLine(ca.x, ca.y, cb.x, cb.y);
@@ -51,10 +51,10 @@ public class PathTileOverlay extends Overlay {
             }
 
             StringBuilder s = new StringBuilder();
-            for (WorldPoint b : plugin.pathfinder.transports.get(a)) {
-                if (b.getPlane() > a.getPlane()) {
+            for (Transport b : plugin.pathfinder.transports.get(a)) {
+                if (b.getOrigin().getPlane() > a.getPlane()) {
                     s.append("+");
-                } else if (b.getPlane() < a.getPlane()) {
+                } else if (b.getOrigin().getPlane() < a.getPlane()) {
                     s.append("-");
                 } else {
                     s.append("=");

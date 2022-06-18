@@ -102,7 +102,7 @@ public class ShortestPathPlugin extends Plugin {
     @Override
     protected void startUp() {
         Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
-        HashMap<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
+        HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
 
         try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
             ZipEntry entry;
@@ -128,10 +128,9 @@ public class ShortestPathPlugin extends Plugin {
                     continue;
                 }
 
-                String[] l = line.split(" ");
-                WorldPoint a = new WorldPoint(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
-                WorldPoint b = new WorldPoint(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
-                transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
+                Transport transport = new Transport(line);
+                WorldPoint origin = transport.getOrigin();
+                transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -190,7 +189,7 @@ public class ShortestPathPlugin extends Plugin {
                 return;
             }
 
-            currentPath = pathfinder.new Path(currentLocation, currentPath.getTarget(), config.avoidWilderness());
+            currentPath = pathfinder.new Path(currentLocation, currentPath.getTarget(), config, client);
         }
     }
 
@@ -252,11 +251,13 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (entry.getOption().equals(ADD_END) && entry.getTarget().equals(TRANSPORT)) {
+            WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
                     currentLocation.getX() + " " + currentLocation.getY() + " " + currentLocation.getPlane() + " " +
                     lastClick.getOption() + " " + Text.removeTags(lastClick.getTarget()) + " " + lastClick.getIdentifier()
             );
-            pathfinder.transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(currentLocation);
+            Transport transport = new Transport(transportStart, transportEnd);
+            pathfinder.transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transport);
         }
 
         if (entry.getOption().equals("Copy Position")) {
@@ -271,7 +272,7 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (entry.getOption().equals(SET) && entry.getTarget().equals(START)) {
-            currentPath = pathfinder.new Path(getSelectedWorldPoint(), currentPath.getTarget(), config.avoidWilderness());
+            currentPath = pathfinder.new Path(getSelectedWorldPoint(), currentPath.getTarget(), config, client);
         }
 
         if (entry.getOption().equals(CLEAR) && entry.getTarget().equals(PATH)) {
@@ -313,7 +314,7 @@ public class ShortestPathPlugin extends Plugin {
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
             WorldPoint start = currentPath != null ? currentPath.getStart() : localPlayer.getWorldLocation();
-            currentPath = pathfinder.new Path(start, target, config.avoidWilderness());
+            currentPath = pathfinder.new Path(start, target, config, client);
         }
     }
 

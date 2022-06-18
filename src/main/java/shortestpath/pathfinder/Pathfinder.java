@@ -6,17 +6,21 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.runelite.api.Client;
+import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.ShortestPathConfig;
+import shortestpath.Transport;
 
 public class Pathfinder {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 
     public final CollisionMap map;
-    public final Map<WorldPoint, List<WorldPoint>> transports;
+    public final Map<WorldPoint, List<Transport>> transports;
 
-    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports) {
+    public Pathfinder(CollisionMap map, Map<WorldPoint, List<Transport>> transports) {
         this.map = map;
         this.transports = transports;
     }
@@ -29,6 +33,11 @@ public class Pathfinder {
         private final Node start;
         private final WorldPoint target;
         private final boolean avoidWilderness;
+        private final boolean useAgilityShortcuts;
+        private final boolean useGrappleShortcuts;
+        private final int agilityLevel;
+        private final int rangedLevel;
+        private final int strengthLevel;
 
         private final List<Node> boundary = new LinkedList<>();
         private final Set<WorldPoint> visited = new HashSet<>();
@@ -38,10 +47,15 @@ public class Pathfinder {
 
         public boolean loading;
 
-        public Path(WorldPoint start, WorldPoint target, boolean avoidWilderness) {
+        public Path(WorldPoint start, WorldPoint target, ShortestPathConfig config, Client client) {
             this.target = target;
             this.start = new Node(start, null);
-            this.avoidWilderness = avoidWilderness;
+            this.avoidWilderness = config.avoidWilderness();
+            this.useAgilityShortcuts = config.useAgilityShortcuts();
+            this.useGrappleShortcuts = config.useGrappleShortcuts();
+            this.agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
+            this.rangedLevel = client.getBoostedSkillLevel(Skill.RANGED);
+            this.strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
             this.nearest = null;
             this.loading = true;
 
@@ -81,8 +95,11 @@ public class Pathfinder {
                 addNeighbor(node, new WorldPoint(node.position.getX() + 1, node.position.getY() + 1, node.position.getPlane()));
             }
 
-            for (WorldPoint transport : transports.getOrDefault(node.position, new ArrayList<>())) {
-                addNeighbor(node, transport);
+            for (Transport transport : transports.getOrDefault(node.position, new ArrayList<>())) {
+                if (canPlayerUseTransport(transport)) {
+                    addNeighbor(node, transport.getOrigin());
+                    addNeighbor(node, transport.getDestination());
+                }
             }
         }
 
@@ -112,6 +129,34 @@ public class Pathfinder {
             }
 
             boundary.add(new Node(neighbor, node));
+        }
+
+        private boolean canPlayerUseTransport(Transport transport) {
+            final int transportAgilityLevel = transport.getAgilityLevelRequired();
+            final int transportRangedLevel = transport.getRangedLevelRequired();
+            final int transportStrengthLevel = transport.getStrengthLevelRequired();
+
+            final boolean isAgilityShortcut = transportAgilityLevel > 1;
+            final boolean isGrappleShortcut = isAgilityShortcut && (transportRangedLevel > 1 || transportStrengthLevel > 1);
+
+            if (!isAgilityShortcut) {
+                return true;
+            }
+
+            if (!useAgilityShortcuts) {
+                return false;
+            }
+
+            if (!useGrappleShortcuts && isGrappleShortcut) {
+                return false;
+            }
+
+            if (useGrappleShortcuts && isGrappleShortcut && agilityLevel >= transportAgilityLevel &&
+                rangedLevel >= transportRangedLevel && strengthLevel >= transportStrengthLevel) {
+                return true;
+            }
+
+            return agilityLevel >= transportAgilityLevel;
         }
 
         @Override

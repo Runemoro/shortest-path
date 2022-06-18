@@ -10,63 +10,43 @@ import net.runelite.client.config.Range;
 
 @ConfigGroup("shortestPath")
 public interface ShortestPathConfig extends Config {
+    @ConfigSection(
+        name = "Settings",
+        description = "Options for the pathfinding",
+        position = 0
+    )
+    String sectionSettings = "sectionSettings";
+
     @ConfigItem(
         keyName = "avoidWilderness",
         name = "Avoid wilderness",
         description = "Whether the wilderness should be avoided if possible (otherwise, will suggest using wilderness lever to travel from Edgeville to Ardougne)",
-        position = 0
+        position = 1,
+        section = sectionSettings
     )
     default boolean avoidWilderness() {
         return true;
     }
 
     @ConfigItem(
-        keyName = "drawMap",
-        name = "Draw path on world map",
-        description = "Whether the path should be drawn on the world map",
-        position = 1
+        keyName = "useAgilityShortcuts",
+        name = "Use agility shortcuts",
+        description = "Whether to include agility shortcuts in the shortest path",
+        position = 2,
+        section = sectionSettings
     )
-    default boolean drawMap() {
+    default boolean useAgilityShortcuts() {
         return true;
     }
 
     @ConfigItem(
-        keyName = "drawMinimap",
-        name = "Draw path on minimap",
-        description = "Whether the path should be drawn on the minimap",
-        position = 2
+        keyName = "useGrappleShortcuts",
+        name = "Use grapple shortcuts",
+        description = "Whether to include crossbow grapple agility shortcuts in the shortest path",
+        position = 3,
+        section = sectionSettings
     )
-    default boolean drawMinimap() {
-        return true;
-    }
-
-    @ConfigItem(
-        keyName = "drawTiles",
-        name = "Draw path on tiles",
-        description = "Whether the path should be drawn on the game tiles",
-        position = 3
-    )
-    default boolean drawTiles() {
-        return true;
-    }
-
-    @ConfigItem(
-        keyName = "drawTransports",
-        name = "Draw transports",
-        description = "Whether transports should be drawn",
-        position = 4
-    )
-    default boolean drawTransports() {
-        return false;
-    }
-
-    @ConfigItem(
-        keyName = "drawCollisionMap",
-        name = "Draw collision map",
-        description = "Whether the collision map should be drawn",
-        position = 5
-    )
-    default boolean drawCollisionMap() {
+    default boolean useGrappleShortcuts() {
         return false;
     }
 
@@ -74,7 +54,8 @@ public interface ShortestPathConfig extends Config {
         keyName = "cancelInstead",
         name = "Cancel instead of recalculating",
         description = "Whether the path should be cancelled rather than recalculated when the distance limit is exceeded",
-        position = 6
+        position = 4,
+        section = sectionSettings
     )
     default boolean cancelInstead() {
         return false;
@@ -88,7 +69,8 @@ public interface ShortestPathConfig extends Config {
         keyName = "recalculateDistance",
         name = "Recalculate distance",
         description = "Distance from the path the player should be for it to be recalculated (-1 for never)",
-        position = 7
+        position = 5,
+        section = sectionSettings
     )
     default int recalculateDistance() {
         return 10;
@@ -102,7 +84,8 @@ public interface ShortestPathConfig extends Config {
         keyName = "finishDistance",
         name = "Finish distance",
         description = "Distance from the target tile at which the path should be ended (-1 for never)",
-        position = 8
+        position = 6,
+        section = sectionSettings
     )
     default int reachedDistance() {
         return 5;
@@ -112,16 +95,79 @@ public interface ShortestPathConfig extends Config {
         keyName = "showTileCounter",
         name = "Show tile counter",
         description = "Whether to display the number of tiles travelled, number of tiles remaining or disable counting",
-        position = 9
+        position = 7,
+        section = sectionSettings
     )
     default TileCounter showTileCounter() {
         return TileCounter.DISABLED;
     }
 
     @ConfigSection(
+        name = "Display",
+        description = "Options for displaying the path on the world map, minimap and scene tiles",
+        position = 8
+    )
+    String sectionDisplay = "sectionDisplay";
+
+    @ConfigItem(
+        keyName = "drawMap",
+        name = "Draw path on world map",
+        description = "Whether the path should be drawn on the world map",
+        position = 9,
+        section = sectionDisplay
+    )
+    default boolean drawMap() {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "drawMinimap",
+        name = "Draw path on minimap",
+        description = "Whether the path should be drawn on the minimap",
+        position = 10,
+        section = sectionDisplay
+    )
+    default boolean drawMinimap() {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "drawTiles",
+        name = "Draw path on tiles",
+        description = "Whether the path should be drawn on the game tiles",
+        position = 11,
+        section = sectionDisplay
+    )
+    default boolean drawTiles() {
+        return true;
+    }
+
+    @ConfigItem(
+        keyName = "drawTransports",
+        name = "Draw transports",
+        description = "Whether transports should be drawn",
+        position = 12,
+        section = sectionDisplay
+    )
+    default boolean drawTransports() {
+        return false;
+    }
+
+    @ConfigItem(
+        keyName = "drawCollisionMap",
+        name = "Draw collision map",
+        description = "Whether the collision map should be drawn",
+        position = 13,
+        section = sectionDisplay
+    )
+    default boolean drawCollisionMap() {
+        return false;
+    }
+
+    @ConfigSection(
         name = "Colours",
         description = "Colours for the path map, minimap and scene tiles",
-        position = 10
+        position = 14
     )
     String sectionColours = "sectionColours";
 
@@ -130,7 +176,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPath",
         name = "Path",
         description = "Colour of the path tiles on the world map, minimap and in the game scene",
-        position = 11,
+        position = 15,
         section = sectionColours
     )
     default Color colourPath() {
@@ -142,7 +188,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPathCalculating",
         name = "Calculating",
         description = "Colour of the path tiles while the pathfinding calculation is in progress",
-        position = 12,
+        position = 16,
         section = sectionColours
     )
     default Color colourPathCalculating() {
@@ -154,7 +200,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourTransports",
         name = "Transports",
         description = "Colour of the transport tiles",
-        position = 13,
+        position = 17,
         section = sectionColours
     )
     default Color colourTransports() {
@@ -166,7 +212,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourCollisionMap",
         name = "Collision map",
         description = "Colour of the collision map tiles",
-        position = 14,
+        position = 18,
         section = sectionColours
     )
     default Color colourCollisionMap() {

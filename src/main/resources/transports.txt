@@ -817,8 +817,8 @@
 3081 3475 0	2206 2858 0	Enter Soul Wars Portal 40474
 3081 3474 0	2206 2858 0	Enter Soul Wars Portal 40474
 3081 3473 0	2206 2858 0	Enter Soul Wars Portal 40474
-3142 3513 0	3137 3516 0	Climb-into Underwall tunnel 16530
-3137 3516 0	3142 3513 0	Climb-into Underwall tunnel 16529
+3142 3513 0	3137 3516 0	Climb-into Underwall tunnel 16530	21 Agility
+3137 3516 0	3142 3513 0	Climb-into Underwall tunnel 16529	21 Agility
 3097 3511 0	3097 3511 1	Climb-up Ladder 16683
 3097 3511 1	3097 3511 0	Climb-down Ladder 16679
 3096 3512 0	3096 3512 1	Climb-up Ladder 16683
