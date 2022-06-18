@@ -463,8 +463,7 @@ public class ShortestPathPlugin extends Plugin {
         return getMinimapClipAreaSimple();
     }
 
-    private Polygon bufferedImageToPolygon(BufferedImage image)
-    {
+    private Polygon bufferedImageToPolygon(BufferedImage image) {
         Color outsideColour = null;
         Color previousColour;
         final int width = image.getWidth();
