@@ -44,7 +44,7 @@ public class PathMinimapOverlay extends Overlay {
         graphics.setClip(plugin.getMinimapClipArea());
 
         if (plugin.currentPath.isDone()) {
-            List<WorldPoint> pathPoints = plugin.currentPath.getPath().points;
+            List<WorldPoint> pathPoints = plugin.currentPath.getPath().getPoints();
             if (pathPoints != null) {
                 for (WorldPoint pathPoint : pathPoints) {
                     if (pathPoint.getPlane() != client.getPlane()) {

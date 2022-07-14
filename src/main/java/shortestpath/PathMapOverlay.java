@@ -95,7 +95,7 @@ public class PathMapOverlay extends Overlay {
             graphics.setColor(done ? config.colourPath() : config.colourPathCalculating());
             Path path = plugin.currentPath.getPath();
             if (path != null) {
-                for (WorldPoint point : path.points) {
+                for (WorldPoint point : path.getPoints()) {
                     drawOnMap(graphics, point);
                 }
             }

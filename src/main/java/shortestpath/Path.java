@@ -1,11 +1,17 @@
 package shortestpath;
 
 import java.util.List;
+
+import lombok.Getter;
+import lombok.Setter;
 import net.runelite.api.coords.WorldPoint;
 
 public class Path {
-    public final List<WorldPoint> points;
-    public int visitedIndex;
+    @Getter
+    private final List<WorldPoint> points;
+    @Getter
+    @Setter
+    private int visitedIndex;
 
     public Path(List<WorldPoint> points) {
         this.points = points;

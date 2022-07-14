@@ -129,7 +129,7 @@ public class PathTileOverlay extends Overlay {
 
             Path path = plugin.currentPath.getPath();
             int counter = 0;
-            for (WorldPoint point : path.points) {
+            for (WorldPoint point : path.getPoints()) {
                 drawTile(graphics, point, color, counter++);
             }
         }
@@ -177,7 +177,7 @@ public class PathTileOverlay extends Overlay {
 
         if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
             if (TileCounter.REMAINING.equals(config.showTileCounter())) {
-                counter = plugin.currentPath.getPath().points.size() - counter - 1;
+                counter = plugin.currentPath.getPath().getPoints().size() - counter - 1;
             }
             String counterText = Integer.toString(counter);
             graphics.setColor(Color.WHITE);

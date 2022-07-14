@@ -167,11 +167,11 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public boolean isNearPath(WorldPoint location) {
-        if (currentPath == null || currentPath.getPath() == null || currentPath.getPath().points.isEmpty()) {
+        if (currentPath == null || currentPath.getPath() == null || currentPath.getPath().getPoints().isEmpty()) {
             return true;
         }
 
-        for (WorldPoint point : currentPath.getPath().points) {
+        for (WorldPoint point : currentPath.getPath().getPoints()) {
             if (config.recalculateDistance() < 0 || location.distanceTo2D(point) < config.recalculateDistance()) {
                 return true;
             }
@@ -223,7 +223,7 @@ public class ShortestPathPlugin extends Plugin {
                 }
                 WorldPoint selectedTile = getSelectedWorldPoint();
                 if (currentPath.getPath() != null) {
-                    for (WorldPoint tile : currentPath.getPath().points) {
+                    for (WorldPoint tile : currentPath.getPath().getPoints()) {
                         if (tile.equals(selectedTile)) {
                             addMenuEntry(event, CLEAR, PATH, 1);
                             break;

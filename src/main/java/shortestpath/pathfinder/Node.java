@@ -19,7 +19,7 @@ public class Node {
 
         Node nodeIterator = this;
         while (nodeIterator != null) {
-            path.points.add(0, nodeIterator.position);
+            path.getPoints().add(0, nodeIterator.position);
             nodeIterator = nodeIterator.previous;
         }
 
