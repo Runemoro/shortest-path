@@ -103,6 +103,7 @@ public class ShortestPathPlugin extends Plugin {
 
     public PathfinderTask currentPath;
     private PathfinderTask.PathfinderConfig pathfinderConfig;
+    private boolean startPointSet = false;
 
     @Override
     protected void startUp() {
@@ -189,12 +190,11 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        if (!isNearPath(currentLocation)) {
+        if (!startPointSet && !isNearPath(currentLocation)) {
             if (config.cancelInstead()) {
                 setTarget(null);
                 return;
             }
-
             currentPath = new PathfinderTask(pathfinderConfig, currentLocation, currentPath.getTarget());
         }
     }
@@ -296,11 +296,12 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (entry.getOption().equals(SET) && entry.getTarget().equals(START)) {
-            currentPath = new PathfinderTask(getPathfinderConfig(), getSelectedWorldPoint(), currentPath.getTarget());
+            setStart(getSelectedWorldPoint());
         }
 
         if (entry.getOption().equals(CLEAR) && entry.getTarget().equals(PATH)) {
             setTarget(null);
+            startPointSet = false;
         }
 
         if (entry.getType() != MenuAction.WALK) {
@@ -322,7 +323,7 @@ public class ShortestPathPlugin extends Plugin {
 
     private void setTarget(WorldPoint target) {
         Player localPlayer = client.getLocalPlayer();
-        if (localPlayer == null) {
+        if (!startPointSet && localPlayer == null) {
             return;
         }
 
@@ -337,9 +338,21 @@ public class ShortestPathPlugin extends Plugin {
             marker.setTarget(marker.getWorldPoint());
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
-            WorldPoint start = currentPath != null ? currentPath.getStart() : localPlayer.getWorldLocation();
-            currentPath = new PathfinderTask(getPathfinderConfig(), start, target);
+
+            WorldPoint start = localPlayer.getWorldLocation();
+            if (startPointSet && currentPath != null) {
+                start = currentPath.getStart();
+            }
+            currentPath = new PathfinderTask(pathfinderConfig, start, target);
         }
+    }
+
+    private void setStart(WorldPoint start) {
+        if (currentPath == null) {
+            return;
+        }
+        startPointSet = true;
+        currentPath = new PathfinderTask(pathfinderConfig, start, currentPath.getTarget());
     }
 
     public WorldPoint calculateMapPoint(Point point) {
