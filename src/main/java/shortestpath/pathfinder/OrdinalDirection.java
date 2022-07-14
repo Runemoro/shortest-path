@@ -1,6 +1,6 @@
 package shortestpath.pathfinder;
 
-import java.awt.*;
+import java.awt.Point;
 
 public enum OrdinalDirection {
     NORTH,

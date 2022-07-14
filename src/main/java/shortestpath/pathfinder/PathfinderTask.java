@@ -1,6 +1,11 @@
 package shortestpath.pathfinder;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;

@@ -1,6 +1,6 @@
 package shortestpath.pathfinder;
 
-import java.awt.*;
+import java.awt.Point;
 import java.util.Map;
 
 public class CollisionMap extends SplitFlagMap {

@@ -1,11 +1,13 @@
 package shortestpath;
 
 import com.google.inject.Inject;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.util.List;
+
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;

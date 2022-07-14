@@ -2,6 +2,7 @@ package shortestpath;
 
 import com.google.inject.Inject;
 import com.google.inject.Provides;
+
 import java.awt.Color;
 import java.awt.Polygon;
 import java.awt.Rectangle;
@@ -23,7 +24,16 @@ import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import net.runelite.api.*;
+import net.runelite.api.Client;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Player;
+import net.runelite.api.Point;
+import net.runelite.api.RenderOverview;
+import net.runelite.api.Skill;
+import net.runelite.api.SpriteID;
+import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
@@ -48,9 +58,9 @@ import shortestpath.pathfinder.PathfinderTask;
 import shortestpath.pathfinder.SplitFlagMap;
 
 @PluginDescriptor(
-    name = "Shortest Path",
-    description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)",
-    tags = {"pathfinder", "map", "waypoint", "navigation"}
+        name = "Shortest Path",
+        description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)",
+        tags = {"pathfinder", "map", "waypoint", "navigation"}
 )
 public class ShortestPathPlugin extends Plugin {
     private static final String ADD_START = "Add start";
@@ -144,7 +154,6 @@ public class ShortestPathPlugin extends Plugin {
 
         CollisionMap map = new CollisionMap(64, compressedRegions);
         this.pathfinderConfig = new PathfinderTask.PathfinderConfig(map, transports);
-	getPathfinderConfig();
 
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);
@@ -240,13 +249,13 @@ public class ShortestPathPlugin extends Plugin {
         final Shape minimap = getMinimapClipArea();
 
         if (minimap != null && currentPath != null &&
-            minimap.contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
+                minimap.contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
             addMenuEntry(event, CLEAR, PATH, 0);
         }
     }
 
     public PathfinderTask.PathfinderConfig getPathfinderConfig() {
-	    pathfinderConfig.avoidWilderness = config.avoidWilderness();
+        pathfinderConfig.avoidWilderness = config.avoidWilderness();
         pathfinderConfig.useAgilityShortcuts = config.useAgilityShortcuts();
         pathfinderConfig.useGrappleShortcuts = config.useGrappleShortcuts();
         pathfinderConfig.agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
@@ -301,7 +310,6 @@ public class ShortestPathPlugin extends Plugin {
 
         if (entry.getOption().equals(CLEAR) && entry.getTarget().equals(PATH)) {
             setTarget(null);
-            startPointSet = false;
         }
 
         if (entry.getType() != MenuAction.WALK) {
@@ -309,8 +317,7 @@ public class ShortestPathPlugin extends Plugin {
         }
     }
 
-    private WorldPoint getSelectedWorldPoint()
-    {
+    private WorldPoint getSelectedWorldPoint() {
         if (client.getWidget(WidgetInfo.WORLD_MAP_VIEW) == null) {
             if (client.getSelectedSceneTile() != null) {
                 return client.getSelectedSceneTile().getWorldLocation();
@@ -331,6 +338,7 @@ public class ShortestPathPlugin extends Plugin {
             worldMapPointManager.remove(marker);
             marker = null;
             currentPath = null;
+            startPointSet = false;
         } else {
             worldMapPointManager.removeIf(x -> x == marker);
             marker = new WorldMapPoint(target, MARKER_IMAGE);
@@ -371,8 +379,7 @@ public class ShortestPathPlugin extends Plugin {
         return mapPoint.dx(dx).dy(dy);
     }
 
-    public Point mapWorldPointToGraphicsPoint(WorldPoint worldPoint)
-    {
+    public Point mapWorldPointToGraphicsPoint(WorldPoint worldPoint) {
         RenderOverview ro = client.getRenderOverview();
 
         float pixelsPerTile = ro.getWorldMapZoom();
@@ -418,13 +425,13 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         client.createMenuEntry(position)
-            .setOption(option)
-            .setTarget(target)
-            .setParam0(event.getActionParam0())
-            .setParam1(event.getActionParam1())
-            .setIdentifier(event.getIdentifier())
-            .setType(MenuAction.RUNELITE)
-            .onClick(this::onMenuOptionClicked);
+                .setOption(option)
+                .setTarget(target)
+                .setParam0(event.getActionParam0())
+                .setParam1(event.getActionParam1())
+                .setIdentifier(event.getIdentifier())
+                .setType(MenuAction.RUNELITE)
+                .onClick(this::onMenuOptionClicked);
     }
 
     private Widget getMinimapDrawWidget() {
@@ -499,9 +506,9 @@ public class ShortestPathPlugin extends Plugin {
             for (int x = 0; x < width; x++) {
                 int rgb = image.getRGB(x, y);
                 int a = (rgb & 0xff000000) >>> 24;
-                int r   = (rgb & 0x00ff0000) >> 16;
+                int r = (rgb & 0x00ff0000) >> 16;
                 int g = (rgb & 0x0000ff00) >> 8;
-                int b  = (rgb & 0x000000ff) >> 0;
+                int b = (rgb & 0x000000ff) >> 0;
                 Color colour = new Color(r, g, b, a);
                 if (x == 0 && y == 0) {
                     outsideColour = colour;

@@ -1,6 +1,7 @@
 package shortestpath;
 
 import java.util.List;
+
 import net.runelite.api.coords.WorldPoint;
 
 public class Path {
