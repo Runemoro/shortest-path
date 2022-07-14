@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.Area;
+import java.util.stream.Stream;
 
 import net.runelite.api.Client;
 import net.runelite.api.Point;
@@ -60,14 +61,10 @@ public class PathMapOverlay extends Overlay {
             final int z = client.getPlane();
             for (int x = extent.x; x < (extent.x + extent.width + 1); x++) {
                 for (int y = extent.y - extent.height; y < (extent.y + 1); y++) {
-                    boolean blocked = true;
-                    for (OrdinalDirection direction : OrdinalDirection.values()) {
-                        if (plugin.getMap().checkDirection(x, y, z, direction)) {
-                            blocked = false;
-                            break;
-                        }
-                    }
-                    if (blocked) {
+                    final int finalX = x;
+                    final int finalY = y;
+                    final boolean isBlocked = Stream.of(OrdinalDirection.values()).noneMatch(dir -> plugin.getMap().checkDirection(finalX, finalY, z, dir));
+                    if (isBlocked) {
                         drawOnMap(graphics, new WorldPoint(x, y, z));
                     }
                 }
