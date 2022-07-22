@@ -1,12 +1,14 @@
 package shortestpath;
 
 import com.google.inject.Inject;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.Area;
-import java.util.List;
+import java.util.stream.Stream;
+
 import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
@@ -17,6 +19,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
+import shortestpath.pathfinder.OrdinalDirection;
 
 public class PathMapOverlay extends Overlay {
     private final Client client;
@@ -58,9 +61,10 @@ public class PathMapOverlay extends Overlay {
             final int z = client.getPlane();
             for (int x = extent.x; x < (extent.x + extent.width + 1); x++) {
                 for (int y = extent.y - extent.height; y < (extent.y + 1); y++) {
-                    boolean blocked = !plugin.pathfinder.map.n(x, y, z) && !plugin.pathfinder.map.s(x, y, z) &&
-                        !plugin.pathfinder.map.e(x, y, z) && !plugin.pathfinder.map.w(x, y, z);
-                    if (blocked) {
+                    final int finalX = x;
+                    final int finalY = y;
+                    final boolean isBlocked = Stream.of(OrdinalDirection.values()).noneMatch(dir -> plugin.getMap().checkDirection(finalX, finalY, z, dir));
+                    if (isBlocked) {
                         drawOnMap(graphics, new WorldPoint(x, y, z));
                     }
                 }
@@ -69,13 +73,13 @@ public class PathMapOverlay extends Overlay {
 
         if (config.drawTransports()) {
             graphics.setColor(Color.WHITE);
-            for (WorldPoint a : plugin.pathfinder.transports.keySet()) {
+            for (WorldPoint a : plugin.getTransports().keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
                 if (mapA == null) {
                     continue;
                 }
 
-                for (Transport b : plugin.pathfinder.transports.get(a)) {
+                for (Transport b : plugin.getTransports().get(a)) {
                     Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b.getOrigin());
                     if (mapB == null) {
                         continue;
@@ -87,11 +91,11 @@ public class PathMapOverlay extends Overlay {
         }
 
         if (plugin.currentPath != null) {
-            boolean loading = plugin.currentPath.loading;
-            graphics.setColor(loading ? config.colourPathCalculating() : config.colourPath());
-            List<WorldPoint> path = loading ? plugin.currentPath.currentBest() : plugin.currentPath.getPath();
+            boolean done = plugin.currentPath.isDone();
+            graphics.setColor(done ? config.colourPath() : config.colourPathCalculating());
+            Path path = plugin.currentPath.getPath();
             if (path != null) {
-                for (WorldPoint point : path) {
+                for (WorldPoint point : path.getPoints()) {
                     drawOnMap(graphics, point);
                 }
             }
@@ -138,7 +142,7 @@ public class PathMapOverlay extends Overlay {
     private Rectangle getWorldMapExtent(Rectangle baseRectangle) {
         WorldPoint topLeft = plugin.calculateMapPoint(new Point(baseRectangle.x, baseRectangle.y));
         WorldPoint bottomRight = plugin.calculateMapPoint(
-            new Point(baseRectangle.x + baseRectangle.width, baseRectangle.y + baseRectangle.height));
+                new Point(baseRectangle.x + baseRectangle.width, baseRectangle.y + baseRectangle.height));
         return new Rectangle(topLeft.getX(), topLeft.getY(), bottomRight.getX() - topLeft.getX(), topLeft.getY() - bottomRight.getY());
     }
 }
