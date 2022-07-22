@@ -1,13 +1,12 @@
 package shortestpath;
 
 import com.google.inject.Inject;
-
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Polygon;
-
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Tile;
@@ -17,7 +16,6 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
-import shortestpath.pathfinder.OrdinalDirection;
 
 public class PathTileOverlay extends Overlay {
     private final Client client;
@@ -83,10 +81,10 @@ public class PathTileOverlay extends Overlay {
                 int y = tile.getWorldLocation().getY();
                 int z = tile.getWorldLocation().getPlane();
 
-                String s = (!plugin.getMap().checkDirection(x, y, z, OrdinalDirection.NORTH) ? "n" : "") +
-                        (!plugin.getMap().checkDirection(x, y, z, OrdinalDirection.SOUTH) ? "s" : "") +
-                        (!plugin.getMap().checkDirection(x, y, z, OrdinalDirection.EAST) ? "e" : "") +
-                        (!plugin.getMap().checkDirection(x, y, z, OrdinalDirection.WEST) ? "w" : "");
+                String s = (!plugin.getMap().n(x, y, z) ? "n" : "") +
+                        (!plugin.getMap().s(x, y, z) ? "s" : "") +
+                        (!plugin.getMap().e(x, y, z) ? "e" : "") +
+                        (!plugin.getMap().w(x, y, z) ? "w" : "");
 
                 if (!s.isEmpty() && !s.equals("nsew")) {
                     graphics.setColor(Color.WHITE);
@@ -111,26 +109,28 @@ public class PathTileOverlay extends Overlay {
             this.renderCollisionMap(graphics);
         }
 
-        if (config.drawTiles() && plugin.currentPath != null && plugin.currentPath.getPath() != null) {
+        if (config.drawTiles() && plugin.getPathfinder() != null && plugin.getPathfinder().getPath() != null) {
             Color color;
-            if (plugin.currentPath.isDone()) {
+            if (plugin.getPathfinder().isDone()) {
                 color = new Color(
-                        config.colourPath().getRed(),
-                        config.colourPath().getGreen(),
-                        config.colourPath().getBlue(),
-                        config.colourPath().getAlpha() / 2);
+                    config.colourPath().getRed(),
+                    config.colourPath().getGreen(),
+                    config.colourPath().getBlue(),
+                    config.colourPath().getAlpha() / 2);
             } else {
                 color = new Color(
-                        config.colourPathCalculating().getRed(),
-                        config.colourPathCalculating().getGreen(),
-                        config.colourPathCalculating().getBlue(),
-                        config.colourPathCalculating().getAlpha() / 2);
+                    config.colourPathCalculating().getRed(),
+                    config.colourPathCalculating().getGreen(),
+                    config.colourPathCalculating().getBlue(),
+                    config.colourPathCalculating().getAlpha() / 2);
             }
 
-            Path path = plugin.currentPath.getPath();
+            List<WorldPoint> path = plugin.getPathfinder().getPath();
             int counter = 0;
-            for (WorldPoint point : path.getPoints()) {
-                drawTile(graphics, point, color, counter++);
+            if (path != null) {
+                for (WorldPoint point : path) {
+                    drawTile(graphics, point, color, counter++);
+                }
             }
         }
 
@@ -177,15 +177,15 @@ public class PathTileOverlay extends Overlay {
 
         if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
             if (TileCounter.REMAINING.equals(config.showTileCounter())) {
-                counter = plugin.currentPath.getPath().getPoints().size() - counter - 1;
+                counter = plugin.getPathfinder().getPath().size() - counter - 1;
             }
             String counterText = Integer.toString(counter);
             graphics.setColor(Color.WHITE);
             graphics.drawString(
-                    counterText,
-                    (int) (poly.getBounds().getCenterX() -
-                            graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2),
-                    (int) poly.getBounds().getCenterY());
+                counterText,
+                (int) (poly.getBounds().getCenterX() -
+                    graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2),
+                (int) poly.getBounds().getCenterY());
         }
     }
 }

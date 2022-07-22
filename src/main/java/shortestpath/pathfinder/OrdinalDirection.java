@@ -1,48 +1,20 @@
 package shortestpath.pathfinder;
 
-import java.awt.Point;
-
 public enum OrdinalDirection {
-    NORTH {
-        public Point toPoint() {
-            return new Point(0, 1);
-        }
-    },
-    EAST {
-        public Point toPoint() {
-            return new Point(1, 0);
-        }
-    },
-    SOUTH {
-        public Point toPoint() {
-            return new Point(0, -1);
-        }
-    },
-    WEST {
-        public Point toPoint() {
-            return new Point(-1, 0);
-        }
-    },
-    NORTH_WEST {
-        public Point toPoint() {
-            return new Point(-1, 1);
-        }
-    },
-    NORTH_EAST {
-        public Point toPoint() {
-            return new Point(1, 1);
-        }
-    },
-    SOUTH_EAST {
-        public Point toPoint() {
-            return new Point(1, -1);
-        }
-    },
-    SOUTH_WEST {
-        public Point toPoint() {
-            return new Point(-1, -1);
-        }
-    };
+    WEST(-1, 0),
+    EAST(1, 0),
+    SOUTH(0, -1),
+    NORTH(0, 1),
+    SOUTH_WEST(-1, -1),
+    SOUTH_EAST(1, -1),
+    NORTH_WEST(-1, 1),
+    NORTH_EAST(1, 1);
 
-    public abstract Point toPoint();
+    final int x;
+    final int y;
+
+    OrdinalDirection(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
 }

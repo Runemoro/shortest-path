@@ -1,9 +1,9 @@
 package shortestpath.pathfinder;
 
-import net.runelite.api.coords.WorldPoint;
-import shortestpath.Path;
-
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
+import net.runelite.api.coords.WorldPoint;
 
 public class Node {
     public final WorldPoint position;
@@ -14,15 +14,15 @@ public class Node {
         this.previous = previous;
     }
 
-    public Path getPath() {
-        Path path = new Path(new LinkedList<>());
+    public List<WorldPoint> getPath() {
+        List<WorldPoint> path = new LinkedList<>();
+        Node node = this;
 
-        Node nodeIterator = this;
-        while (nodeIterator != null) {
-            path.getPoints().add(0, nodeIterator.position);
-            nodeIterator = nodeIterator.previous;
+        while (node != null) {
+            path.add(0, node.position);
+            node = node.previous;
         }
 
-        return path;
+        return new ArrayList<>(path);
     }
 }
