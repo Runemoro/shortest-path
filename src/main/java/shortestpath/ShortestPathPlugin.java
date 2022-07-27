@@ -108,7 +108,7 @@ public class ShortestPathPlugin extends Plugin {
     private Shape minimapClipResizeable;
     private BufferedImage minimapSpriteFixed;
     private BufferedImage minimapSpriteResizeable;
-    private Rectangle minimapRectangle;
+    private Rectangle minimapRectangle = new Rectangle();
 
     @Getter
     private Pathfinder pathfinder;
@@ -449,7 +449,7 @@ public class ShortestPathPlugin extends Plugin {
     public Shape getMinimapClipArea() {
         Widget minimapWidget = getMinimapDrawWidget();
 
-        if (minimapWidget == null || minimapWidget.isHidden() || minimapRectangle != (minimapRectangle = minimapWidget.getBounds())) {
+        if (minimapWidget == null || minimapWidget.isHidden() || !minimapRectangle.equals(minimapRectangle = minimapWidget.getBounds())) {
             minimapClipFixed = null;
             minimapClipResizeable = null;
             minimapSpriteFixed = null;
