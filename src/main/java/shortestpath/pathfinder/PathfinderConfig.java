@@ -1,5 +1,6 @@
 package shortestpath.pathfinder;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import shortestpath.ShortestPathConfig;
 import shortestpath.Transport;
 
 public class PathfinderConfig {
+    public static final Duration CALCULATION_CUTOFF = Duration.ofSeconds(2);
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 

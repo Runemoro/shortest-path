@@ -1,5 +1,6 @@
 package shortestpath.pathfinder;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -59,7 +60,10 @@ public class Pathfinder implements Runnable {
     public void run() {
         boundary.add(new Node(start, null));
 
+        Node nearest = boundary.get(0);
         int bestDistance = Integer.MAX_VALUE;
+        Instant cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
+
         while (!boundary.isEmpty()) {
             Node node = boundary.remove(0);
 
@@ -71,12 +75,20 @@ public class Pathfinder implements Runnable {
             int distance = node.position.distanceTo(target);
             if (path == null || distance < bestDistance) {
                 path = node.getPath();
+                nearest = node;
                 bestDistance = distance;
+                cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
+            }
+
+            if (Instant.now().isAfter(cutoffTime)) {
+                path = nearest.getPath();
+                break;
             }
 
             addNeighbors(node);
         }
 
         done = true;
+        boundary.clear();
     }
 }

@@ -62,6 +62,7 @@ import shortestpath.pathfinder.SplitFlagMap;
     tags = {"pathfinder", "map", "waypoint", "navigation"}
 )
 public class ShortestPathPlugin extends Plugin {
+    protected static final String CONFIG_GROUP = "shortestpath";
     private static final String ADD_START = "Add start";
     private static final String ADD_END = "Add end";
     private static final String CLEAR = "Clear";
@@ -74,22 +75,22 @@ public class ShortestPathPlugin extends Plugin {
     private static final BufferedImage MARKER_IMAGE = ImageUtil.loadImageResource(ShortestPathPlugin.class, "/marker.png");
 
     @Inject
-    public Client client;
+    private Client client;
 
     @Inject
-    public ShortestPathConfig config;
+    private ShortestPathConfig config;
 
     @Inject
-    public OverlayManager overlayManager;
+    private OverlayManager overlayManager;
 
     @Inject
-    public PathTileOverlay pathOverlay;
+    private PathTileOverlay pathOverlay;
 
     @Inject
-    public PathMinimapOverlay pathMinimapOverlay;
+    private PathMinimapOverlay pathMinimapOverlay;
 
     @Inject
-    public PathMapOverlay pathMapOverlay;
+    private PathMapOverlay pathMapOverlay;
 
     @Inject
     private SpriteManager spriteManager;
@@ -173,12 +174,13 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public boolean isNearPath(WorldPoint location) {
-        if (pathfinder == null || pathfinder.getPath() == null || pathfinder.getPath().isEmpty()) {
+        if (pathfinder == null || pathfinder.getPath() == null || pathfinder.getPath().isEmpty() ||
+            config.recalculateDistance() < 0) {
             return true;
         }
 
         for (WorldPoint point : pathfinder.getPath()) {
-            if (config.recalculateDistance() < 0 || location.distanceTo2D(point) < config.recalculateDistance()) {
+            if (location.distanceTo2D(point) < config.recalculateDistance()) {
                 return true;
             }
         }

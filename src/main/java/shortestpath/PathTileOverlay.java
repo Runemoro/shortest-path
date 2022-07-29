@@ -1,14 +1,16 @@
 package shortestpath;
 
 import com.google.inject.Inject;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Polygon;
+import java.awt.geom.Line2D;
 import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
+import net.runelite.api.Point;
 import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
@@ -34,7 +36,7 @@ public class PathTileOverlay extends Overlay {
 
     private void renderTransports(Graphics2D graphics) {
         for (WorldPoint a : plugin.getTransports().keySet()) {
-            drawTile(graphics, a, config.colourTransports(), -1);
+            drawTile(graphics, a, config.colourTransports(), -1, true);
 
             Point ca = tileCenter(a);
 
@@ -45,7 +47,7 @@ public class PathTileOverlay extends Overlay {
             for (Transport b : plugin.getTransports().get(a)) {
                 Point cb = tileCenter(b.getOrigin());
                 if (cb != null) {
-                    graphics.drawLine(ca.x, ca.y, cb.x, cb.y);
+                    graphics.drawLine(ca.getX(), ca.getY(), cb.getX(), cb.getY());
                 }
             }
 
@@ -60,7 +62,7 @@ public class PathTileOverlay extends Overlay {
                 }
             }
             graphics.setColor(Color.WHITE);
-            graphics.drawString(s.toString(), ca.x, ca.y);
+            graphics.drawString(s.toString(), ca.getX(), ca.getY());
         }
     }
 
@@ -128,8 +130,15 @@ public class PathTileOverlay extends Overlay {
             List<WorldPoint> path = plugin.getPathfinder().getPath();
             int counter = 0;
             if (path != null) {
-                for (WorldPoint point : path) {
-                    drawTile(graphics, point, color, counter++);
+                if (TileStyle.LINES.equals(config.pathStyle())) {
+                    for (int i = 1; i < path.size(); i++) {
+                        drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
+                    }
+                } else {
+                    boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
+                    for (WorldPoint point : path) {
+                        drawTile(graphics, point, color, counter++, showTiles);
+                    }
                 }
             }
         }
@@ -157,7 +166,7 @@ public class PathTileOverlay extends Overlay {
         return new Point(cx, cy);
     }
 
-    private void drawTile(Graphics2D graphics, WorldPoint point, Color color, int counter) {
+    private void drawTile(Graphics2D graphics, WorldPoint point, Color color, int counter, boolean draw) {
         if (point.getPlane() != client.getPlane()) {
             return;
         }
@@ -172,9 +181,50 @@ public class PathTileOverlay extends Overlay {
             return;
         }
 
-        graphics.setColor(color);
-        graphics.fill(poly);
+        if (draw) {
+            graphics.setColor(color);
+            graphics.fill(poly);
+        }
 
+        drawCounter(graphics, poly.getBounds().getCenterX(), poly.getBounds().getCenterY(), counter);
+    }
+
+    private void drawLine(Graphics2D graphics, WorldPoint start, WorldPoint end, Color color, int counter) {
+        final int z = client.getPlane();
+        if (start.getPlane() != z) {
+            return;
+        }
+
+        LocalPoint lpStart = LocalPoint.fromWorld(client, start);
+        LocalPoint lpEnd = LocalPoint.fromWorld(client, end);
+
+        if (lpStart == null || lpEnd == null) {
+            return;
+        }
+
+        final int startHeight = Perspective.getTileHeight(client, lpStart, z);
+        final int endHeight = Perspective.getTileHeight(client, lpEnd, z);
+
+        Point p1 = Perspective.localToCanvas(client, lpStart.getX(), lpStart.getY(), startHeight);
+        Point p2 = Perspective.localToCanvas(client, lpEnd.getX(), lpEnd.getY(), endHeight);
+
+        if (p1 == null || p2 == null) {
+            return;
+        }
+
+        Line2D.Double line = new Line2D.Double(p1.getX(), p1.getY(), p2.getX(), p2.getY());
+
+        graphics.setColor(color);
+        graphics.setStroke(new BasicStroke(4));
+        graphics.draw(line);
+
+        if (counter == 1) {
+            drawCounter(graphics, p1.getX(), p1.getY(), 0);
+        }
+        drawCounter(graphics, p2.getX(), p2.getY(), counter);
+    }
+
+    private void drawCounter(Graphics2D graphics, double x, double y, int counter) {
         if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
             if (TileCounter.REMAINING.equals(config.showTileCounter())) {
                 counter = plugin.getPathfinder().getPath().size() - counter - 1;
@@ -183,9 +233,7 @@ public class PathTileOverlay extends Overlay {
             graphics.setColor(Color.WHITE);
             graphics.drawString(
                 counterText,
-                (int) (poly.getBounds().getCenterX() -
-                    graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2),
-                (int) poly.getBounds().getCenterY());
+                (int) (x - graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2), (int) y);
         }
     }
 }

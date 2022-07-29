@@ -8,7 +8,7 @@ import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
 
-@ConfigGroup("shortestPath")
+@ConfigGroup(ShortestPathPlugin.CONFIG_GROUP)
 public interface ShortestPathConfig extends Config {
     @ConfigSection(
         name = "Settings",
@@ -164,10 +164,21 @@ public interface ShortestPathConfig extends Config {
         return false;
     }
 
+    @ConfigItem(
+        keyName = "pathStyle",
+        name = "Path style",
+        description = "Whether to display the path as tiles or a segmented line",
+        position = 14,
+        section = sectionDisplay
+    )
+    default TileStyle pathStyle() {
+        return TileStyle.TILES;
+    }
+
     @ConfigSection(
         name = "Colours",
         description = "Colours for the path map, minimap and scene tiles",
-        position = 14
+        position = 15
     )
     String sectionColours = "sectionColours";
 
@@ -176,7 +187,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPath",
         name = "Path",
         description = "Colour of the path tiles on the world map, minimap and in the game scene",
-        position = 15,
+        position = 16,
         section = sectionColours
     )
     default Color colourPath() {
@@ -188,7 +199,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPathCalculating",
         name = "Calculating",
         description = "Colour of the path tiles while the pathfinding calculation is in progress",
-        position = 16,
+        position = 17,
         section = sectionColours
     )
     default Color colourPathCalculating() {
@@ -200,7 +211,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourTransports",
         name = "Transports",
         description = "Colour of the transport tiles",
-        position = 17,
+        position = 18,
         section = sectionColours
     )
     default Color colourTransports() {
@@ -212,7 +223,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourCollisionMap",
         name = "Collision map",
         description = "Colour of the collision map tiles",
-        position = 18,
+        position = 19,
         section = sectionColours
     )
     default Color colourCollisionMap() {
