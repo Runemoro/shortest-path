@@ -90,5 +90,6 @@ public class Pathfinder implements Runnable {
 
         done = true;
         boundary.clear();
+        visited.clear();
     }
 }
