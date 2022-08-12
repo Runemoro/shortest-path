@@ -512,13 +512,8 @@ public class ShortestPathPlugin extends Plugin {
                 previousColour = colour;
             }
         }
-        int offsetX = 0;
-        int offsetY = 0;
-        Widget minimapDrawWidget = getMinimapDrawWidget();
-        if (minimapDrawWidget != null) {
-            offsetX = minimapDrawWidget.getBounds().x;
-            offsetY = minimapDrawWidget.getBounds().y;
-        }
+        int offsetX = minimapRectangle.x;
+        int offsetY = minimapRectangle.y;
         Polygon polygon = new Polygon();
         for (java.awt.Point point : points) {
             polygon.addPoint(point.x + offsetX, point.y + offsetY);

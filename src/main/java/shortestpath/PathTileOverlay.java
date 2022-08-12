@@ -129,16 +129,14 @@ public class PathTileOverlay extends Overlay {
 
             List<WorldPoint> path = plugin.getPathfinder().getPath();
             int counter = 0;
-            if (path != null) {
-                if (TileStyle.LINES.equals(config.pathStyle())) {
-                    for (int i = 1; i < path.size(); i++) {
-                        drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
-                    }
-                } else {
-                    boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
-                    for (WorldPoint point : path) {
-                        drawTile(graphics, point, color, counter++, showTiles);
-                    }
+            if (TileStyle.LINES.equals(config.pathStyle())) {
+                for (int i = 1; i < path.size(); i++) {
+                    drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
+                }
+            } else {
+                boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
+                for (WorldPoint point : path) {
+                    drawTile(graphics, point, color, counter++, showTiles);
                 }
             }
         }

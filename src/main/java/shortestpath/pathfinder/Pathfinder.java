@@ -73,7 +73,7 @@ public class Pathfinder implements Runnable {
             }
 
             int distance = node.position.distanceTo(target);
-            if (path == null || distance < bestDistance) {
+            if (distance < bestDistance) {
                 path = node.getPath();
                 nearest = node;
                 bestDistance = distance;

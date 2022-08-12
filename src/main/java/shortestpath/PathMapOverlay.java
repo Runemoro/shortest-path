@@ -26,8 +26,6 @@ public class PathMapOverlay extends Overlay {
     @Inject
     private WorldMapOverlay worldMapOverlay;
 
-    private Area mapClipArea;
-
     @Inject
     private PathMapOverlay(Client client, ShortestPathPlugin plugin, ShortestPathConfig config) {
         this.client = client;
@@ -49,8 +47,7 @@ public class PathMapOverlay extends Overlay {
             return null;
         }
 
-        mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
-        graphics.setClip(mapClipArea);
+        graphics.setClip(getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds()));
 
         if (config.drawCollisionMap()) {
             graphics.setColor(config.colourCollisionMap());
@@ -87,10 +84,8 @@ public class PathMapOverlay extends Overlay {
         if (plugin.getPathfinder() != null) {
             graphics.setColor(plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating());
             List<WorldPoint> path = plugin.getPathfinder().getPath();
-            if (path != null) {
-                for (WorldPoint point : path) {
-                    drawOnMap(graphics, point);
-                }
+            for (WorldPoint point : path) {
+                drawOnMap(graphics, point);
             }
         }
 
