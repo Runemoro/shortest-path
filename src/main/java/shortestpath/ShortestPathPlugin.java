@@ -10,18 +10,11 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import lombok.Getter;
 import net.runelite.api.Client;
 import net.runelite.api.KeyCode;
@@ -40,6 +33,7 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -54,7 +48,6 @@ import net.runelite.client.util.Text;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
 import shortestpath.pathfinder.PathfinderConfig;
-import shortestpath.pathfinder.SplitFlagMap;
 
 @PluginDescriptor(
     name = "Shortest Path",
@@ -104,6 +97,7 @@ public class ShortestPathPlugin extends Plugin {
     private Point lastMenuOpenedPoint;
     private WorldMapPoint marker;
     private WorldPoint transportStart;
+    private WorldPoint lastLocation = new WorldPoint(0, 0, 0);
     private MenuEntry lastClick;
     private Shape minimapClipFixed;
     private Shape minimapClipResizeable;
@@ -114,6 +108,7 @@ public class ShortestPathPlugin extends Plugin {
     @Getter
     private Pathfinder pathfinder;
     private PathfinderConfig pathfinderConfig;
+    @Getter
     private boolean startPointSet = false;
 
     @Provides
@@ -123,43 +118,10 @@ public class ShortestPathPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
-        HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
+        CollisionMap map = CollisionMap.fromResources();
+        Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
 
-        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
-            ZipEntry entry;
-            while ((entry = in.getNextEntry()) != null) {
-                String[] n = entry.getName().split("_");
-
-                compressedRegions.put(
-                        new SplitFlagMap.Position(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
-                        Util.readAllBytes(in)
-                );
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-
-        try {
-            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
-            Scanner scanner = new Scanner(s);
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-
-                if (line.startsWith("#") || line.isEmpty()) {
-                    continue;
-                }
-
-                Transport transport = new Transport(line);
-                WorldPoint origin = transport.getOrigin();
-                transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        CollisionMap map = new CollisionMap(64, compressedRegions);
-        pathfinderConfig = new PathfinderConfig(map, transports, client, config);
+        pathfinderConfig = new PathfinderConfig(map, transports, client, config, this);
 
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);
@@ -173,9 +135,25 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathMapOverlay);
     }
 
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (!CONFIG_GROUP.equals(event.getGroup())) {
+            return;
+        }
+
+        boolean reloadTransports = "useAgilityShortcuts".equals(event.getKey()) ||
+            "useGrappleShortcuts".equals(event.getKey()) || "useFairyRings".equals(event.getKey());
+
+        if (reloadTransports) {
+            Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
+            pathfinderConfig.getTransports().clear();
+            pathfinderConfig.getTransports().putAll(transports);
+        }
+    }
+
     public boolean isNearPath(WorldPoint location) {
         if (pathfinder == null || pathfinder.getPath() == null || pathfinder.getPath().isEmpty() ||
-            config.recalculateDistance() < 0) {
+            config.recalculateDistance() < 0 || lastLocation.equals(lastLocation = location)) {
             return true;
         }
 

@@ -67,7 +67,7 @@ public class Pathfinder implements Runnable {
         while (!boundary.isEmpty()) {
             Node node = boundary.remove(0);
 
-            if (node.position.equals(target)) {
+            if (node.position.equals(target) || !config.isNear(start)) {
                 path = node.getPath();
                 break;
             }

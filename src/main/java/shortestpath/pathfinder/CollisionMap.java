@@ -1,9 +1,16 @@
 package shortestpath.pathfinder;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.ShortestPathPlugin;
+import shortestpath.Util;
 
 public class CollisionMap extends SplitFlagMap {
     public CollisionMap(int regionSize, Map<Position, byte[]> compressedRegions) {
@@ -52,9 +59,31 @@ public class CollisionMap extends SplitFlagMap {
         int z = position.getPlane();
 
         List<WorldPoint> neighbors = new ArrayList<>();
-        boolean[] traversable = new boolean[] {
-            w(x, y, z), e(x, y, z), s(x, y, z), n(x, y, z), sw(x, y, z), se(x, y, z), nw(x, y, z), ne(x, y, z)
-        };
+        boolean[] traversable;
+        if (isBlocked(x, y, z)) {
+            boolean westBlocked = isBlocked(x - 1, y, z);
+            boolean eastBlocked = isBlocked(x + 1, y, z);
+            boolean southBlocked = isBlocked(x, y - 1, z);
+            boolean northBlocked = isBlocked(x, y + 1, z);
+            boolean southWestBlocked = isBlocked(x - 1, y - 1, z);
+            boolean southEastBlocked = isBlocked(x + 1, y - 1, z);
+            boolean northWestBlocked = isBlocked(x - 1, y + 1, z);
+            boolean northEastBlocked = isBlocked(x + 1, y + 1, z);
+            traversable = new boolean[] {
+                !westBlocked,
+                !eastBlocked,
+                !southBlocked,
+                !northBlocked,
+                !southWestBlocked && !westBlocked && !southBlocked,
+                !southEastBlocked && !eastBlocked && !southBlocked,
+                !northWestBlocked && !westBlocked && !northBlocked,
+                !northEastBlocked && !eastBlocked && !northBlocked
+            };
+        } else {
+            traversable = new boolean[] {
+                w(x, y, z), e(x, y, z), s(x, y, z), n(x, y, z), sw(x, y, z), se(x, y, z), nw(x, y, z), ne(x, y, z)
+            };
+        }
 
         for (int i = 0; i < traversable.length; i++) {
             if (traversable[i]) {
@@ -64,5 +93,23 @@ public class CollisionMap extends SplitFlagMap {
         }
 
         return neighbors;
+    }
+
+    public static CollisionMap fromResources() {
+        Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
+        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
+            ZipEntry entry;
+            while ((entry = in.getNextEntry()) != null) {
+                String[] n = entry.getName().split("_");
+
+                compressedRegions.put(
+                        new SplitFlagMap.Position(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
+                        Util.readAllBytes(in)
+                );
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return new CollisionMap(64, compressedRegions);
     }
 }

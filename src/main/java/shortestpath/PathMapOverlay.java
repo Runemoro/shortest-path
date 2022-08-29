@@ -6,6 +6,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.Area;
+import java.util.ArrayList;
 import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Point;
@@ -70,7 +71,7 @@ public class PathMapOverlay extends Overlay {
                     continue;
                 }
 
-                for (Transport b : plugin.getTransports().get(a)) {
+                for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
                     Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b.getDestination());
                     if (mapB == null) {
                         continue;

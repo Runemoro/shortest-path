@@ -9,6 +9,7 @@ import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathConfig;
+import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
 
 public class PathfinderConfig {
@@ -22,19 +23,23 @@ public class PathfinderConfig {
     private final Map<WorldPoint, List<Transport>> transports;
     private final Client client;
     private final ShortestPathConfig config;
+    private final ShortestPathPlugin plugin;
 
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
     private boolean useGrappleShortcuts;
+    private boolean useFairyRings;
     private int agilityLevel;
     private int rangedLevel;
     private int strengthLevel;
 
-    public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client, ShortestPathConfig config) {
+    public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
+                            ShortestPathConfig config, ShortestPathPlugin plugin) {
         this.map = map;
         this.transports = transports;
         this.client = client;
         this.config = config;
+        this.plugin = plugin;
         refresh();
     }
 
@@ -42,6 +47,7 @@ public class PathfinderConfig {
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
+        useFairyRings = config.useFairyRings();
         agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
         rangedLevel = client.getBoostedSkillLevel(Skill.RANGED);
         strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
@@ -55,31 +61,39 @@ public class PathfinderConfig {
         return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !isInWilderness(target);
     }
 
+    public boolean isNear(WorldPoint location) {
+        if (plugin.isStartPointSet() || client.getLocalPlayer() == null) {
+            return true;
+        }
+        return config.recalculateDistance() < 0 ||
+               client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= config.recalculateDistance();
+    }
+
     public boolean useTransport(Transport transport) {
         final int transportAgilityLevel = transport.getAgilityLevelRequired();
         final int transportRangedLevel = transport.getRangedLevelRequired();
         final int transportStrengthLevel = transport.getStrengthLevelRequired();
 
-        final boolean isAgilityShortcut = transportAgilityLevel > 1;
-        final boolean isGrappleShortcut = isAgilityShortcut && (transportRangedLevel > 1 || transportStrengthLevel > 1);
+        final boolean isAgilityShortcut = transport.isAgilityShortcut();
+        final boolean isGrappleShortcut = transport.isGrappleShortcut();
+        final boolean isFairyRing = transport.isFairyRing();
 
-        if (!isAgilityShortcut) {
+        if (isAgilityShortcut) {
+            if (!useAgilityShortcuts || agilityLevel < transportAgilityLevel) {
+                return false;
+            }
+
+            if (isGrappleShortcut) {
+                return useGrappleShortcuts && rangedLevel >= transportRangedLevel && strengthLevel >= transportStrengthLevel;
+            }
+
             return true;
         }
 
-        if (!useAgilityShortcuts) {
-            return false;
+        if (isFairyRing) {
+            return useFairyRings;
         }
 
-        if (!useGrappleShortcuts && isGrappleShortcut) {
-            return false;
-        }
-
-        if (useGrappleShortcuts && isGrappleShortcut && agilityLevel >= transportAgilityLevel &&
-                rangedLevel >= transportRangedLevel && strengthLevel >= transportStrengthLevel) {
-            return true;
-        }
-
-        return agilityLevel >= transportAgilityLevel;
+        return true;
     }
 }

@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.geom.Line2D;
+import java.util.ArrayList;
 import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
@@ -44,15 +45,12 @@ public class PathTileOverlay extends Overlay {
                 continue;
             }
 
-            for (Transport b : plugin.getTransports().get(a)) {
+            StringBuilder s = new StringBuilder();
+            for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
                 Point cb = tileCenter(b.getOrigin());
                 if (cb != null) {
                     graphics.drawLine(ca.getX(), ca.getY(), cb.getX(), cb.getY());
                 }
-            }
-
-            StringBuilder s = new StringBuilder();
-            for (Transport b : plugin.getTransports().get(a)) {
                 if (b.getOrigin().getPlane() > a.getPlane()) {
                     s.append("+");
                 } else if (b.getOrigin().getPlane() < a.getPlane()) {
@@ -88,14 +86,15 @@ public class PathTileOverlay extends Overlay {
                         (!plugin.getMap().e(x, y, z) ? "e" : "") +
                         (!plugin.getMap().w(x, y, z) ? "w" : "");
 
+                if (plugin.getMap().isBlocked(x, y, z)) {
+                    graphics.setColor(config.colourCollisionMap());
+                    graphics.fill(tilePolygon);
+                }
                 if (!s.isEmpty() && !s.equals("nsew")) {
                     graphics.setColor(Color.WHITE);
                     int stringX = (int) (tilePolygon.getBounds().getCenterX() - graphics.getFontMetrics().getStringBounds(s, graphics).getWidth() / 2);
                     int stringY = (int) tilePolygon.getBounds().getCenterY();
                     graphics.drawString(s, stringX, stringY);
-                } else if (!s.isEmpty()) {
-                    graphics.setColor(config.colourCollisionMap());
-                    graphics.fill(tilePolygon);
                 }
             }
         }
