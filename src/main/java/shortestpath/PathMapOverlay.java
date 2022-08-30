@@ -1,6 +1,7 @@
 package shortestpath;
 
 import com.google.inject.Inject;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -48,7 +49,8 @@ public class PathMapOverlay extends Overlay {
             return null;
         }
 
-        graphics.setClip(getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds()));
+        Area worldMapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
+        graphics.setClip(worldMapClipArea);
 
         if (config.drawCollisionMap()) {
             graphics.setColor(config.colourCollisionMap());
@@ -67,13 +69,13 @@ public class PathMapOverlay extends Overlay {
             graphics.setColor(Color.WHITE);
             for (WorldPoint a : plugin.getTransports().keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
-                if (mapA == null) {
+                if (mapA == null || !worldMapClipArea.contains(mapA.getX(), mapA.getY())) {
                     continue;
                 }
 
                 for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
                     Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b.getDestination());
-                    if (mapB == null) {
+                    if (mapB == null || !worldMapClipArea.contains(mapB.getX(), mapB.getY())) {
                         continue;
                     }
 
@@ -85,8 +87,13 @@ public class PathMapOverlay extends Overlay {
         if (plugin.getPathfinder() != null) {
             graphics.setColor(plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating());
             List<WorldPoint> path = plugin.getPathfinder().getPath();
-            for (WorldPoint point : path) {
+            for (int i = 0; i < path.size(); i++) {
+                WorldPoint point = path.get(i);
+                WorldPoint last = (i > 0) ? path.get(i - 1) : point;
                 drawOnMap(graphics, point);
+                if (point.distanceTo(last) > 1) {
+                    drawOnMap(graphics, last, point);
+                }
             }
         }
 
@@ -94,8 +101,12 @@ public class PathMapOverlay extends Overlay {
     }
 
     private void drawOnMap(Graphics2D graphics, WorldPoint point) {
+        drawOnMap(graphics, point, point.dx(1).dy(-1));
+    }
+
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, WorldPoint offset) {
         Point start = plugin.mapWorldPointToGraphicsPoint(point);
-        Point end = plugin.mapWorldPointToGraphicsPoint(point.dx(1).dy(-1));
+        Point end = plugin.mapWorldPointToGraphicsPoint(offset);
 
         if (start == null || end == null) {
             return;
@@ -108,7 +119,12 @@ public class PathMapOverlay extends Overlay {
         x -= width / 2;
         y -= height / 2;
 
-        graphics.fillRect(x, y, width, height);
+        if (point.distanceTo(offset) > 1) {
+            graphics.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{9}, 0));
+            graphics.drawLine(start.getX(), start.getY(), end.getX(), end.getY());
+        } else {
+            graphics.fillRect(x, y, width, height);
+        }
     }
 
     private Area getWorldMapClipArea(Rectangle baseRectangle) {
