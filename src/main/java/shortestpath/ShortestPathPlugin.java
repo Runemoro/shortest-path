@@ -31,6 +31,7 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOpened;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -69,6 +70,10 @@ public class ShortestPathPlugin extends Plugin {
 
     @Inject
     private Client client;
+
+    @Getter
+    @Inject
+    private ClientThread clientThread;
 
     @Inject
     private ShortestPathConfig config;

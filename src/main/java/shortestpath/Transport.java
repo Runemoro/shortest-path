@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import lombok.Getter;
+import net.runelite.api.Quest;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 
@@ -25,6 +26,10 @@ public class Transport {
 
     /** The skill levels required to use this transport */
     private final int[] skillLevels = new int[Skill.values().length];
+
+    /** The quest required to use this transport */
+    @Getter
+    private Quest quest;
 
     /** Whether the transport is an agility shortcut */
     @Getter
@@ -54,11 +59,6 @@ public class Transport {
     Transport(final WorldPoint origin, final WorldPoint destination, final boolean isFairyRing) {
         this(origin, destination);
         this.isFairyRing = isFairyRing;
-    }
-
-    /** The skill level required to use this transport */
-    public int getRequiredLevel(Skill skill) {
-        return skillLevels[skill.ordinal()];
     }
 
     Transport(final String line) {
@@ -96,9 +96,29 @@ public class Transport {
                 }
             }
         }
+        if (parts.length >= 6 && !parts[5].isEmpty() && !parts[5].startsWith("\"")) {
+            String questName = parts[5];
+
+            for (Quest quest : Quest.values()) {
+                if (quest.getName().equals(questName)) {
+                    this.quest = quest;
+                    break;
+                }
+            }
+        }
 
         isAgilityShortcut = getRequiredLevel(Skill.AGILITY) > 1;
         isGrappleShortcut = isAgilityShortcut && (getRequiredLevel(Skill.RANGED) > 1 || getRequiredLevel(Skill.STRENGTH) > 1);
+    }
+
+    /** The skill level required to use this transport */
+    public int getRequiredLevel(Skill skill) {
+        return skillLevels[skill.ordinal()];
+    }
+
+    /** Whether the transport has a quest requirement */
+    public boolean isQuestLocked() {
+        return quest != null;
     }
 
     private static void addTransports(Map<WorldPoint, List<Transport>> transports, ShortestPathConfig config, String path, TransportType transportType) {

@@ -1,10 +1,13 @@
 package shortestpath.pathfinder;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import net.runelite.api.Client;
+import net.runelite.api.Quest;
+import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
@@ -36,6 +39,7 @@ public class PathfinderConfig {
     private int strengthLevel;
     private int prayerLevel;
     private int woodcuttingLevel;
+    private Map<Quest, QuestState> questStates = new HashMap<>();
 
     public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
                             ShortestPathConfig config, ShortestPathPlugin plugin) {
@@ -59,6 +63,17 @@ public class PathfinderConfig {
         strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
         prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
         woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
+        plugin.getClientThread().invokeLater(this::refreshQuests);
+    }
+
+    private void refreshQuests() {
+        for (Map.Entry<WorldPoint, List<Transport>> entry : transports.entrySet()) {
+            for (Transport transport : entry.getValue()) {
+                if (transport.isQuestLocked()) {
+                    questStates.put(transport.getQuest(), transport.getQuest().getState(client));
+                }
+            }
+        }
     }
 
     private boolean isInWilderness(WorldPoint p) {
@@ -91,35 +106,41 @@ public class PathfinderConfig {
         final boolean isTeleport = transport.isTeleport();
         final boolean isCanoe = isBoat && transportWoodcuttingLevel > 1;
         final boolean isPrayerLocked = transportPrayerLevel > 1;
+        final boolean isQuestLocked = transport.isQuestLocked();
 
         if (isAgilityShortcut) {
             if (!useAgilityShortcuts || agilityLevel < transportAgilityLevel) {
                 return false;
             }
 
-            if (isGrappleShortcut) {
-                return useGrappleShortcuts && rangedLevel >= transportRangedLevel && strengthLevel >= transportStrengthLevel;
+            if (isGrappleShortcut && (!useGrappleShortcuts || rangedLevel < transportRangedLevel || strengthLevel < transportStrengthLevel)) {
+                return false;
             }
-
-            return true;
         }
 
         if (isBoat) {
-            if (isCanoe) {
-                return useBoats && woodcuttingLevel >= transportWoodcuttingLevel;
+            if (!useBoats) {
+                return false;
             }
-            return useBoats;
+
+            if (isCanoe && woodcuttingLevel < transportWoodcuttingLevel) {
+                return false;
+            }
         }
 
-        if (isFairyRing) {
-            return useFairyRings;
+        if (isFairyRing && !useFairyRings) {
+            return false;
         }
 
-        if (isTeleport) {
-            return useTeleports;
+        if (isTeleport && !useTeleports) {
+            return false;
         }
 
         if (isPrayerLocked && prayerLevel < transportPrayerLevel) {
+            return false;
+        }
+
+        if (isQuestLocked && !QuestState.FINISHED.equals(questStates.getOrDefault(transport.getQuest(), QuestState.NOT_STARTED))) {
             return false;
         }
 
