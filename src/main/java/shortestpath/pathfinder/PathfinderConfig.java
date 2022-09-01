@@ -28,10 +28,14 @@ public class PathfinderConfig {
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
     private boolean useGrappleShortcuts;
+    private boolean useBoats;
     private boolean useFairyRings;
+    private boolean useTeleports;
     private int agilityLevel;
     private int rangedLevel;
     private int strengthLevel;
+    private int prayerLevel;
+    private int woodcuttingLevel;
 
     public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
                             ShortestPathConfig config, ShortestPathPlugin plugin) {
@@ -47,10 +51,14 @@ public class PathfinderConfig {
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
+        useBoats = config.useBoats();
         useFairyRings = config.useFairyRings();
+        useTeleports = config.useTeleports();
         agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
         rangedLevel = client.getBoostedSkillLevel(Skill.RANGED);
         strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
+        prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
+        woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
     }
 
     private boolean isInWilderness(WorldPoint p) {
@@ -70,13 +78,19 @@ public class PathfinderConfig {
     }
 
     public boolean useTransport(Transport transport) {
-        final int transportAgilityLevel = transport.getAgilityLevelRequired();
-        final int transportRangedLevel = transport.getRangedLevelRequired();
-        final int transportStrengthLevel = transport.getStrengthLevelRequired();
+        final int transportAgilityLevel = transport.getRequiredLevel(Skill.AGILITY);
+        final int transportRangedLevel = transport.getRequiredLevel(Skill.RANGED);
+        final int transportStrengthLevel = transport.getRequiredLevel(Skill.STRENGTH);
+        final int transportPrayerLevel = transport.getRequiredLevel(Skill.PRAYER);
+        final int transportWoodcuttingLevel = transport.getRequiredLevel(Skill.WOODCUTTING);
 
         final boolean isAgilityShortcut = transport.isAgilityShortcut();
         final boolean isGrappleShortcut = transport.isGrappleShortcut();
+        final boolean isBoat = transport.isBoat();
         final boolean isFairyRing = transport.isFairyRing();
+        final boolean isTeleport = transport.isTeleport();
+        final boolean isCanoe = isBoat && transportWoodcuttingLevel > 1;
+        final boolean isPrayerLocked = transportPrayerLevel > 1;
 
         if (isAgilityShortcut) {
             if (!useAgilityShortcuts || agilityLevel < transportAgilityLevel) {
@@ -90,8 +104,23 @@ public class PathfinderConfig {
             return true;
         }
 
+        if (isBoat) {
+            if (isCanoe) {
+                return useBoats && woodcuttingLevel >= transportWoodcuttingLevel;
+            }
+            return useBoats;
+        }
+
         if (isFairyRing) {
             return useFairyRings;
+        }
+
+        if (isTeleport) {
+            return useTeleports;
+        }
+
+        if (isPrayerLocked && prayerLevel < transportPrayerLevel) {
+            return false;
         }
 
         return true;

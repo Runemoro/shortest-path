@@ -142,7 +142,8 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         boolean reloadTransports = "useAgilityShortcuts".equals(event.getKey()) ||
-            "useGrappleShortcuts".equals(event.getKey()) || "useFairyRings".equals(event.getKey());
+            "useGrappleShortcuts".equals(event.getKey()) || "useBoats".equals(event.getKey()) ||
+            "useFairyRings".equals(event.getKey()) || "useTeleports".equals(event.getKey());
 
         if (reloadTransports) {
             Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);

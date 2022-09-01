@@ -5,8 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import lombok.Getter;
+import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 
 /**
@@ -21,52 +23,45 @@ public class Transport {
     @Getter
     private final WorldPoint destination;
 
-    /** The agility level required to use this transport */
-    @Getter
-    private final int agilityLevelRequired;
-
-    /** The ranged level required to use this transport */
-    @Getter
-    private final int rangedLevelRequired;
-
-    /** The strength level required to use this transport */
-    @Getter
-    private final int strengthLevelRequired;
+    /** The skill levels required to use this transport */
+    private final int[] skillLevels = new int[Skill.values().length];
 
     /** Whether the transport is an agility shortcut */
     @Getter
-    private final boolean isAgilityShortcut;
+    private boolean isAgilityShortcut;
 
     /** Whether the transport is a crossbow grapple shortcut */
     @Getter
-    private final boolean isGrappleShortcut;
+    private boolean isGrappleShortcut;
+
+    /** Whether the transport is a boat */
+    @Getter
+    private boolean isBoat;
 
     /** Whether the transport is a fairy ring */
     @Getter
-    private final boolean isFairyRing;
+    private boolean isFairyRing;
 
-    Transport(final WorldPoint origin, final WorldPoint destination,
-              final int agilityLevelRequired, final int rangedLevelRequired, final int strengthLevelRequired,
-              final boolean isFairyRing) {
+    /** Whether the transport is a teleport */
+    @Getter
+    private boolean isTeleport;
+
+    Transport(final WorldPoint origin, final WorldPoint destination) {
         this.origin = origin;
         this.destination = destination;
-        this.agilityLevelRequired = agilityLevelRequired;
-        this.rangedLevelRequired = rangedLevelRequired;
-        this.strengthLevelRequired = strengthLevelRequired;
-        this.isAgilityShortcut = agilityLevelRequired > 1;
-        this.isGrappleShortcut = isAgilityShortcut && (rangedLevelRequired > 1 || strengthLevelRequired > 1);
-        this.isFairyRing = isFairyRing;
     }
 
     Transport(final WorldPoint origin, final WorldPoint destination, final boolean isFairyRing) {
-        this(origin, destination, 0, 0, 0, isFairyRing);
+        this(origin, destination);
+        this.isFairyRing = isFairyRing;
     }
 
-    Transport(final WorldPoint origin, final WorldPoint destination) {
-        this(origin, destination, 0, 0, 0, false);
+    /** The skill level required to use this transport */
+    public int getRequiredLevel(Skill skill) {
+        return skillLevels[skill.ordinal()];
     }
 
-    private static Transport fromLine(final String line) {
+    Transport(final String line) {
         final String DELIM = " ";
 
         String[] parts = line.split("\t");
@@ -74,42 +69,43 @@ public class Transport {
         String[] parts_origin = parts[0].split(DELIM);
         String[] parts_destination = parts[1].split(DELIM);
 
-        WorldPoint origin = new WorldPoint(
+        origin = new WorldPoint(
             Integer.parseInt(parts_origin[0]),
             Integer.parseInt(parts_origin[1]),
             Integer.parseInt(parts_origin[2]));
-        WorldPoint destination = new WorldPoint(
+        destination = new WorldPoint(
             Integer.parseInt(parts_destination[0]),
             Integer.parseInt(parts_destination[1]),
             Integer.parseInt(parts_destination[2]));
 
-        int agilityLevel = 0;
-        int rangedLevel = 0;
-        int strengthLevel = 0;
+        if (parts.length >= 4 && !parts[3].isEmpty() && !parts[3].startsWith("\"")) {
+            String[] skillRequirements = parts[3].split(";");
 
-        if (parts.length >= 4 && !parts[3].startsWith("\"")) {
-            String[] requirements = parts[3].split(";");
+            for (String requirement : skillRequirements) {
+                String[] levelAndSkill = requirement.split(DELIM);
 
-            if (requirements.length >= 1) {
-                agilityLevel = Integer.parseInt(requirements[0].split(DELIM)[0]);
-            }
-            if (requirements.length >= 2) {
-                rangedLevel = Integer.parseInt(requirements[1].split(DELIM)[0]);
-            }
-            if (requirements.length >= 3) {
-                strengthLevel = Integer.parseInt(requirements[2].split(DELIM)[0]);
+                int level = Integer.parseInt(levelAndSkill[0]);
+                String skillName = levelAndSkill[1];
+
+                Skill[] skills = Skill.values();
+                for (int i = 0; i < skills.length; i++) {
+                    if (skills[i].getName().equals(skillName)) {
+                        skillLevels[i] = level;
+                        break;
+                    }
+                }
             }
         }
 
-        return new Transport(origin, destination, agilityLevel, rangedLevel, strengthLevel, false);
+        isAgilityShortcut = getRequiredLevel(Skill.AGILITY) > 1;
+        isGrappleShortcut = isAgilityShortcut && (getRequiredLevel(Skill.RANGED) > 1 || getRequiredLevel(Skill.STRENGTH) > 1);
     }
 
-    public static HashMap<WorldPoint, List<Transport>> fromResources(ShortestPathConfig config) {
-        HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
-
+    private static void addTransports(Map<WorldPoint, List<Transport>> transports, ShortestPathConfig config, String path, TransportType transportType) {
         try {
-            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
+            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream(path)), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
+            List<WorldPoint> fairyRings = new ArrayList<>();
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
 
@@ -117,51 +113,63 @@ public class Transport {
                     continue;
                 }
 
-                Transport transport = Transport.fromLine(line);
-                if (!config.useAgilityShortcuts() && transport.isAgilityShortcut) {
-                    continue;
+                if (TransportType.FAIRY_RING.equals(transportType)) {
+                    String[] wp = line.split("\t");
+                    fairyRings.add(new WorldPoint(Integer.parseInt(wp[0]), Integer.parseInt(wp[1]), Integer.parseInt(wp[2])));
+                } else {
+                    Transport transport = new Transport(line);
+                    transport.isBoat = TransportType.BOAT.equals(transportType);
+                    transport.isTeleport = TransportType.TELEPORT.equals(transportType);
+                    if (!config.useAgilityShortcuts() && transport.isAgilityShortcut) {
+                        continue;
+                    }
+                    if (!config.useGrappleShortcuts() && transport.isGrappleShortcut) {
+                        continue;
+                    }
+                    WorldPoint origin = transport.getOrigin();
+                    transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                 }
-                if (!config.useGrappleShortcuts() && transport.isGrappleShortcut) {
-                    continue;
+            }
+            for (WorldPoint origin : fairyRings) {
+                for (WorldPoint destination : fairyRings) {
+                    if (origin.equals(destination)) {
+                        continue;
+                    }
+                    transports.computeIfAbsent(origin.dx(-1), k -> new ArrayList<>()).add(new Transport(origin.dx(-1), destination, true));
+                    transports.computeIfAbsent(origin.dx(1), k -> new ArrayList<>()).add(new Transport(origin.dx(1), destination, true));
+                    transports.computeIfAbsent(origin.dy(-1), k -> new ArrayList<>()).add(new Transport(origin.dy(-1), destination, true));
+                    transports.computeIfAbsent(origin.dy(1), k -> new ArrayList<>()).add(new Transport(origin.dy(1), destination, true));
                 }
-                WorldPoint origin = transport.getOrigin();
-                transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static HashMap<WorldPoint, List<Transport>> fromResources(ShortestPathConfig config) {
+        HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
+
+        addTransports(transports, config, "/transports.txt", TransportType.TRANSPORT);
+
+        if (config.useBoats()) {
+            addTransports(transports, config, "/boats.txt", TransportType.BOAT);
+        }
 
         if (config.useFairyRings()) {
-            try {
-                String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/fairy_rings.txt")), StandardCharsets.UTF_8);
-                Scanner scanner = new Scanner(s);
-                List<WorldPoint> fairyRings = new ArrayList<>();
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
+            addTransports(transports, config, "/fairy_rings.txt", TransportType.FAIRY_RING);
+        }
 
-                    if (line.startsWith("#") || line.isEmpty()) {
-                        continue;
-                    }
-
-                    String[] wp = line.split("\t");
-                    fairyRings.add(new WorldPoint(Integer.parseInt(wp[0]), Integer.parseInt(wp[1]), Integer.parseInt(wp[2])));
-                }
-                for (WorldPoint origin : fairyRings) {
-                    for (WorldPoint destination : fairyRings) {
-                        if (origin.equals(destination)) {
-                            continue;
-                        }
-                        transports.computeIfAbsent(origin.dx(-1), k -> new ArrayList<>()).add(new Transport(origin.dx(-1), destination, true));
-                        transports.computeIfAbsent(origin.dx(1), k -> new ArrayList<>()).add(new Transport(origin.dx(1), destination, true));
-                        transports.computeIfAbsent(origin.dy(-1), k -> new ArrayList<>()).add(new Transport(origin.dy(-1), destination, true));
-                        transports.computeIfAbsent(origin.dy(1), k -> new ArrayList<>()).add(new Transport(origin.dy(1), destination, true));
-                    }
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        if (config.useTeleports()) {
+            addTransports(transports, config, "/teleports.txt", TransportType.TELEPORT);
         }
 
         return transports;
+    }
+
+    private enum TransportType {
+        TRANSPORT,
+        BOAT,
+        FAIRY_RING,
+        TELEPORT
     }
 }
