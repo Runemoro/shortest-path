@@ -64,7 +64,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "useFairyRings",
         name = "Use fairy rings",
-        description = "Whether to include fairy rings in the path",
+        description = "Whether to include fairy rings in the path. You must also have completed the required quest or miniquest",
         position = 5,
         section = sectionSettings
     )

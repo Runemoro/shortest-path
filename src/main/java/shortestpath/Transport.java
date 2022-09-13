@@ -1,5 +1,6 @@
 package shortestpath;
 
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -97,14 +98,7 @@ public class Transport {
             }
         }
         if (parts.length >= 6 && !parts[5].isEmpty() && !parts[5].startsWith("\"")) {
-            String questName = parts[5];
-
-            for (Quest quest : Quest.values()) {
-                if (quest.getName().equals(questName)) {
-                    this.quest = quest;
-                    break;
-                }
-            }
+            this.quest = findQuest(parts[5]);
         }
 
         isAgilityShortcut = getRequiredLevel(Skill.AGILITY) > 1;
@@ -121,11 +115,21 @@ public class Transport {
         return quest != null;
     }
 
+    private static Quest findQuest(String questName) {
+        for (Quest quest : Quest.values()) {
+            if (quest.getName().equals(questName)) {
+                return quest;
+            }
+        }
+        return null;
+    }
+
     private static void addTransports(Map<WorldPoint, List<Transport>> transports, ShortestPathConfig config, String path, TransportType transportType) {
         try {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream(path)), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
             List<WorldPoint> fairyRings = new ArrayList<>();
+            List<String> fairyRingsQuestNames = new ArrayList<>();
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
 
@@ -134,8 +138,9 @@ public class Transport {
                 }
 
                 if (TransportType.FAIRY_RING.equals(transportType)) {
-                    String[] wp = line.split("\t");
-                    fairyRings.add(new WorldPoint(Integer.parseInt(wp[0]), Integer.parseInt(wp[1]), Integer.parseInt(wp[2])));
+                    String[] p = line.split("\t");
+                    fairyRings.add(new WorldPoint(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
+                    fairyRingsQuestNames.add(p.length >= 7 ? p[6] : "");
                 } else {
                     Transport transport = new Transport(line);
                     transport.isBoat = TransportType.BOAT.equals(transportType);
@@ -151,14 +156,17 @@ public class Transport {
                 }
             }
             for (WorldPoint origin : fairyRings) {
-                for (WorldPoint destination : fairyRings) {
+                for (int i = 0; i < fairyRings.size(); i++) {
+                    WorldPoint destination = fairyRings.get(i);
+                    String questName = fairyRingsQuestNames.get(i);
                     if (origin.equals(destination)) {
                         continue;
                     }
-                    transports.computeIfAbsent(origin.dx(-1), k -> new ArrayList<>()).add(new Transport(origin.dx(-1), destination, true));
-                    transports.computeIfAbsent(origin.dx(1), k -> new ArrayList<>()).add(new Transport(origin.dx(1), destination, true));
-                    transports.computeIfAbsent(origin.dy(-1), k -> new ArrayList<>()).add(new Transport(origin.dy(-1), destination, true));
-                    transports.computeIfAbsent(origin.dy(1), k -> new ArrayList<>()).add(new Transport(origin.dy(1), destination, true));
+                    Transport transport = new Transport(origin, destination, true);
+                    transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
+                    if (!Strings.isNullOrEmpty(questName)) {
+                        transport.quest = findQuest(questName);
+                    }
                 }
             }
         } catch (IOException e) {

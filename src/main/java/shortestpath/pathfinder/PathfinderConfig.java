@@ -67,10 +67,14 @@ public class PathfinderConfig {
     }
 
     private void refreshQuests() {
+        useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
         for (Map.Entry<WorldPoint, List<Transport>> entry : transports.entrySet()) {
             for (Transport transport : entry.getValue()) {
                 if (transport.isQuestLocked()) {
-                    questStates.put(transport.getQuest(), transport.getQuest().getState(client));
+                    try {
+                        questStates.put(transport.getQuest(), transport.getQuest().getState(client));
+                    } catch (NullPointerException ignored) {
+                    }
                 }
             }
         }
