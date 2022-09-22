@@ -47,8 +47,9 @@ public class Pathfinder implements Runnable {
     private void addNeighbors(Node node) {
         for (OrdinalDirection direction : OrdinalDirection.values()) {
             for (Transport transport : config.getTransports().getOrDefault(node.position.dx(direction.x).dy(direction.y), new ArrayList<>())) {
-                if (config.useTransport(transport)) {
-                    addNeighbor(new Node(transport.getOrigin(), node), transport.getDestination());
+                WorldPoint origin = transport.getOrigin();
+                if (config.useTransport(transport) && config.getMap().isBlocked(origin.getX(), origin.getY(), origin.getPlane())) {
+                    addNeighbor(new Node(origin, node), transport.getDestination());
                 }
             }
         }
