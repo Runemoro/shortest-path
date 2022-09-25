@@ -53,8 +53,7 @@ public class PathfinderConfig {
     }
 
     public void refresh() {
-        if (!GameState.LOGGED_IN.equals(client.getGameState()))
-        {
+        if (!GameState.LOGGED_IN.equals(client.getGameState())) {
             return;
         }
         avoidWilderness = config.avoidWilderness();
