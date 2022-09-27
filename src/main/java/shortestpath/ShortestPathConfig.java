@@ -135,6 +135,18 @@ public interface ShortestPathConfig extends Config {
         return TileCounter.DISABLED;
     }
 
+    @ConfigItem(
+        keyName = "tileCounterStep",
+        name = "Tile counter step",
+        description = "The number of tiles between displaying the tile counter number",
+        position = 11,
+        section = sectionSettings
+    )
+    default int tileCounterStep()
+    {
+        return 1;
+    }
+
     @ConfigSection(
         name = "Display",
         description = "Options for displaying the path on the world map, minimap and scene tiles",

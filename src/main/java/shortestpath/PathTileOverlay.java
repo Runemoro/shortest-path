@@ -223,8 +223,16 @@ public class PathTileOverlay extends Overlay {
 
     private void drawCounter(Graphics2D graphics, double x, double y, int counter) {
         if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
+            int n = config.tileCounterStep() > 0 ? config.tileCounterStep() : 1;
+            int s = plugin.getPathfinder().getPath().size();
+            if ((counter % n != 0) && (s != (counter + 1))) {
+                return;
+            }
             if (TileCounter.REMAINING.equals(config.showTileCounter())) {
-                counter = plugin.getPathfinder().getPath().size() - counter - 1;
+                counter = s - counter - 1;
+            }
+            if (n > 1 && counter == 0) {
+                return;
             }
             String counterText = Integer.toString(counter);
             graphics.setColor(Color.WHITE);
