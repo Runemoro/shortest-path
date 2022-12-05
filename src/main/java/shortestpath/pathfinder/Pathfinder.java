@@ -17,15 +17,21 @@ public class Pathfinder implements Runnable {
     private final WorldPoint target;
     private final PathfinderConfig config;
 
-    private final List<Node> boundary = new LinkedList<>();
+    private final List<Node> boundary = new LinkedList<Node>() {
+        @Override
+        public boolean add(Node n) {
+            lowestHeuristic = Math.min(n.heuristic, lowestHeuristic);
+            return super.add(n);
+        }
+    };
     private final Set<WorldPoint> visited = new HashSet<>();
     private final List<Node> pending = new ArrayList<>();
-    private final Set<WorldPoint> pendingvisited = new HashSet<>();
 
     @Getter
     private List<WorldPoint> path = new ArrayList<>();
     @Getter
     private boolean done = false;
+    private long lowestHeuristic = Integer.MAX_VALUE;
 
     public Pathfinder(PathfinderConfig config, WorldPoint start, WorldPoint target) {
         this.config = config;
@@ -42,7 +48,13 @@ public class Pathfinder implements Runnable {
         }
 
         if (visited.add(neighbor)) {
-            boundary.add(new Node(neighbor, node, target, wait));
+            Node n = new Node(neighbor, node, target, wait);
+            if (n.isTransport()) {
+                pending.add(n);
+                pending.sort(null);
+            } else {
+                boundary.add(n);
+            }
         }
     }
 
@@ -67,16 +79,6 @@ public class Pathfinder implements Runnable {
         }
     }
 
-    private long getLowestHeurisitc(List<Node> data) {
-        long lowest = Integer.MAX_VALUE;
-        for (Node n : data) {
-            if (n.heuristic < lowest) {
-                lowest = n.heuristic;
-            }
-        }
-        return lowest == Integer.MAX_VALUE ? -1 : lowest;
-    }
-
     @Override
     public void run() {
         boundary.add(new Node(start, null, target));
@@ -90,18 +92,9 @@ public class Pathfinder implements Runnable {
 
             if (pending.size() > 0) {
                 Node p = pending.get(0);
-                if (p.heuristic < getLowestHeurisitc(boundary)) {
+                if (p.heuristic < lowestHeuristic) {
                     boundary.add(0, p);
-                }
-            }
-
-            if (node.distance > 1) {
-                if (pendingvisited.add(node.position)) {
-                    pending.add(node);
-                    pending.sort(null);
-                    continue;
-                } else {
-                    pending.remove(node);
+                    pending.remove(p);
                 }
             }
 
@@ -130,6 +123,5 @@ public class Pathfinder implements Runnable {
         boundary.clear();
         visited.clear();
         pending.clear();
-        pendingvisited.clear();
     }
 }

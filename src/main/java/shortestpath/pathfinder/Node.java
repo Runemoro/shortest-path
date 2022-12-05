@@ -9,8 +9,8 @@ public class Node implements Comparable<Node> {
     public final WorldPoint position;
     public final Node previous;
     public final long heuristic;
-    public final int wait;
-    public final int distance;
+    private final int wait;
+    private final int distance;
 
     public Node(WorldPoint position, Node previous, WorldPoint target, int wait) {
         this.position = position;
@@ -34,6 +34,10 @@ public class Node implements Comparable<Node> {
         }
 
         return new ArrayList<>(path);
+    }
+
+    public boolean isTransport() {
+        return distance > 1;
     }
 
     /**
