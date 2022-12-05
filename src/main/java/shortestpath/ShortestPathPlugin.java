@@ -243,6 +243,12 @@ public class ShortestPathPlugin extends Plugin {
             minimap.contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
             addMenuEntry(event, CLEAR, PATH, 0);
         }
+
+        if (minimap != null && pathfinder != null &&
+            ("Floating World Map".equals(Text.removeTags(event.getOption())) ||
+             "Close Floating panel".equals(Text.removeTags(event.getOption())))) {
+            addMenuEntry(event, CLEAR, PATH, 1);
+        }
     }
 
     public Map<WorldPoint, List<Transport>> getTransports() {

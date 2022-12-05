@@ -52,6 +52,10 @@ public class Transport {
     @Getter
     private boolean isTeleport;
 
+    /** The additional travel time */
+    @Getter
+    private int wait;
+
     Transport(final WorldPoint origin, final WorldPoint destination) {
         this.origin = origin;
         this.destination = destination;
@@ -79,7 +83,8 @@ public class Transport {
             Integer.parseInt(parts_destination[1]),
             Integer.parseInt(parts_destination[2]));
 
-        if (parts.length >= 4 && !parts[3].isEmpty() && !parts[3].startsWith("\"")) {
+        // Skill requirements
+        if (parts.length >= 4 && !parts[3].isEmpty()) {
             String[] skillRequirements = parts[3].split(";");
 
             for (String requirement : skillRequirements) {
@@ -97,8 +102,15 @@ public class Transport {
                 }
             }
         }
-        if (parts.length >= 6 && !parts[5].isEmpty() && !parts[5].startsWith("\"")) {
+
+        // Quest requirements
+        if (parts.length >= 6 && !parts[5].isEmpty()) {
             this.quest = findQuest(parts[5]);
+        }
+
+        // Additional travel time
+        if (parts.length >= 7 && !parts[6].isEmpty()) {
+            this.wait = Integer.parseInt(parts[6]);
         }
 
         isAgilityShortcut = getRequiredLevel(Skill.AGILITY) > 1;
@@ -163,6 +175,7 @@ public class Transport {
                         continue;
                     }
                     Transport transport = new Transport(origin, destination, true);
+                    transport.wait = 5;
                     transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                     if (!Strings.isNullOrEmpty(questName)) {
                         transport.quest = findQuest(questName);

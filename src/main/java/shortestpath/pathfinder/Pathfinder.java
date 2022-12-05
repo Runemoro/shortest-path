@@ -19,6 +19,8 @@ public class Pathfinder implements Runnable {
 
     private final List<Node> boundary = new LinkedList<>();
     private final Set<WorldPoint> visited = new HashSet<>();
+    private final List<Node> pending = new ArrayList<>();
+    private final Set<WorldPoint> pendingvisited = new HashSet<>();
 
     @Getter
     private List<WorldPoint> path = new ArrayList<>();
@@ -34,14 +36,14 @@ public class Pathfinder implements Runnable {
         new Thread(this).start();
     }
 
-    private void addNeighbor(Node node, WorldPoint neighbor) {
+    private void addNeighbor(Node node, WorldPoint neighbor, int wait) {
         if (config.avoidWilderness(node.position, neighbor, target)) {
             return;
         }
-        if (!visited.add(neighbor)) {
-            return;
+
+        if (visited.add(neighbor)) {
+            boundary.add(new Node(neighbor, node, target, wait));
         }
-        boundary.add(new Node(neighbor, node));
     }
 
     private void addNeighbors(Node node) {
@@ -49,39 +51,66 @@ public class Pathfinder implements Runnable {
             for (Transport transport : config.getTransports().getOrDefault(node.position.dx(direction.x).dy(direction.y), new ArrayList<>())) {
                 WorldPoint origin = transport.getOrigin();
                 if (config.useTransport(transport) && config.getMap().isBlocked(origin.getX(), origin.getY(), origin.getPlane())) {
-                    addNeighbor(new Node(origin, node), transport.getDestination());
+                    addNeighbor(new Node(origin, node, target), transport.getDestination(), transport.getWait());
                 }
             }
         }
 
         for (WorldPoint neighbor : config.getMap().getNeighbors(node.position)) {
-            addNeighbor(node, neighbor);
+            addNeighbor(node, neighbor, 0);
         }
 
         for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
             if (config.useTransport(transport)) {
-                addNeighbor(node, transport.getDestination());
+                addNeighbor(node, transport.getDestination(), transport.getWait());
             }
         }
     }
 
+    private long getLowestHeurisitc(List<Node> data) {
+        long lowest = Integer.MAX_VALUE;
+        for (Node n : data) {
+            if (n.heuristic < lowest) {
+                lowest = n.heuristic;
+            }
+        }
+        return lowest == Integer.MAX_VALUE ? -1 : lowest;
+    }
+
     @Override
     public void run() {
-        boundary.add(new Node(start, null));
+        boundary.add(new Node(start, null, target));
 
         Node nearest = boundary.get(0);
-        int bestDistance = Integer.MAX_VALUE;
+        long bestDistance = Integer.MAX_VALUE;
         Instant cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
 
         while (!boundary.isEmpty()) {
             Node node = boundary.remove(0);
+
+            if (pending.size() > 0) {
+                Node p = pending.get(0);
+                if (p.heuristic < getLowestHeurisitc(boundary)) {
+                    boundary.add(0, p);
+                }
+            }
+
+            if (node.distance > 1) {
+                if (pendingvisited.add(node.position)) {
+                    pending.add(node);
+                    pending.sort(null);
+                    continue;
+                } else {
+                    pending.remove(node);
+                }
+            }
 
             if (node.position.equals(target) || !config.isNear(start)) {
                 path = node.getPath();
                 break;
             }
 
-            int distance = node.position.distanceTo(target);
+            long distance = node.heuristic;
             if (distance < bestDistance) {
                 path = node.getPath();
                 nearest = node;
@@ -100,5 +129,7 @@ public class Pathfinder implements Runnable {
         done = true;
         boundary.clear();
         visited.clear();
+        pending.clear();
+        pendingvisited.clear();
     }
 }
