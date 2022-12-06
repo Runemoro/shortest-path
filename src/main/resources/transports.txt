@@ -788,8 +788,8 @@
 2560 3222 0	2561 9621 0	Climb-down Ladder 16680				2
 
 # Edgeville
-3142 3513 0	3137 3516 0	Climb-into Underwall tunnel 16530	21 Agility
-3137 3516 0	3142 3513 0	Climb-into Underwall tunnel 16529	21 Agility
+3142 3513 0	3137 3516 0	Climb-into Underwall tunnel 16530	21 Agility			7
+3137 3516 0	3142 3513 0	Climb-into Underwall tunnel 16529	21 Agility			7
 3097 3511 0	3097 3511 1	Climb-up Ladder 16683
 3097 3511 1	3097 3511 0	Climb-down Ladder 16679
 3096 3512 0	3096 3512 1	Climb-up Ladder 16683
@@ -4446,6 +4446,10 @@
 2834 3335 0	2834 3332 1	Cross Gangplank 2415				3
 2834 3332 1	2834 3335 0	Cross Gangplank 2415				3
 
+# Fishing Platform
+2720 3301 0	2782 3273 0	Travel Holgart 7789				9
+2782 3273 0	2720 3301 0	Travel Holgart 5070				9
+
 # Karamja
 2910 3049 0	2906 3049 0	Cross A wooden log 23644				5
 2906 3049 0	2910 3049 0	Cross A wooden log 23644				5
@@ -4483,6 +4487,24 @@
 2833 2951 0	2776 3214 0	Pay-fare Travel cart 2256			Shilo Village	5
 2834 2953 0	2776 3214 0	Pay-fare Travel cart 2256			Shilo Village	5
 2834 2952 0	2776 3214 0	Pay-fare Travel cart 2256			Shilo Village	5
+2836 9599 0	2836 9600 0	Open Wall 2606			Dragon Slayer I	2
+2836 9600 0	2836 9599 0	Open Wall 2606			Dragon Slayer I	2
+2832 9657 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
+2833 9658 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
+2833 9656 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
+2834 9657 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
+2832 3255 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2832 3256 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2832 3257 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2833 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2834 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2835 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2833 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2834 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2835 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2836 3255 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2836 3256 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
+2836 3257 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
 
 # Feldip Hills
 2546 2873 0	2546 2871 0	Climb Rocks 31757	10 Agility
