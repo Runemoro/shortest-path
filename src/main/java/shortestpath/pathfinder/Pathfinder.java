@@ -95,6 +95,9 @@ public class Pathfinder implements Runnable {
                 if (p.heuristic < lowestHeuristic) {
                     boundary.add(0, p);
                     pending.remove(p);
+                } else if (boundary.isEmpty()) {
+                    boundary.addAll(pending);
+                    pending.clear();
                 }
             }
 
