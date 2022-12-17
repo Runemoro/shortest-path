@@ -29,6 +29,8 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Distance from the target tile at which the path should be ended (-1 for never)
   - Show tile counter: `Disabled`
     - Whether to display the number of tiles travelled, number of tiles remaining or disable counting
+  - Tile counter step: `1`
+    - The number of tiles between the displayed tile counter numbers
 - Display
   - Draw path on world map: ✅ `true`
     - Whether the path should be drawn on the world map
