@@ -15,9 +15,9 @@ public class Node implements Comparable<Node> {
     public Node(WorldPoint position, Node previous, WorldPoint target, int wait) {
         this.position = position;
         this.previous = previous;
-        this.heuristic = getHeuristic(target);
         this.wait = (previous != null ? previous.wait : 0) + wait;
         distance = previous != null ? position.distanceTo(previous.position) : 0;
+        this.heuristic = getHeuristic(target);
     }
 
     public Node(WorldPoint position, Node previous, WorldPoint target) {
@@ -49,7 +49,11 @@ public class Node implements Comparable<Node> {
      * @return  distance to target including additional travel time
      */
     private long getHeuristic(WorldPoint target) {
-        return (long) position.distanceTo(target) + wait;
+        long h = (long) position.distanceTo(target) + wait;
+        if (previous != null && isTransport() && previous.heuristic < h) {
+            return previous.heuristic;
+        }
+        return h;
     }
 
     @Override
