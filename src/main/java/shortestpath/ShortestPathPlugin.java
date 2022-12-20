@@ -91,6 +91,9 @@ public class ShortestPathPlugin extends Plugin {
     private PathMapOverlay pathMapOverlay;
 
     @Inject
+    private PathMapTooltipOverlay pathMapTooltipOverlay;
+
+    @Inject
     private SpriteManager spriteManager;
 
     @Inject
@@ -131,6 +134,7 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);
         overlayManager.add(pathMapOverlay);
+        overlayManager.add(pathMapTooltipOverlay);
     }
 
     @Override
@@ -138,6 +142,7 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathOverlay);
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
+        overlayManager.remove(pathMapTooltipOverlay);
     }
 
     @Subscribe

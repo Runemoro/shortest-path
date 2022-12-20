@@ -85,7 +85,6 @@ public class PathMapOverlay extends Overlay {
         }
 
         if (plugin.getPathfinder() != null) {
-            graphics.setColor(plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating());
             List<WorldPoint> path = plugin.getPathfinder().getPath();
             for (int i = 0; i < path.size(); i++) {
                 WorldPoint point = path.get(i);
@@ -118,6 +117,14 @@ public class PathMapOverlay extends Overlay {
         final int height = end.getY() - y;
         x -= width / 2;
         y -= height / 2;
+
+        Point cursorPos = client.getMouseCanvasPosition();
+        Color tileColour = plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating();
+        if (cursorPos.getX() >= x && cursorPos.getX() <= (end.getX() - width / 2) &&
+            cursorPos.getY() >= y && cursorPos.getY() <= (end.getY() - width / 2)) {
+            tileColour = tileColour.darker();
+        }
+        graphics.setColor(tileColour);
 
         if (point.distanceTo(offset) > 1) {
             graphics.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{9}, 0));
