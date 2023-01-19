@@ -59,7 +59,7 @@ public class PathMapOverlay extends Overlay {
             for (int x = extent.x; x < (extent.x + extent.width + 1); x++) {
                 for (int y = extent.y - extent.height; y < (extent.y + 1); y++) {
                     if (plugin.getMap().isBlocked(x, y, z)) {
-                        drawOnMap(graphics, new WorldPoint(x, y, z));
+                        drawOnMap(graphics, new WorldPoint(x, y, z), false);
                     }
                 }
             }
@@ -85,25 +85,27 @@ public class PathMapOverlay extends Overlay {
         }
 
         if (plugin.getPathfinder() != null) {
+            Color colour = plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating();
             List<WorldPoint> path = plugin.getPathfinder().getPath();
             for (int i = 0; i < path.size(); i++) {
+                graphics.setColor(colour);
                 WorldPoint point = path.get(i);
                 WorldPoint last = (i > 0) ? path.get(i - 1) : point;
-                drawOnMap(graphics, point);
                 if (point.distanceTo(last) > 1) {
-                    drawOnMap(graphics, last, point);
+                    drawOnMap(graphics, last, point, true);
                 }
+                drawOnMap(graphics, point, true);
             }
         }
 
         return null;
     }
 
-    private void drawOnMap(Graphics2D graphics, WorldPoint point) {
-        drawOnMap(graphics, point, point.dx(1).dy(-1));
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, boolean checkHover) {
+        drawOnMap(graphics, point, point.dx(1).dy(-1), checkHover);
     }
 
-    private void drawOnMap(Graphics2D graphics, WorldPoint point, WorldPoint offset) {
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, WorldPoint offset, boolean checkHover) {
         Point start = plugin.mapWorldPointToGraphicsPoint(point);
         Point end = plugin.mapWorldPointToGraphicsPoint(offset);
 
@@ -118,18 +120,16 @@ public class PathMapOverlay extends Overlay {
         x -= width / 2;
         y -= height / 2;
 
-        Point cursorPos = client.getMouseCanvasPosition();
-        Color tileColour = plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating();
-        if (cursorPos.getX() >= x && cursorPos.getX() <= (end.getX() - width / 2) &&
-            cursorPos.getY() >= y && cursorPos.getY() <= (end.getY() - width / 2)) {
-            tileColour = tileColour.darker();
-        }
-        graphics.setColor(tileColour);
-
         if (point.distanceTo(offset) > 1) {
             graphics.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{9}, 0));
             graphics.drawLine(start.getX(), start.getY(), end.getX(), end.getY());
         } else {
+            Point cursorPos = client.getMouseCanvasPosition();
+            if (checkHover &&
+                cursorPos.getX() >= x && cursorPos.getX() <= (end.getX() - width / 2) &&
+                cursorPos.getY() >= y && cursorPos.getY() <= (end.getY() - width / 2)) {
+                graphics.setColor(graphics.getColor().darker());
+            }
             graphics.fillRect(x, y, width, height);
         }
     }
