@@ -78,14 +78,13 @@ public class Pathfinder implements Runnable {
         }
     }
 
-    private long getLowestHeuristic(List<Node> data) {
-        long lowest = Integer.MAX_VALUE;
+    private boolean isHeuristicBetter(long candidate, List<Node> data) {
         for (Node n : data) {
-            if (n.heuristic < lowest) {
-                lowest = n.heuristic;
+            if (n.heuristic <= candidate) {
+                return false;
             }
         }
-        return lowest == Integer.MAX_VALUE ? -1 : lowest;
+        return true;
     }
 
     @Override
@@ -101,7 +100,7 @@ public class Pathfinder implements Runnable {
 
             if (pending.size() > 0) {
                 Node p = pending.get(0);
-                if (p.heuristic < getLowestHeuristic(boundary)) {
+                if (isHeuristicBetter(p.heuristic, boundary)) {
                     boundary.add(0, p);
                     pending.remove(p);
                 }
