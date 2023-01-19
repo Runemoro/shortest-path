@@ -4443,10 +4443,6 @@
 2834 3335 0	2834 3332 1	Cross Gangplank 2415				3
 2834 3332 1	2834 3335 0	Cross Gangplank 2415				3
 
-# Fishing Platform
-2720 3301 0	2782 3273 0	Travel Holgart 7789				9
-2782 3273 0	2720 3301 0	Travel Holgart 5070				9
-
 # Karamja
 2910 3049 0	2906 3049 0	Cross A wooden log 23644				5
 2906 3049 0	2910 3049 0	Cross A wooden log 23644				5

@@ -10,6 +10,10 @@
 2915 3225 0	2683 3271 0	Ardougne Captain Barnaby 8763		30 Coins		6
 2915 3225 0	2772 3234 0	Brimhaven Captain Barnaby 8763		30 Coins		6
 
+# Fishing Platform
+2720 3301 0	2782 3273 0	Travel Holgart 7789			Sea Slug	9
+2782 3273 0	2720 3301 0	Travel Holgart 5070			Sea Slug	9
+
 # Rimmington, Corsair Cove
 2909 3226 0	2578 2840 0	Travel Cabin Boy Colin 7967			The Corsair Curse	6
 2578 2840 0	2909 3226 0	Travel Cabin Boy Colin 7967			The Corsair Curse	6
