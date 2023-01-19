@@ -22,7 +22,6 @@ import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.api.RenderOverview;
 import net.runelite.api.SpriteID;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
@@ -31,6 +30,7 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOpened;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.api.worldmap.WorldMap;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -356,9 +356,9 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public WorldPoint calculateMapPoint(Point point) {
-        float zoom = client.getRenderOverview().getWorldMapZoom();
-        RenderOverview renderOverview = client.getRenderOverview();
-        final WorldPoint mapPoint = new WorldPoint(renderOverview.getWorldMapPosition().getX(), renderOverview.getWorldMapPosition().getY(), 0);
+        WorldMap worldMap = client.getWorldMap();
+        float zoom = worldMap.getWorldMapZoom();
+        final WorldPoint mapPoint = new WorldPoint(worldMap.getWorldMapPosition().getX(), worldMap.getWorldMapPosition().getY(), 0);
         final Point middle = mapWorldPointToGraphicsPoint(mapPoint);
 
         if (point == null || middle == null) {
@@ -372,9 +372,9 @@ public class ShortestPathPlugin extends Plugin {
     }
 
     public Point mapWorldPointToGraphicsPoint(WorldPoint worldPoint) {
-        RenderOverview ro = client.getRenderOverview();
+        WorldMap worldMap = client.getWorldMap();
 
-        float pixelsPerTile = ro.getWorldMapZoom();
+        float pixelsPerTile = worldMap.getWorldMapZoom();
 
         Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
         if (map != null) {
@@ -383,7 +383,7 @@ public class ShortestPathPlugin extends Plugin {
             int widthInTiles = (int) Math.ceil(worldMapRect.getWidth() / pixelsPerTile);
             int heightInTiles = (int) Math.ceil(worldMapRect.getHeight() / pixelsPerTile);
 
-            Point worldMapPosition = ro.getWorldMapPosition();
+            Point worldMapPosition = worldMap.getWorldMapPosition();
 
             int yTileMax = worldMapPosition.getY() - heightInTiles / 2;
             int yTileOffset = (yTileMax - worldPoint.getY() - 1) * -1;
