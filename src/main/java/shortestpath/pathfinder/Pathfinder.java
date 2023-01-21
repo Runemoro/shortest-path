@@ -2,6 +2,7 @@ package shortestpath.pathfinder;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,7 +18,7 @@ public class Pathfinder implements Runnable {
     private final WorldPoint target;
     private final PathfinderConfig config;
 
-    private final List<Node> boundary = new LinkedList<>();
+    private final Deque<Node> boundary = new LinkedList<>();
     private final Set<WorldPoint> visited = new HashSet<>();
     private final List<Node> pending = new ArrayList<Node>() {
         @Override
@@ -52,7 +53,7 @@ public class Pathfinder implements Runnable {
             if (n.isTransport()) {
                 pending.add(n);
             } else {
-                boundary.add(n);
+                boundary.addLast(n);
             }
         }
     }
@@ -78,7 +79,7 @@ public class Pathfinder implements Runnable {
         }
     }
 
-    private boolean isHeuristicBetter(long candidate, List<Node> data) {
+    private boolean isHeuristicBetter(long candidate, Deque<Node> data) {
         for (Node n : data) {
             if (n.heuristic <= candidate) {
                 return false;
@@ -89,20 +90,20 @@ public class Pathfinder implements Runnable {
 
     @Override
     public void run() {
-        boundary.add(new Node(start, null, target));
+        boundary.addFirst(new Node(start, null, target));
 
-        Node nearest = boundary.get(0);
+        Node nearest = boundary.getFirst();
         long bestDistance = Integer.MAX_VALUE;
         Instant cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
 
         while (!boundary.isEmpty()) {
-            Node node = boundary.remove(0);
+            Node node = boundary.removeFirst();
 
             if (pending.size() > 0) {
                 Node p = pending.get(0);
                 if (isHeuristicBetter(p.heuristic, boundary)) {
-                    boundary.add(0, p);
-                    pending.remove(p);
+                    boundary.addFirst(p);
+                    pending.remove(0);
                 }
             }
 
