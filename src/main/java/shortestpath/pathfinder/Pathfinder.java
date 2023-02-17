@@ -94,7 +94,7 @@ public class Pathfinder implements Runnable {
 
         Node nearest = boundary.getFirst();
         long bestDistance = Integer.MAX_VALUE;
-        Instant cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
+        Instant cutoffTime = Instant.now().plus(config.getCalculationCutoff());
 
         while (!boundary.isEmpty()) {
             Node node = boundary.removeFirst();
@@ -117,7 +117,7 @@ public class Pathfinder implements Runnable {
                 path = node.getPath();
                 nearest = node;
                 bestDistance = distance;
-                cutoffTime = Instant.now().plus(PathfinderConfig.CALCULATION_CUTOFF);
+                cutoffTime = Instant.now().plus(config.getCalculationCutoff());
             }
 
             if (Instant.now().isAfter(cutoffTime)) {

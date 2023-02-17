@@ -7,6 +7,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 @ConfigGroup(ShortestPathPlugin.CONFIG_GROUP)
 public interface ShortestPathConfig extends Config {
@@ -20,7 +21,8 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "avoidWilderness",
         name = "Avoid wilderness",
-        description = "Whether the wilderness should be avoided if possible (otherwise, will suggest using wilderness lever to travel from Edgeville to Ardougne)",
+        description = "Whether the wilderness should be avoided if possible<br>" +
+            "(otherwise, will e.g. suggest using wilderness lever to travel from Edgeville to Ardougne)",
         position = 1,
         section = sectionSettings
     )
@@ -42,7 +44,8 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "useGrappleShortcuts",
         name = "Use grapple shortcuts",
-        description = "Whether to include crossbow grapple agility shortcuts in the path. You must also have the required agility, ranged and strength levels",
+        description = "Whether to include crossbow grapple agility shortcuts in the path.<br>" +
+            "You must also have the required agility, ranged and strength levels",
         position = 3,
         section = sectionSettings
     )
@@ -64,7 +67,8 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "useFairyRings",
         name = "Use fairy rings",
-        description = "Whether to include fairy rings in the path. You must also have completed the required quest or miniquest",
+        description = "Whether to include fairy rings in the path.<br>" +
+            "You must also have completed the required quest or miniquest",
         position = 5,
         section = sectionSettings
     )
@@ -86,7 +90,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "cancelInstead",
         name = "Cancel instead of recalculating",
-        description = "Whether the path should be cancelled rather than recalculated when the distance limit is exceeded",
+        description = "Whether the path should be cancelled rather than recalculated when the recalculate distance limit is exceeded",
         position = 7,
         section = sectionSettings
     )
@@ -147,10 +151,30 @@ public interface ShortestPathConfig extends Config {
         return 1;
     }
 
+    @Units(
+        value = Units.TICKS
+    )
+    @Range(
+        min = 1,
+        max = 30
+    )
+    @ConfigItem(
+        keyName = "calculationCutoff",
+        name = "Calculation cutoff",
+        description = "The cutoff threshold in number of ticks (0.6 seconds) of no progress being<br>" +
+            "made towards the path target before the calculation will be stopped",
+        position = 12,
+        section = sectionSettings
+    )
+    default int calculationCutoff()
+    {
+        return 5;
+    }
+
     @ConfigSection(
         name = "Display",
         description = "Options for displaying the path on the world map, minimap and scene tiles",
-        position = 12
+        position = 13
     )
     String sectionDisplay = "sectionDisplay";
 
@@ -158,7 +182,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "drawMap",
         name = "Draw path on world map",
         description = "Whether the path should be drawn on the world map",
-        position = 13,
+        position = 14,
         section = sectionDisplay
     )
     default boolean drawMap() {
@@ -169,7 +193,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "drawMinimap",
         name = "Draw path on minimap",
         description = "Whether the path should be drawn on the minimap",
-        position = 14,
+        position = 15,
         section = sectionDisplay
     )
     default boolean drawMinimap() {
@@ -180,7 +204,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "drawTiles",
         name = "Draw path on tiles",
         description = "Whether the path should be drawn on the game tiles",
-        position = 15,
+        position = 16,
         section = sectionDisplay
     )
     default boolean drawTiles() {
@@ -191,7 +215,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "drawTransports",
         name = "Draw transports",
         description = "Whether transports should be drawn",
-        position = 16,
+        position = 17,
         section = sectionDisplay
     )
     default boolean drawTransports() {
@@ -202,7 +226,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "drawCollisionMap",
         name = "Draw collision map",
         description = "Whether the collision map should be drawn",
-        position = 17,
+        position = 18,
         section = sectionDisplay
     )
     default boolean drawCollisionMap() {
@@ -213,7 +237,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "pathStyle",
         name = "Path style",
         description = "Whether to display the path as tiles or a segmented line",
-        position = 18,
+        position = 19,
         section = sectionDisplay
     )
     default TileStyle pathStyle() {
@@ -223,7 +247,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigSection(
         name = "Colours",
         description = "Colours for the path map, minimap and scene tiles",
-        position = 19
+        position = 20
     )
     String sectionColours = "sectionColours";
 
@@ -232,7 +256,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPath",
         name = "Path",
         description = "Colour of the path tiles on the world map, minimap and in the game scene",
-        position = 20,
+        position = 21,
         section = sectionColours
     )
     default Color colourPath() {
@@ -244,7 +268,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPathCalculating",
         name = "Calculating",
         description = "Colour of the path tiles while the pathfinding calculation is in progress",
-        position = 21,
+        position = 22,
         section = sectionColours
     )
     default Color colourPathCalculating() {
@@ -256,7 +280,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourTransports",
         name = "Transports",
         description = "Colour of the transport tiles",
-        position = 22,
+        position = 23,
         section = sectionColours
     )
     default Color colourTransports() {
@@ -268,7 +292,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourCollisionMap",
         name = "Collision map",
         description = "Colour of the collision map tiles",
-        position = 23,
+        position = 24,
         section = sectionColours
     )
     default Color colourCollisionMap() {

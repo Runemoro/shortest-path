@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import net.runelite.api.Client;
+import net.runelite.api.Constants;
 import net.runelite.api.GameState;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
@@ -17,7 +18,6 @@ import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
 
 public class PathfinderConfig {
-    public static final Duration CALCULATION_CUTOFF = Duration.ofSeconds(2);
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 
@@ -29,6 +29,8 @@ public class PathfinderConfig {
     private final ShortestPathConfig config;
     private final ShortestPathPlugin plugin;
 
+    @Getter
+    private Duration calculationCutoff;
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
     private boolean useGrappleShortcuts;
@@ -53,21 +55,22 @@ public class PathfinderConfig {
     }
 
     public void refresh() {
-        if (!GameState.LOGGED_IN.equals(client.getGameState())) {
-            return;
-        }
+        calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
         useBoats = config.useBoats();
         useFairyRings = config.useFairyRings();
         useTeleports = config.useTeleports();
-        agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
-        rangedLevel = client.getBoostedSkillLevel(Skill.RANGED);
-        strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
-        prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
-        woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
-        plugin.getClientThread().invokeLater(this::refreshQuests);
+
+        if (GameState.LOGGED_IN.equals(client.getGameState())) {
+            agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
+            rangedLevel = client.getBoostedSkillLevel(Skill.RANGED);
+            strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
+            prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
+            woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
+            plugin.getClientThread().invokeLater(this::refreshQuests);
+        }
     }
 
     private void refreshQuests() {
