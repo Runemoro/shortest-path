@@ -189,7 +189,7 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        WorldPoint currentLocation = localPlayer.getWorldLocation();
+        WorldPoint currentLocation = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
         if (currentLocation.distanceTo(pathfinder.getTarget()) < config.reachedDistance()) {
             setTarget(null);
             return;
@@ -270,13 +270,13 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        WorldPoint currentLocation = localPlayer.getWorldLocation();
+        WorldPoint currentLocation = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
         if (entry.getOption().equals(ADD_START) && entry.getTarget().equals(TRANSPORT)) {
             transportStart = currentLocation;
         }
 
         if (entry.getOption().equals(ADD_END) && entry.getTarget().equals(TRANSPORT)) {
-            WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
+            WorldPoint transportEnd = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
                     currentLocation.getX() + " " + currentLocation.getY() + " " + currentLocation.getPlane() + " " +
                     lastClick.getOption() + " " + Text.removeTags(lastClick.getTarget()) + " " + lastClick.getIdentifier()
@@ -312,7 +312,7 @@ public class ShortestPathPlugin extends Plugin {
     private WorldPoint getSelectedWorldPoint() {
         if (client.getWidget(WidgetInfo.WORLD_MAP_VIEW) == null) {
             if (client.getSelectedSceneTile() != null) {
-                return client.getSelectedSceneTile().getWorldLocation();
+                return WorldPoint.fromLocalInstance(client, client.getSelectedSceneTile().getLocalLocation());
             }
         } else {
             return calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition());
@@ -339,7 +339,7 @@ public class ShortestPathPlugin extends Plugin {
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
 
-            WorldPoint start = localPlayer.getWorldLocation();
+            WorldPoint start = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
             if (startPointSet && pathfinder != null) {
                 start = pathfinder.getStart();
             }

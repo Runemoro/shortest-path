@@ -47,16 +47,18 @@ public class PathTileOverlay extends Overlay {
 
             StringBuilder s = new StringBuilder();
             for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
-                Point cb = tileCenter(b.getOrigin());
-                if (cb != null) {
-                    graphics.drawLine(ca.getX(), ca.getY(), cb.getX(), cb.getY());
-                }
-                if (b.getOrigin().getPlane() > a.getPlane()) {
-                    s.append("+");
-                } else if (b.getOrigin().getPlane() < a.getPlane()) {
-                    s.append("-");
-                } else {
-                    s.append("=");
+                for (WorldPoint origin : WorldPoint.toLocalInstance(client, b.getOrigin())) {
+                    Point cb = tileCenter(origin);
+                    if (cb != null) {
+                        graphics.drawLine(ca.getX(), ca.getY(), cb.getX(), cb.getY());
+                    }
+                    if (origin.getPlane() > a.getPlane()) {
+                        s.append("+");
+                    } else if (origin.getPlane() < a.getPlane()) {
+                        s.append("-");
+                    } else {
+                        s.append("=");
+                    }
                 }
             }
             graphics.setColor(Color.WHITE);
@@ -77,9 +79,10 @@ public class PathTileOverlay extends Overlay {
                     continue;
                 }
 
-                int x = tile.getWorldLocation().getX();
-                int y = tile.getWorldLocation().getY();
-                int z = tile.getWorldLocation().getPlane();
+                WorldPoint location = WorldPoint.fromLocalInstance(client, tile.getLocalLocation());
+                int x = location.getX();
+                int y = location.getY();
+                int z = location.getPlane();
 
                 String s = (!plugin.getMap().n(x, y, z) ? "n" : "") +
                         (!plugin.getMap().s(x, y, z) ? "s" : "") +
@@ -163,30 +166,35 @@ public class PathTileOverlay extends Overlay {
         return new Point(cx, cy);
     }
 
-    private void drawTile(Graphics2D graphics, WorldPoint point, Color color, int counter, boolean draw) {
-        if (point.getPlane() != client.getPlane()) {
-            return;
-        }
+    private void drawTile(Graphics2D graphics, WorldPoint location, Color color, int counter, boolean draw) {
+        for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
+            if (point.getPlane() != client.getPlane()) {
+                continue;
+            }
 
-        LocalPoint lp = LocalPoint.fromWorld(client, point);
-        if (lp == null) {
-            return;
-        }
+            LocalPoint lp = LocalPoint.fromWorld(client, point);
+            if (lp == null) {
+                continue;
+            }
 
-        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-        if (poly == null) {
-            return;
-        }
+            Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+            if (poly == null) {
+                continue;
+            }
 
-        if (draw) {
-            graphics.setColor(color);
-            graphics.fill(poly);
-        }
+            if (draw) {
+                graphics.setColor(color);
+                graphics.fill(poly);
+            }
 
-        drawCounter(graphics, poly.getBounds().getCenterX(), poly.getBounds().getCenterY(), counter);
+            drawCounter(graphics, poly.getBounds().getCenterX(), poly.getBounds().getCenterY(), counter);
+        }
     }
 
-    private void drawLine(Graphics2D graphics, WorldPoint start, WorldPoint end, Color color, int counter) {
+    private void drawLine(Graphics2D graphics, WorldPoint startLoc, WorldPoint endLoc, Color color, int counter) {
+        WorldPoint start = WorldPoint.toLocalInstance(client, startLoc).iterator().next();
+        WorldPoint end = WorldPoint.toLocalInstance(client, endLoc).iterator().next();
+
         final int z = client.getPlane();
         if (start.getPlane() != z) {
             return;

@@ -56,24 +56,26 @@ public class PathMinimapOverlay extends Overlay {
         return null;
     }
 
-    private void drawOnMinimap(Graphics2D graphics, WorldPoint point, Color color) {
-        LocalPoint lp = LocalPoint.fromWorld(client, point);
+    private void drawOnMinimap(Graphics2D graphics, WorldPoint location, Color color) {
+        for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
+            LocalPoint lp = LocalPoint.fromWorld(client, point);
 
-        if (lp == null) {
-            return;
+            if (lp == null) {
+                continue;
+            }
+
+            Point posOnMinimap = Perspective.localToMinimap(client, lp);
+
+            if (posOnMinimap == null) {
+                continue;
+            }
+
+            renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, color);
         }
-
-        Point posOnMinimap = Perspective.localToMinimap(client, lp);
-
-        if (posOnMinimap == null) {
-            return;
-        }
-
-        renderMinimapRect(client, graphics, posOnMinimap, TILE_WIDTH, TILE_HEIGHT, color);
     }
 
     public static void renderMinimapRect(Client client, Graphics2D graphics, Point center, int width, int height, Color color) {
-        double angle = client.getMapAngle() * Math.PI / 1024.0d;
+        double angle = client.getCameraYawTarget() * Math.PI / 1024.0d;
 
         graphics.setColor(color);
         graphics.rotate(angle, center.getX(), center.getY());
