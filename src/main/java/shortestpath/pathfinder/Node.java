@@ -5,17 +5,19 @@ import java.util.LinkedList;
 import java.util.List;
 import net.runelite.api.coords.WorldPoint;
 
-public class Node implements Comparable<Node> {
-    private static int globalInsertionOrder;
-    private final int insertionOrder;
+public class Node {
     public final WorldPoint position;
-    public Node previous;
-    public int cost = Integer.MAX_VALUE;
+    public final Node previous;
+    public final int cost;
 
-    public Node(WorldPoint position, Node previous) {
+    public Node(WorldPoint position, Node previous, int wait) {
         this.position = position;
         this.previous = previous;
-        this.insertionOrder = ++globalInsertionOrder;
+        this.cost = cost(previous, position, wait);
+    }
+
+    public Node(WorldPoint position, Node previous) {
+        this(position, previous, 0);
     }
 
     public List<WorldPoint> getPath() {
@@ -30,7 +32,7 @@ public class Node implements Comparable<Node> {
         return new ArrayList<>(path);
     }
 
-    public static int cost(Node previous, WorldPoint current, int wait) {
+    private static int cost(Node previous, WorldPoint current, int wait) {
         int previousCost = 0;
         int distance = 0;
 
@@ -62,13 +64,5 @@ public class Node implements Comparable<Node> {
 
     public static int distanceBetween(WorldPoint previous, WorldPoint current) {
         return distanceBetween(previous, current, 1);
-    }
-
-    @Override
-    public int compareTo(Node other) {
-        if (cost == other.cost) {
-            return Integer.compare(insertionOrder, other.insertionOrder);
-        }
-        return Integer.compare(cost, other.cost);
     }
 }
