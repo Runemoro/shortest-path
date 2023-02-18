@@ -2,15 +2,14 @@ package shortestpath.pathfinder;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Set;
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.Transport;
 
 public class Pathfinder implements Runnable {
     @Getter
@@ -19,9 +18,8 @@ public class Pathfinder implements Runnable {
     private final WorldPoint target;
     private final PathfinderConfig config;
 
-    private final Deque<Node> boundary = new LinkedList<>();
-    private final Set<WorldPoint> visited = new HashSet<>();
-    private final Queue<Node> pending = new PriorityQueue<>();
+    private final Queue<Node> boundary = new PriorityQueue<>();
+    private final Map<WorldPoint, Node> visited = new HashMap<>();
 
     @Getter
     private List<WorldPoint> path = new ArrayList<>();
@@ -37,39 +35,52 @@ public class Pathfinder implements Runnable {
         new Thread(this).start();
     }
 
+    private void addNeighbor(Node node, WorldPoint neighbor, int wait) {
+        if (config.avoidWilderness(node.position, neighbor, target)) {
+            return;
+        }
+
+        Node n = visited.get(neighbor);
+        if (n == null) {
+            n = new Node(neighbor, node);
+            visited.put(n.position, n);
+        }
+
+        int newCost = Node.cost(node, neighbor, wait);
+        if (newCost < n.cost) {
+            n.cost = newCost;
+            n.previous = node;
+            boundary.remove(n);
+            boundary.add(n);
+        }
+    }
+
     private void addNeighbors(Node node) {
-        for (Node neighbor : config.getMap().getNeighbors(node, config)) {
-            if (config.avoidWilderness(node.position, neighbor.position, target)) {
-                continue;
-            }
-            if (visited.add(neighbor.position)) {
-                if (neighbor instanceof TransportNode) {
-                    pending.add(neighbor);
-                } else {
-                    boundary.addLast(neighbor);
-                }
+        for (WorldPoint neighbor : config.getMap().getNeighbors(node.position, config)) {
+            addNeighbor(node, neighbor, 0);
+        }
+
+        for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
+            if (config.useTransport(transport)) {
+                addNeighbor(node, transport.getDestination(), transport.getWait());
             }
         }
     }
 
     @Override
     public void run() {
-        boundary.addFirst(new Node(start, null));
+        Node nearest = new Node(start, null);
+        nearest.cost = 0;
+
+        boundary.add(nearest);
+        visited.put(nearest.position, nearest);
 
         int bestDistance = Integer.MAX_VALUE;
         long bestHeuristic = Integer.MAX_VALUE;
         Instant cutoffTime = Instant.now().plus(config.getCalculationCutoff());
 
-        while (!boundary.isEmpty() || !pending.isEmpty()) {
-            Node node = boundary.peekFirst();
-            Node p = pending.peek();
-
-            if (p != null && (node == null || p.cost < node.cost)) {
-                boundary.addFirst(p);
-                pending.poll();
-            }
-
-            node = boundary.removeFirst();
+        while (!boundary.isEmpty()) {
+            Node node = boundary.poll();
 
             if (node.position.equals(target) || !config.isNear(start)) {
                 path = node.getPath();
@@ -95,6 +106,5 @@ public class Pathfinder implements Runnable {
         done = true;
         boundary.clear();
         visited.clear();
-        pending.clear();
     }
 }
