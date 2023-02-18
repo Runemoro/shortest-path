@@ -6,10 +6,11 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
-import shortestpath.Transport;
 
 public class Pathfinder implements Runnable {
     @Getter
@@ -20,14 +21,7 @@ public class Pathfinder implements Runnable {
 
     private final Deque<Node> boundary = new LinkedList<>();
     private final Set<WorldPoint> visited = new HashSet<>();
-    private final List<Node> pending = new ArrayList<Node>() {
-        @Override
-        public boolean add(Node n) {
-            boolean result = super.add(n);
-            sort(null);
-            return result;
-        }
-    };
+    private final Queue<Node> pending = new PriorityQueue<>();
 
     @Getter
     private List<WorldPoint> path = new ArrayList<>();
@@ -43,85 +37,55 @@ public class Pathfinder implements Runnable {
         new Thread(this).start();
     }
 
-    private void addNeighbor(Node node, WorldPoint neighbor, int wait) {
-        if (config.avoidWilderness(node.position, neighbor, target)) {
-            return;
-        }
-
-        if (visited.add(neighbor)) {
-            Node n = new Node(neighbor, node, target, wait);
-            if (n.isTransport()) {
-                pending.add(n);
-            } else {
-                boundary.addLast(n);
-            }
-        }
-    }
-
     private void addNeighbors(Node node) {
-        for (OrdinalDirection direction : OrdinalDirection.values()) {
-            for (Transport transport : config.getTransports().getOrDefault(node.position.dx(direction.x).dy(direction.y), new ArrayList<>())) {
-                WorldPoint origin = transport.getOrigin();
-                if (config.useTransport(transport) && config.getMap().isBlocked(origin.getX(), origin.getY(), origin.getPlane())) {
-                    addNeighbor(new Node(origin, node, target), transport.getDestination(), transport.getWait());
+        for (Node neighbor : config.getMap().getNeighbors(node, config)) {
+            if (config.avoidWilderness(node.position, neighbor.position, target)) {
+                continue;
+            }
+            if (visited.add(neighbor.position)) {
+                if (neighbor instanceof TransportNode) {
+                    pending.add(neighbor);
+                } else {
+                    boundary.addLast(neighbor);
                 }
             }
         }
-
-        for (WorldPoint neighbor : config.getMap().getNeighbors(node.position)) {
-            addNeighbor(node, neighbor, 0);
-        }
-
-        for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
-            if (config.useTransport(transport)) {
-                addNeighbor(node, transport.getDestination(), transport.getWait());
-            }
-        }
-    }
-
-    private boolean isHeuristicBetter(long candidate, Deque<Node> data) {
-        for (Node n : data) {
-            if (n.heuristic <= candidate) {
-                return false;
-            }
-        }
-        return true;
     }
 
     @Override
     public void run() {
-        boundary.addFirst(new Node(start, null, target));
+        boundary.addFirst(new Node(start, null));
 
-        Node nearest = boundary.getFirst();
-        long bestDistance = Integer.MAX_VALUE;
+        int bestDistance = Integer.MAX_VALUE;
+        long bestHeuristic = Integer.MAX_VALUE;
         Instant cutoffTime = Instant.now().plus(config.getCalculationCutoff());
 
-        while (!boundary.isEmpty()) {
-            Node node = boundary.removeFirst();
+        while (!boundary.isEmpty() || !pending.isEmpty()) {
+            Node node = boundary.peekFirst();
+            Node p = pending.peek();
 
-            if (pending.size() > 0) {
-                Node p = pending.get(0);
-                if (isHeuristicBetter(p.heuristic, boundary)) {
-                    boundary.addFirst(p);
-                    pending.remove(0);
-                }
+            if (p != null && (node == null || p.cost < node.cost)) {
+                boundary.addFirst(p);
+                pending.poll();
             }
+
+            node = boundary.removeFirst();
 
             if (node.position.equals(target) || !config.isNear(start)) {
                 path = node.getPath();
                 break;
             }
 
-            long distance = node.heuristic;
-            if (distance < bestDistance) {
+            int distance = Node.distanceBetween(node.position, target);
+            long heuristic = distance + Node.distanceBetween(node.position, target, 2);
+            if (heuristic < bestHeuristic || (heuristic <= bestHeuristic && distance < bestDistance)) {
                 path = node.getPath();
-                nearest = node;
                 bestDistance = distance;
+                bestHeuristic = heuristic;
                 cutoffTime = Instant.now().plus(config.getCalculationCutoff());
             }
 
             if (Instant.now().isAfter(cutoffTime)) {
-                path = nearest.getPath();
                 break;
             }
 

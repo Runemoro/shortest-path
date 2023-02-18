@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathPlugin;
+import shortestpath.Transport;
 import shortestpath.Util;
 
 public class CollisionMap extends SplitFlagMap {
@@ -53,12 +53,19 @@ public class CollisionMap extends SplitFlagMap {
         return !n(x, y, z) && !s(x, y, z) && !e(x, y, z) && !w(x, y, z);
     }
 
-    public List<WorldPoint> getNeighbors(WorldPoint position) {
-        int x = position.getX();
-        int y = position.getY();
-        int z = position.getPlane();
+    public List<Node> getNeighbors(Node node, PathfinderConfig config) {
+        int x = node.position.getX();
+        int y = node.position.getY();
+        int z = node.position.getPlane();
 
-        List<WorldPoint> neighbors = new ArrayList<>();
+        List<Node> neighbors = new ArrayList<>();
+
+        for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
+            if (config.useTransport(transport)) {
+                neighbors.add(new TransportNode(transport.getDestination(), node, transport.getWait()));
+            }
+        }
+
         boolean[] traversable;
         if (isBlocked(x, y, z)) {
             boolean westBlocked = isBlocked(x - 1, y, z);
@@ -86,9 +93,13 @@ public class CollisionMap extends SplitFlagMap {
         }
 
         for (int i = 0; i < traversable.length; i++) {
+            OrdinalDirection d = OrdinalDirection.values()[i];
             if (traversable[i]) {
-                OrdinalDirection direction = OrdinalDirection.values()[i];
-                neighbors.add(position.dx(direction.x).dy(direction.y));
+                neighbors.add(new Node(node.position.dx(d.x).dy(d.y), node));
+            } else if (Math.abs(d.x + d.y) == 1 && isBlocked(x + d.x, y + d.y, z)) {
+                for (Transport transport : config.getTransports().getOrDefault(node.position.dx(d.x).dy(d.y), new ArrayList<>())) {
+                    neighbors.add(new Node(transport.getOrigin(), node));
+                }
             }
         }
 

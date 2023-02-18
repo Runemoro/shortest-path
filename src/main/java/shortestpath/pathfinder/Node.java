@@ -5,23 +5,19 @@ import java.util.LinkedList;
 import java.util.List;
 import net.runelite.api.coords.WorldPoint;
 
-public class Node implements Comparable<Node> {
+public class Node {
     public final WorldPoint position;
     public final Node previous;
-    public final long heuristic;
-    private final int wait;
-    private final int distance;
+    public final int cost;
 
-    public Node(WorldPoint position, Node previous, WorldPoint target, int wait) {
+    public Node(WorldPoint position, Node previous, int wait) {
         this.position = position;
         this.previous = previous;
-        this.wait = (previous != null ? previous.wait : 0) + wait;
-        distance = previous != null ? position.distanceTo(previous.position) : 0;
-        this.heuristic = getHeuristic(target);
+        this.cost = cost(previous, position, wait);
     }
 
-    public Node(WorldPoint position, Node previous, WorldPoint target) {
-        this(position, previous, target, 0);
+    public Node(WorldPoint position, Node previous) {
+        this(position, previous, 0);
     }
 
     public List<WorldPoint> getPath() {
@@ -36,28 +32,37 @@ public class Node implements Comparable<Node> {
         return new ArrayList<>(path);
     }
 
-    public boolean isTransport() {
-        return distance > 1;
-    }
+    private static int cost(Node previous, WorldPoint current, int wait) {
+        int previousCost = 0;
+        int distance = 0;
 
-    /**
-     * The pathfinding heuristic is an optimistic distance (number of tiles) consisting of:
-     * - 2D Chebyshev distance from the current position to the path destination
-     * - Additional transport travel time (unavoidable cutscene, stall, ...)
-     *   considered as a distance (1 tick = 1 tile) instead of ticks
-     * @param target  the destination of the path
-     * @return  distance to target including additional travel time
-     */
-    private long getHeuristic(WorldPoint target) {
-        long h = (long) position.distanceTo(target) + wait;
-        if (previous != null && isTransport() && previous.heuristic < h) {
-            return previous.heuristic;
+        if (previous != null) {
+            previousCost = previous.cost;
+            distance = distanceBetween(previous.position, current);
+
+            boolean isTransport = distance > 1 || previous.position.getPlane() != current.getPlane();
+            if (isTransport) {
+                distance = wait;
+            }
         }
-        return h;
+
+        return previousCost + distance;
     }
 
-    @Override
-    public int compareTo(Node other) {
-        return Long.compare(heuristic, other.heuristic);
+    public static int distanceBetween(WorldPoint previous, WorldPoint current, int diagonal) {
+        int dx = Math.abs(previous.getX() - current.getX());
+        int dy = Math.abs(previous.getY() - current.getY());
+
+        if (diagonal == 1) {
+            return Math.max(dx, dy);
+        } else if (diagonal == 2) {
+            return dx + dy;
+        }
+
+        return Integer.MAX_VALUE;
+    }
+
+    public static int distanceBetween(WorldPoint previous, WorldPoint current) {
+        return distanceBetween(previous, current, 1);
     }
 }
