@@ -348,6 +348,10 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (target == null) {
+            if (pathfinder != null) {
+                pathfinder.cancel();
+            }
+
             worldMapPointManager.remove(marker);
             marker = null;
             pathfinder = null;
