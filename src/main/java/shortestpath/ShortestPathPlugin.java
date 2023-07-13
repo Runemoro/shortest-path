@@ -127,7 +127,7 @@ public class ShortestPathPlugin extends Plugin {
     @Override
     protected void startUp() {
         CollisionMap map = CollisionMap.fromResources();
-        Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
+        Map<WorldPoint, List<Transport>> transports = Transport.loadAllFromResources();
 
         pathfinderConfig = new PathfinderConfig(map, transports, client, config, this);
 
@@ -143,23 +143,6 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
         overlayManager.remove(pathMapTooltipOverlay);
-    }
-
-    @Subscribe
-    public void onConfigChanged(ConfigChanged event) {
-        if (!CONFIG_GROUP.equals(event.getGroup())) {
-            return;
-        }
-
-        boolean reloadTransports = "useAgilityShortcuts".equals(event.getKey()) ||
-            "useGrappleShortcuts".equals(event.getKey()) || "useBoats".equals(event.getKey()) ||
-            "useFairyRings".equals(event.getKey()) || "useTeleports".equals(event.getKey());
-
-        if (reloadTransports) {
-            Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
-            pathfinderConfig.getTransports().clear();
-            pathfinderConfig.getTransports().putAll(transports);
-        }
     }
 
     public boolean isNearPath(WorldPoint location) {

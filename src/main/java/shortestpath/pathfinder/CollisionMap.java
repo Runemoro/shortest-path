@@ -61,9 +61,7 @@ public class CollisionMap extends SplitFlagMap {
         List<Node> neighbors = new ArrayList<>();
 
         for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
-            if (config.useTransport(transport)) {
-                neighbors.add(new TransportNode(transport.getDestination(), node, transport.getWait()));
-            }
+            neighbors.add(new TransportNode(transport.getDestination(), node, transport.getWait()));
         }
 
         boolean[] traversable;

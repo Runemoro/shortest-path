@@ -1,6 +1,7 @@
 package shortestpath.pathfinder;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +24,9 @@ public class PathfinderConfig {
 
     @Getter
     private final CollisionMap map;
+    private final Map<WorldPoint, List<Transport>> allTransports;
     @Getter
-    private final Map<WorldPoint, List<Transport>> transports;
+    private Map<WorldPoint, List<Transport>> transports;
     private final Client client;
     private final ShortestPathConfig config;
     private final ShortestPathPlugin plugin;
@@ -47,7 +49,8 @@ public class PathfinderConfig {
     public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
                             ShortestPathConfig config, ShortestPathPlugin plugin) {
         this.map = map;
-        this.transports = transports;
+        this.allTransports = transports;
+        this.transports = new HashMap<>();
         this.client = client;
         this.config = config;
         this.plugin = plugin;
@@ -69,13 +72,16 @@ public class PathfinderConfig {
             strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
             prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
             woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
-            plugin.getClientThread().invokeLater(this::refreshQuests);
+            plugin.getClientThread().invokeLater(this::refreshTransportData);
         }
     }
 
-    private void refreshQuests() {
+    private void refreshTransportData() {
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
-        for (Map.Entry<WorldPoint, List<Transport>> entry : transports.entrySet()) {
+
+        transports.clear();
+        for (Map.Entry<WorldPoint, List<Transport>> entry : allTransports.entrySet()) {
+            List<Transport> usableTransports = new ArrayList<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
                 if (transport.isQuestLocked()) {
                     try {
@@ -83,7 +89,13 @@ public class PathfinderConfig {
                     } catch (NullPointerException ignored) {
                     }
                 }
+
+                if (useTransport(transport)) {
+                    usableTransports.add(transport);
+                }
             }
+
+            transports.put(entry.getKey(), usableTransports);
         }
     }
 
@@ -103,7 +115,7 @@ public class PathfinderConfig {
                client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= config.recalculateDistance();
     }
 
-    public boolean useTransport(Transport transport) {
+    private boolean useTransport(Transport transport) {
         final int transportAgilityLevel = transport.getRequiredLevel(Skill.AGILITY);
         final int transportRangedLevel = transport.getRequiredLevel(Skill.RANGED);
         final int transportStrengthLevel = transport.getRequiredLevel(Skill.STRENGTH);
