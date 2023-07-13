@@ -79,7 +79,8 @@ public class PathTileOverlay extends Overlay {
                     continue;
                 }
 
-                WorldPoint location = WorldPoint.fromLocalInstance(client, tile.getLocalLocation());
+                WorldPoint location = client.isInInstancedRegion() ?
+                    WorldPoint.fromLocalInstance(client, tile.getLocalLocation()) : tile.getWorldLocation();
                 int x = location.getX();
                 int y = location.getY();
                 int z = location.getPlane();

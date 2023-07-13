@@ -189,7 +189,8 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        WorldPoint currentLocation = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+        WorldPoint currentLocation = client.isInInstancedRegion() ?
+            WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
         if (currentLocation.distanceTo(pathfinder.getTarget()) < config.reachedDistance()) {
             setTarget(null);
             return;
@@ -270,13 +271,15 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
 
-        WorldPoint currentLocation = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+        WorldPoint currentLocation = client.isInInstancedRegion() ?
+            WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
         if (entry.getOption().equals(ADD_START) && entry.getTarget().equals(TRANSPORT)) {
             transportStart = currentLocation;
         }
 
         if (entry.getOption().equals(ADD_END) && entry.getTarget().equals(TRANSPORT)) {
-            WorldPoint transportEnd = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+            WorldPoint transportEnd = client.isInInstancedRegion() ?
+                WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
             System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
                     currentLocation.getX() + " " + currentLocation.getY() + " " + currentLocation.getPlane() + " " +
                     lastClick.getOption() + " " + Text.removeTags(lastClick.getTarget()) + " " + lastClick.getIdentifier()
@@ -312,7 +315,9 @@ public class ShortestPathPlugin extends Plugin {
     private WorldPoint getSelectedWorldPoint() {
         if (client.getWidget(WidgetInfo.WORLD_MAP_VIEW) == null) {
             if (client.getSelectedSceneTile() != null) {
-                return WorldPoint.fromLocalInstance(client, client.getSelectedSceneTile().getLocalLocation());
+                return client.isInInstancedRegion() ?
+                    WorldPoint.fromLocalInstance(client, client.getSelectedSceneTile().getLocalLocation()) :
+                    client.getSelectedSceneTile().getWorldLocation();
             }
         } else {
             return calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition());
@@ -339,7 +344,8 @@ public class ShortestPathPlugin extends Plugin {
             marker.setJumpOnClick(true);
             worldMapPointManager.add(marker);
 
-            WorldPoint start = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+            WorldPoint start = client.isInInstancedRegion() ?
+                WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
             if (startPointSet && pathfinder != null) {
                 start = pathfinder.getStart();
             }
