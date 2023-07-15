@@ -368,6 +368,7 @@ public class ShortestPathPlugin extends Plugin {
 
             WorldPoint start = client.isInInstancedRegion() ?
                 WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
+            lastLocation = start;
             if (startPointSet && pathfinder != null) {
                 start = pathfinder.getStart();
             }
