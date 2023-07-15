@@ -74,9 +74,13 @@ public class CollisionMap extends SplitFlagMap {
 
         List<Node> neighbors = new ArrayList<>();
 
+        @SuppressWarnings("unchecked") // Casting EMPTY_LIST to List<Transport> is safe here
+        List<Transport> transports = config.getTransports().getOrDefault(node.position, (List<Transport>)Collections.EMPTY_LIST);
+
         // Transports are pre-filtered by PathfinderConfig.refreshTransportData
         // Thus any transports in the list are guaranteed to be valid per the user's settings
-        for (Transport transport : config.getTransports().getOrDefault(node.position, (List<Transport>) Collections.EMPTY_LIST)) {
+        for (int i = 0; i < transports.size(); ++i) {
+            Transport transport = transports.get(i);
             neighbors.add(new TransportNode(transport.getDestination(), node, transport.getWait()));
         }
 
@@ -112,7 +116,10 @@ public class CollisionMap extends SplitFlagMap {
             if (traversable[i]) {
                 neighbors.add(new Node(neighbor, node));
             } else if (Math.abs(d.x + d.y) == 1 && isBlocked(x + d.x, y + d.y, z)) {
-                for (Transport transport : config.getTransports().getOrDefault(neighbor, (List<Transport>)Collections.EMPTY_LIST)) {
+                @SuppressWarnings("unchecked") // Casting EMPTY_LIST to List<Transport> is safe here
+                List<Transport> neighborTransports = config.getTransports().getOrDefault(neighbor, (List<Transport>)Collections.EMPTY_LIST);
+                for (int t = 0; t < neighborTransports.size(); ++t) {
+                    Transport transport = neighborTransports.get(t);
                     neighbors.add(new Node(transport.getOrigin(), node));
                 }
             }
