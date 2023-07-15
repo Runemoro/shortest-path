@@ -2,29 +2,44 @@ package shortestpath.pathfinder;
 
 import net.runelite.api.coords.WorldPoint;
 
-public class VisitedTiles {
-    private static final int TOTAL_PLANES = 4;
-    private static final int REGION_SIZE = 64;
+import static net.runelite.api.Constants.MAX_Z;
+import static net.runelite.api.Constants.REGION_SIZE;
 
-    // TODO: what is the max number of regions?
-    private static final int REGION_EXTENT_X = 192;
-    private static final int REGION_EXTENT_Y = 256;
-    private final VisitedRegion[] visitedRegions = new VisitedRegion[REGION_EXTENT_X * REGION_EXTENT_Y];
+public class VisitedTiles {
+    private final CollisionMap.RegionExtent regionExtents;
+    private final int widthInclusive;
+
+    private final VisitedRegion[] visitedRegions;
+
+    public VisitedTiles() {
+        regionExtents = CollisionMap.getRegionExtents();
+        widthInclusive = regionExtents.getWidth() + 1;
+        final int heightInclusive = regionExtents.getHeight() + 1;
+
+        visitedRegions = new VisitedRegion[widthInclusive * heightInclusive];
+    }
 
     public boolean get(WorldPoint point) {
-        final int regionIndex = point.getRegionID();
-        final VisitedRegion region = visitedRegions[regionIndex];
+        final int regionIndex = getRegionIndex(point.getX() / REGION_SIZE, point.getY() / REGION_SIZE);
+        if (regionIndex < 0 || regionIndex >= visitedRegions.length) {
+            return true; // Region is out of bounds; report that it's been visited to avoid exploring it further
+        }
 
+        final VisitedRegion region = visitedRegions[regionIndex];
         if (region == null) {
             return false;
         }
 
         return region.get(point.getRegionX(), point.getRegionY(), point.getPlane());
     }
-    public boolean set(WorldPoint point) {
-        final int regionIndex = point.getRegionID();
-        VisitedRegion region = visitedRegions[regionIndex];
 
+    public boolean set(WorldPoint point) {
+        final int regionIndex = getRegionIndex(point.getX() / REGION_SIZE, point.getY() / REGION_SIZE);
+        if (regionIndex < 0 || regionIndex >= visitedRegions.length) {
+            return false; // Region is out of bounds; report that it's been visited to avoid exploring it further
+        }
+
+        VisitedRegion region = visitedRegions[regionIndex];
         if (region == null) {
             region = new VisitedRegion();
             visitedRegions[regionIndex] = region;
@@ -41,9 +56,13 @@ public class VisitedTiles {
         }
     }
 
+    private int getRegionIndex(int regionX, int regionY) {
+        return (regionX - regionExtents.minX) + (regionY - regionExtents.minY) * widthInclusive;
+    }
+
     private class VisitedRegion {
         // This assumes a row is at most 64 tiles and fits in a long
-        private final long[] planes = new long[TOTAL_PLANES * REGION_SIZE];
+        private final long[] planes = new long[MAX_Z * REGION_SIZE];
 
         // Sets a tile as visited in the tile bitset
         // Returns true if the tile is unique and hasn't been seen before or false if it was seen before

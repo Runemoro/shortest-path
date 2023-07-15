@@ -1,7 +1,5 @@
 package shortestpath.pathfinder;
 
-import net.runelite.api.coords.WorldPoint;
-
 public enum OrdinalDirection {
     WEST(-1, 0),
     EAST(1, 0),
