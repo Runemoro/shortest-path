@@ -80,6 +80,9 @@ public class PathfinderConfig {
     }
 
     private void refreshTransportData() {
+        if (!Thread.currentThread().equals(client.getClientThread())) {
+            return; // Has to run on the client thread; data will be refreshed when path finding commences
+        }
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
 
         transports.clear();
