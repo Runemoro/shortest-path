@@ -112,6 +112,7 @@ public class ShortestPathPlugin extends Plugin {
     private BufferedImage minimapSpriteResizeable;
     private Rectangle minimapRectangle = new Rectangle();
 
+    private final Object pathfinderMutex = new Object();
     @Getter
     private Pathfinder pathfinder;
     private PathfinderConfig pathfinderConfig;
@@ -142,6 +143,21 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
         overlayManager.remove(pathMapTooltipOverlay);
+    }
+
+    public void restartPathfinding(WorldPoint start, WorldPoint end) {
+        synchronized (pathfinderMutex) {
+            if (pathfinder != null) {
+                pathfinder.cancel();
+            }
+        }
+
+        getClientThread().invokeLater(() -> {
+            pathfinderConfig.refresh();
+            synchronized (pathfinderMutex) {
+                pathfinder = new Pathfinder(pathfinderConfig, start, end);
+            }
+        });
     }
 
     public boolean isNearPath(WorldPoint location) {
@@ -183,7 +199,7 @@ public class ShortestPathPlugin extends Plugin {
                 setTarget(null);
                 return;
             }
-            pathfinder = new Pathfinder(pathfinderConfig, currentLocation, pathfinder.getTarget());
+            restartPathfinding(currentLocation, pathfinder.getTarget());
         }
     }
 
@@ -314,9 +330,15 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         if (target == null) {
+            synchronized (pathfinderMutex) {
+                if (pathfinder != null) {
+                    pathfinder.cancel();
+                }
+                pathfinder = null;
+            }
+
             worldMapPointManager.remove(marker);
             marker = null;
-            pathfinder = null;
             startPointSet = false;
         } else {
             worldMapPointManager.removeIf(x -> x == marker);
@@ -328,10 +350,11 @@ public class ShortestPathPlugin extends Plugin {
 
             WorldPoint start = client.isInInstancedRegion() ?
                 WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation()) : localPlayer.getWorldLocation();
+            lastLocation = start;
             if (startPointSet && pathfinder != null) {
                 start = pathfinder.getStart();
             }
-            pathfinder = new Pathfinder(pathfinderConfig, start, target);
+            restartPathfinding(start, target);
         }
     }
 
@@ -340,7 +363,7 @@ public class ShortestPathPlugin extends Plugin {
             return;
         }
         startPointSet = true;
-        pathfinder = new Pathfinder(pathfinderConfig, start, pathfinder.getTarget());
+        restartPathfinding(start, pathfinder.getTarget());
     }
 
     public WorldPoint calculateMapPoint(Point point) {

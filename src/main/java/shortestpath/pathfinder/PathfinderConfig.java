@@ -74,7 +74,8 @@ public class PathfinderConfig {
             strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
             prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
             woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
-            plugin.getClientThread().invokeLater(this::refreshTransportData);
+
+            refreshTransportData();
         }
     }
 
@@ -114,7 +115,9 @@ public class PathfinderConfig {
             return true;
         }
         return recalculateDistance < 0 ||
-               client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= recalculateDistance;
+            (client.isInInstancedRegion() ?
+                WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()) :
+                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= recalculateDistance;
     }
 
     private boolean useTransport(Transport transport) {
