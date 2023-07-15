@@ -14,9 +14,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPInputStream;
 import shortestpath.Util;
 
+import static net.runelite.api.Constants.REGION_SIZE;
+
 public abstract class SplitFlagMap {
     private static final int MAXIMUM_SIZE = 20 * 1024 * 1024;
-    private static final int REGION_SIZE = 64;
 
     private final LoadingCache<Integer, FlagMap> regionMaps;
     private final int flagCount;
