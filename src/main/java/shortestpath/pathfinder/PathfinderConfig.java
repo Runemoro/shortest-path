@@ -33,6 +33,7 @@ public class PathfinderConfig {
 
     @Getter
     private Duration calculationCutoff;
+    @Getter
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
     private boolean useGrappleShortcuts;
