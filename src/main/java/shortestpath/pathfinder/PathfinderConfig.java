@@ -69,7 +69,8 @@ public class PathfinderConfig {
             strengthLevel = client.getBoostedSkillLevel(Skill.STRENGTH);
             prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
             woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
-            plugin.getClientThread().invokeLater(this::refreshQuests);
+
+            refreshQuests();
         }
     }
 
