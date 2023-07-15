@@ -101,7 +101,9 @@ public class PathfinderConfig {
             return true;
         }
         return config.recalculateDistance() < 0 ||
-               client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= config.recalculateDistance();
+            (client.isInInstancedRegion() ?
+                WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()) :
+                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= config.recalculateDistance();
     }
 
     public boolean useTransport(Transport transport) {
