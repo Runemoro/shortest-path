@@ -44,6 +44,7 @@ public class PathfinderConfig {
     private int strengthLevel;
     private int prayerLevel;
     private int woodcuttingLevel;
+    private int recalculateDistance;
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
     public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
@@ -59,6 +60,7 @@ public class PathfinderConfig {
 
     public void refresh() {
         calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
+        recalculateDistance = config.recalculateDistance();
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
@@ -99,20 +101,20 @@ public class PathfinderConfig {
         }
     }
 
-    private boolean isInWilderness(WorldPoint p) {
+    public static boolean isInWilderness(WorldPoint p) {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 || WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
-    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, WorldPoint target) {
-        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !isInWilderness(target);
+    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, boolean targetInWilderness) {
+        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !targetInWilderness;
     }
 
     public boolean isNear(WorldPoint location) {
         if (plugin.isStartPointSet() || client.getLocalPlayer() == null) {
             return true;
         }
-        return config.recalculateDistance() < 0 ||
-               client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= config.recalculateDistance();
+        return recalculateDistance < 0 ||
+               client.getLocalPlayer().getWorldLocation().distanceTo2D(location) <= recalculateDistance;
     }
 
     private boolean useTransport(Transport transport) {

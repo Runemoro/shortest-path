@@ -2,19 +2,21 @@ package shortestpath.pathfinder;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
 import shortestpath.Util;
 
 public class CollisionMap extends SplitFlagMap {
-    public CollisionMap(int regionSize, Map<Position, byte[]> compressedRegions) {
-        super(regionSize, compressedRegions, 2);
+    // Enum.values() makes copies every time which hurts performance in the hotpath
+    private static final OrdinalDirection[] ORDINAL_VALUES = OrdinalDirection.values();
+
+    public CollisionMap(Map<Integer, byte[]> compressedRegions) {
+        super(compressedRegions, 2);
     }
 
     public boolean n(int x, int y, int z) {
@@ -53,6 +55,10 @@ public class CollisionMap extends SplitFlagMap {
         return !n(x, y, z) && !s(x, y, z) && !e(x, y, z) && !w(x, y, z);
     }
 
+    private static WorldPoint pointFromOrdinal(WorldPoint start, OrdinalDirection direction) {
+        return new WorldPoint(start.getX() + direction.x, start.getY() + direction.y, start.getPlane());
+    }
+
     public List<Node> getNeighbors(Node node, PathfinderConfig config) {
         int x = node.position.getX();
         int y = node.position.getY();
@@ -60,7 +66,9 @@ public class CollisionMap extends SplitFlagMap {
 
         List<Node> neighbors = new ArrayList<>();
 
-        for (Transport transport : config.getTransports().getOrDefault(node.position, new ArrayList<>())) {
+        // Transports are pre-filtered by PathfinderConfig.refreshTransportData
+        // Thus any transports in the list are guaranteed to be valid per the user's settings
+        for (Transport transport : config.getTransports().getOrDefault(node.position, (List<Transport>)Collections.EMPTY_LIST)) {
             neighbors.add(new TransportNode(transport.getDestination(), node, transport.getWait()));
         }
 
@@ -91,11 +99,12 @@ public class CollisionMap extends SplitFlagMap {
         }
 
         for (int i = 0; i < traversable.length; i++) {
-            OrdinalDirection d = OrdinalDirection.values()[i];
+            OrdinalDirection d = ORDINAL_VALUES[i];
+            WorldPoint neighbor = pointFromOrdinal(node.position, d);
             if (traversable[i]) {
-                neighbors.add(new Node(node.position.dx(d.x).dy(d.y), node));
+                neighbors.add(new Node(neighbor, node));
             } else if (Math.abs(d.x + d.y) == 1 && isBlocked(x + d.x, y + d.y, z)) {
-                for (Transport transport : config.getTransports().getOrDefault(node.position.dx(d.x).dy(d.y), new ArrayList<>())) {
+                for (Transport transport : config.getTransports().getOrDefault(neighbor, (List<Transport>)Collections.EMPTY_LIST)) {
                     neighbors.add(new Node(transport.getOrigin(), node));
                 }
             }
@@ -105,20 +114,20 @@ public class CollisionMap extends SplitFlagMap {
     }
 
     public static CollisionMap fromResources() {
-        Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
+        Map<Integer, byte[]> compressedRegions = new HashMap<>();
         try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
             ZipEntry entry;
             while ((entry = in.getNextEntry()) != null) {
                 String[] n = entry.getName().split("_");
 
                 compressedRegions.put(
-                        new SplitFlagMap.Position(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
+                        SplitFlagMap.packPosition(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
                         Util.readAllBytes(in)
                 );
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new CollisionMap(64, compressedRegions);
+        return new CollisionMap(compressedRegions);
     }
 }

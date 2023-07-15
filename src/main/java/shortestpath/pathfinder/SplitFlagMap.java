@@ -16,22 +16,24 @@ import shortestpath.Util;
 
 public abstract class SplitFlagMap {
     private static final int MAXIMUM_SIZE = 20 * 1024 * 1024;
-    private final int regionSize;
-    private final LoadingCache<Position, FlagMap> regionMaps;
+    private static final int REGION_SIZE = 64;
+
+    private final LoadingCache<Integer, FlagMap> regionMaps;
     private final int flagCount;
 
-    public SplitFlagMap(int regionSize, Map<Position, byte[]> compressedRegions, int flagCount) {
-        this.regionSize = regionSize;
+    public SplitFlagMap(Map<Integer, byte[]> compressedRegions, int flagCount) {
         this.flagCount = flagCount;
         regionMaps = CacheBuilder
                 .newBuilder()
-                .weigher((Weigher<Position, FlagMap>) (k, v) -> v.flags.size() / 8)
+                .weigher((Weigher<Integer, FlagMap>) (k, v) -> v.flags.size() / 8)
                 .maximumWeight(MAXIMUM_SIZE)
                 .build(CacheLoader.from(position -> {
                     byte[] compressedRegion = compressedRegions.get(position);
 
                     if (compressedRegion == null) {
-                        return new FlagMap(position.x * regionSize, position.y * regionSize, (position.x + 1) * regionSize - 1, (position.y + 1) * regionSize - 1, this.flagCount);
+                        int x = unpackX(position);
+                        int y = unpackY(position);
+                        return new FlagMap(x * REGION_SIZE, y * REGION_SIZE, (x + 1) * REGION_SIZE - 1, (y + 1) * REGION_SIZE - 1, this.flagCount);
                     }
 
                     try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(compressedRegion))) {
@@ -44,36 +46,21 @@ public abstract class SplitFlagMap {
 
     public boolean get(int x, int y, int z, int flag) {
         try {
-            return regionMaps.get(new Position(x / regionSize, y / regionSize)).get(x, y, z, flag);
+            return regionMaps.get(packPosition(x / REGION_SIZE, y / REGION_SIZE)).get(x, y, z, flag);
         } catch (ExecutionException e) {
             throw new UncheckedExecutionException(e);
         }
     }
 
-    public static class Position {
-        public final int x;
-        public final int y;
+    public static int unpackX(int position) {
+        return position & 0xFFFF;
+    }
 
-        public Position(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
+    public static int unpackY(int position) {
+        return (position >> 16) & 0xFFFF;
+    }
 
-        @Override
-        public boolean equals(Object o) {
-            return o instanceof Position &&
-                    ((Position) o).x == x &&
-                    ((Position) o).y == y;
-        }
-
-        @Override
-        public int hashCode() {
-            return x * 31 + y;
-        }
-
-        @Override
-        public String toString() {
-            return "(" + x + ", " + y + ")";
-        }
+    public static int packPosition(int x, int y) {
+        return (x & 0xFFFF) | ((y & 0xFFFF) << 16);
     }
 }
