@@ -50,7 +50,9 @@ public class Pathfinder implements Runnable {
     }
 
     private void addNeighbors(Node node) {
-        for (Node neighbor : config.getMap().getNeighbors(node, config)) {
+        List<Node> nodes = config.getMap().getNeighbors(node, config);
+        for (int i = 0; i < nodes.size(); ++i) {
+            Node neighbor = nodes.get(i);
             if (visited.get(neighbor.position) || (config.isAvoidWilderness() && config.avoidWilderness(node.position, neighbor.position, targetInWilderness))) {
                 continue;
             }
