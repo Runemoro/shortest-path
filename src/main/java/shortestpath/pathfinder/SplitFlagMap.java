@@ -13,7 +13,7 @@ import static net.runelite.api.Constants.REGION_SIZE;
 public abstract class SplitFlagMap {
 
     // Size is automatically chosen based on the max extents of the collision data
-    public final FlagMap[] regionMaps;
+    private final FlagMap[] regionMaps;
     private final CollisionMap.RegionExtent regionExtents;
     private final int widthInclusive;
     private final int flagCount;
