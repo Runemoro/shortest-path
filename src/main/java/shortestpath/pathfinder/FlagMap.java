@@ -2,6 +2,9 @@ package shortestpath.pathfinder;
 
 import java.nio.ByteBuffer;
 import java.util.BitSet;
+import java.util.Locale;
+
+import static net.runelite.api.Constants.MAX_Z;
 
 public class FlagMap {
     public static final int PLANE_COUNT = 4;
@@ -49,7 +52,7 @@ public class FlagMap {
     }
 
     public boolean get(int x, int y, int z, int flag) {
-        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z > PLANE_COUNT - 1) {
+        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z >= MAX_Z) {
             return false;
         }
 
@@ -61,8 +64,14 @@ public class FlagMap {
     }
 
     private int index(int x, int y, int z, int flag) {
-        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z > PLANE_COUNT - 1 || flag < 0 || flag > flagCount - 1) {
-            throw new IndexOutOfBoundsException(x + " " + y + " " + z);
+        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z >= MAX_Z || flag < 0 || flag >= flagCount) {
+            throw new IndexOutOfBoundsException(
+                String.format(Locale.ENGLISH, "[%d,%d,%d,%d] when extents are [>=%d,>=%d,>=%d,>=%d] - [<=%d,<=%d,<%d,<%d]",
+                        x, y, z, flag,
+                        minX, minY, 0, 0,
+                        maxX, maxY, MAX_Z, flagCount
+                )
+            );
         }
 
         return (z * width * height + (y - minY) * width + (x - minX)) * flagCount + flag;
