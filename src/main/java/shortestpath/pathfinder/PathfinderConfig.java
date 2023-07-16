@@ -17,6 +17,7 @@ import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathConfig;
 import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
+import shortestpath.WorldPointUtil;
 
 public class PathfinderConfig {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
@@ -27,6 +28,11 @@ public class PathfinderConfig {
     private final Map<WorldPoint, List<Transport>> allTransports;
     @Getter
     private Map<WorldPoint, List<Transport>> transports;
+
+    // Copy of transports with packed positions for the hotpath; lists are not copied and are the same reference in both maps
+    @Getter
+    private Map<Integer, List<Transport>> transportsPacked;
+
     private final Client client;
     private final ShortestPathConfig config;
     private final ShortestPathPlugin plugin;
@@ -53,6 +59,7 @@ public class PathfinderConfig {
         this.map = map;
         this.allTransports = transports;
         this.transports = new HashMap<>();
+        this.transportsPacked = new HashMap<>();
         this.client = client;
         this.config = config;
         this.plugin = plugin;
@@ -102,7 +109,9 @@ public class PathfinderConfig {
                 }
             }
 
-            transports.put(entry.getKey(), usableTransports);
+            WorldPoint point = entry.getKey();
+            transports.put(point, usableTransports);
+            transportsPacked.put(WorldPointUtil.packWorldPoint(point), usableTransports);
         }
     }
 
@@ -110,8 +119,16 @@ public class PathfinderConfig {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 || WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
+    public static boolean isInWilderness(int packedPoint) {
+        return WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_ABOVE_GROUND) == 0 || WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_UNDERGROUND) == 0;
+    }
+
     public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, boolean targetInWilderness) {
         return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !targetInWilderness;
+    }
+
+    public boolean avoidWilderness(int packedPosition, int packedNeightborPosition, boolean targetInWilderness) {
+        return avoidWilderness && !isInWilderness(packedPosition) && isInWilderness(packedNeightborPosition) && !targetInWilderness;
     }
 
     public boolean isNear(WorldPoint location) {

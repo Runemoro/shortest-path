@@ -1,6 +1,7 @@
 package shortestpath.pathfinder;
 
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.WorldPointUtil;
 
 import static net.runelite.api.Constants.MAX_Z;
 import static net.runelite.api.Constants.REGION_SIZE;
@@ -20,7 +21,18 @@ public class VisitedTiles {
     }
 
     public boolean get(WorldPoint point) {
-        final int regionIndex = getRegionIndex(point.getX() / REGION_SIZE, point.getY() / REGION_SIZE);
+        return get(point.getX(), point.getY(), point.getPlane());
+    }
+
+    public boolean get(int packedPoint) {
+        final int x = WorldPointUtil.unpackWorldX(packedPoint);
+        final int y = WorldPointUtil.unpackWorldY(packedPoint);
+        final int plane = WorldPointUtil.unpackWorldPlane(packedPoint);
+        return get(x, y, plane);
+    }
+
+    public boolean get(int x, int y, int plane) {
+        final int regionIndex = getRegionIndex(x / REGION_SIZE, y / REGION_SIZE);
         if (regionIndex < 0 || regionIndex >= visitedRegions.length) {
             return true; // Region is out of bounds; report that it's been visited to avoid exploring it further
         }
@@ -30,11 +42,22 @@ public class VisitedTiles {
             return false;
         }
 
-        return region.get(point.getRegionX(), point.getRegionY(), point.getPlane());
+        return region.get(x % REGION_SIZE, y % REGION_SIZE, plane);
     }
 
     public boolean set(WorldPoint point) {
-        final int regionIndex = getRegionIndex(point.getX() / REGION_SIZE, point.getY() / REGION_SIZE);
+        return set(point.getX(), point.getY(), point.getPlane());
+    }
+
+    public boolean set(int packedPoint) {
+        final int x = WorldPointUtil.unpackWorldX(packedPoint);
+        final int y = WorldPointUtil.unpackWorldY(packedPoint);
+        final int plane = WorldPointUtil.unpackWorldPlane(packedPoint);
+        return set(x, y, plane);
+    }
+
+    public boolean set(int x, int y, int plane) {
+        final int regionIndex = getRegionIndex(x / REGION_SIZE, y / REGION_SIZE);
         if (regionIndex < 0 || regionIndex >= visitedRegions.length) {
             return false; // Region is out of bounds; report that it's been visited to avoid exploring it further
         }
@@ -45,7 +68,7 @@ public class VisitedTiles {
             visitedRegions[regionIndex] = region;
         }
 
-        return region.set(point.getRegionX(), point.getRegionY(), point.getPlane());
+        return region.set(x % REGION_SIZE, y % REGION_SIZE, plane);
     }
 
     public void clear() {
