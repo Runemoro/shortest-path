@@ -34,7 +34,6 @@ import net.runelite.api.worldmap.WorldMap;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -128,7 +127,7 @@ public class ShortestPathPlugin extends Plugin {
     @Override
     protected void startUp() {
         CollisionMap map = CollisionMap.fromResources();
-        Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
+        Map<WorldPoint, List<Transport>> transports = Transport.loadAllFromResources();
 
         pathfinderConfig = new PathfinderConfig(map, transports, client, config, this);
 
@@ -144,23 +143,6 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
         overlayManager.remove(pathMapTooltipOverlay);
-    }
-
-    @Subscribe
-    public void onConfigChanged(ConfigChanged event) {
-        if (!CONFIG_GROUP.equals(event.getGroup())) {
-            return;
-        }
-
-        boolean reloadTransports = "useAgilityShortcuts".equals(event.getKey()) ||
-            "useGrappleShortcuts".equals(event.getKey()) || "useBoats".equals(event.getKey()) ||
-            "useFairyRings".equals(event.getKey()) || "useTeleports".equals(event.getKey());
-
-        if (reloadTransports) {
-            Map<WorldPoint, List<Transport>> transports = Transport.fromResources(config);
-            pathfinderConfig.getTransports().clear();
-            pathfinderConfig.getTransports().putAll(transports);
-        }
     }
 
     public void restartPathfinding(WorldPoint start, WorldPoint end) {

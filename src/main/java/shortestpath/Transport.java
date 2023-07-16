@@ -136,7 +136,7 @@ public class Transport {
         return null;
     }
 
-    private static void addTransports(Map<WorldPoint, List<Transport>> transports, ShortestPathConfig config, String path, TransportType transportType) {
+    private static void addTransports(Map<WorldPoint, List<Transport>> transports, String path, TransportType transportType) {
         try {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream(path)), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
@@ -157,12 +157,6 @@ public class Transport {
                     Transport transport = new Transport(line);
                     transport.isBoat = TransportType.BOAT.equals(transportType);
                     transport.isTeleport = TransportType.TELEPORT.equals(transportType);
-                    if (!config.useAgilityShortcuts() && transport.isAgilityShortcut) {
-                        continue;
-                    }
-                    if (!config.useGrappleShortcuts() && transport.isGrappleShortcut) {
-                        continue;
-                    }
                     WorldPoint origin = transport.getOrigin();
                     transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                 }
@@ -187,22 +181,13 @@ public class Transport {
         }
     }
 
-    public static HashMap<WorldPoint, List<Transport>> fromResources(ShortestPathConfig config) {
+    public static HashMap<WorldPoint, List<Transport>> loadAllFromResources() {
         HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
 
-        addTransports(transports, config, "/transports.txt", TransportType.TRANSPORT);
-
-        if (config.useBoats()) {
-            addTransports(transports, config, "/boats.txt", TransportType.BOAT);
-        }
-
-        if (config.useFairyRings()) {
-            addTransports(transports, config, "/fairy_rings.txt", TransportType.FAIRY_RING);
-        }
-
-        if (config.useTeleports()) {
-            addTransports(transports, config, "/teleports.txt", TransportType.TELEPORT);
-        }
+        addTransports(transports, "/transports.txt", TransportType.TRANSPORT);
+        addTransports(transports, "/boats.txt", TransportType.BOAT);
+        addTransports(transports, "/fairy_rings.txt", TransportType.FAIRY_RING);
+        addTransports(transports, "/teleports.txt", TransportType.TELEPORT);
 
         return transports;
     }

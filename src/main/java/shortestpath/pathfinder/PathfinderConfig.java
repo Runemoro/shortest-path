@@ -1,6 +1,7 @@
 package shortestpath.pathfinder;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,14 +24,16 @@ public class PathfinderConfig {
 
     @Getter
     private final CollisionMap map;
+    private final Map<WorldPoint, List<Transport>> allTransports;
     @Getter
-    private final Map<WorldPoint, List<Transport>> transports;
+    private Map<WorldPoint, List<Transport>> transports;
     private final Client client;
     private final ShortestPathConfig config;
     private final ShortestPathPlugin plugin;
 
     @Getter
     private Duration calculationCutoff;
+    @Getter
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
     private boolean useGrappleShortcuts;
@@ -42,12 +45,14 @@ public class PathfinderConfig {
     private int strengthLevel;
     private int prayerLevel;
     private int woodcuttingLevel;
+    private int recalculateDistance;
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
     public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
                             ShortestPathConfig config, ShortestPathPlugin plugin) {
         this.map = map;
-        this.transports = transports;
+        this.allTransports = transports;
+        this.transports = new HashMap<>();
         this.client = client;
         this.config = config;
         this.plugin = plugin;
@@ -56,6 +61,7 @@ public class PathfinderConfig {
 
     public void refresh() {
         calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
+        recalculateDistance = config.recalculateDistance();
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
@@ -70,13 +76,19 @@ public class PathfinderConfig {
             prayerLevel = client.getBoostedSkillLevel(Skill.PRAYER);
             woodcuttingLevel = client.getBoostedSkillLevel(Skill.WOODCUTTING);
 
-            refreshQuests();
+            refreshTransportData();
         }
     }
 
-    private void refreshQuests() {
+    private void refreshTransportData() {
+        if (!Thread.currentThread().equals(client.getClientThread())) {
+            return; // Has to run on the client thread; data will be refreshed when path finding commences
+        }
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
-        for (Map.Entry<WorldPoint, List<Transport>> entry : transports.entrySet()) {
+
+        transports.clear();
+        for (Map.Entry<WorldPoint, List<Transport>> entry : allTransports.entrySet()) {
+            List<Transport> usableTransports = new ArrayList<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
                 if (transport.isQuestLocked()) {
                     try {
@@ -84,29 +96,35 @@ public class PathfinderConfig {
                     } catch (NullPointerException ignored) {
                     }
                 }
+
+                if (useTransport(transport)) {
+                    usableTransports.add(transport);
+                }
             }
+
+            transports.put(entry.getKey(), usableTransports);
         }
     }
 
-    private boolean isInWilderness(WorldPoint p) {
+    public static boolean isInWilderness(WorldPoint p) {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 || WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
-    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, WorldPoint target) {
-        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !isInWilderness(target);
+    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, boolean targetInWilderness) {
+        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !targetInWilderness;
     }
 
     public boolean isNear(WorldPoint location) {
         if (plugin.isStartPointSet() || client.getLocalPlayer() == null) {
             return true;
         }
-        return config.recalculateDistance() < 0 ||
+        return recalculateDistance < 0 ||
             (client.isInInstancedRegion() ?
                 WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()) :
-                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= config.recalculateDistance();
+                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= recalculateDistance;
     }
 
-    public boolean useTransport(Transport transport) {
+    private boolean useTransport(Transport transport) {
         final int transportAgilityLevel = transport.getRequiredLevel(Skill.AGILITY);
         final int transportRangedLevel = transport.getRequiredLevel(Skill.RANGED);
         final int transportStrengthLevel = transport.getRequiredLevel(Skill.STRENGTH);

@@ -1,14 +1,12 @@
 package shortestpath.pathfinder;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.Getter;
@@ -23,10 +21,13 @@ public class Pathfinder implements Runnable {
     @Getter
     private final WorldPoint target;
     private final PathfinderConfig config;
+    private final boolean targetInWilderness;
 
-    private final Deque<Node> boundary = new LinkedList<>();
-    private final Set<WorldPoint> visited = new HashSet<>();
-    private final Queue<Node> pending = new PriorityQueue<>();
+    // Capacities should be enough to store all nodes without requiring the queue to grow
+    // They were found by checking the max queue size
+    private final Deque<Node> boundary = new ArrayDeque<>(4096);
+    private final Queue<Node> pending = new PriorityQueue<>(256);
+    private final VisitedTiles visited = new VisitedTiles();
 
     @Getter
     private List<WorldPoint> path = new ArrayList<>();
@@ -35,7 +36,8 @@ public class Pathfinder implements Runnable {
         this.config = config;
         this.start = start;
         this.target = target;
-
+        targetInWilderness = PathfinderConfig.isInWilderness(target);
+        
         new Thread(this).start();
     }
 
@@ -48,11 +50,13 @@ public class Pathfinder implements Runnable {
     }
 
     private void addNeighbors(Node node) {
-        for (Node neighbor : config.getMap().getNeighbors(node, config)) {
-            if (config.avoidWilderness(node.position, neighbor.position, target)) {
+        List<Node> nodes = config.getMap().getNeighbors(node, config);
+        for (int i = 0; i < nodes.size(); ++i) {
+            Node neighbor = nodes.get(i);
+            if (visited.get(neighbor.position) || (config.isAvoidWilderness() && config.avoidWilderness(node.position, neighbor.position, targetInWilderness))) {
                 continue;
             }
-            if (visited.add(neighbor.position)) {
+            if (visited.set(neighbor.position)) {
                 if (neighbor instanceof TransportNode) {
                     pending.add(neighbor);
                 } else {
