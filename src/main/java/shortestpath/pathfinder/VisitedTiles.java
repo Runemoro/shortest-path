@@ -1,6 +1,5 @@
 package shortestpath.pathfinder;
 
-import net.runelite.api.coords.WorldPoint;
 import shortestpath.WorldPointUtil;
 
 import static net.runelite.api.Constants.MAX_Z;

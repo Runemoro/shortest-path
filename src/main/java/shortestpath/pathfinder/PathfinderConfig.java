@@ -1,6 +1,5 @@
 package shortestpath.pathfinder;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +14,6 @@ import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathConfig;
-import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
 import shortestpath.WorldPointUtil;
 
@@ -123,10 +121,6 @@ public class PathfinderConfig {
 
     public static boolean isInWilderness(int packedPoint) {
         return WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_ABOVE_GROUND) == 0 || WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_UNDERGROUND) == 0;
-    }
-
-    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, boolean targetInWilderness) {
-        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !targetInWilderness;
     }
 
     public boolean avoidWilderness(int packedPosition, int packedNeightborPosition, boolean targetInWilderness) {
