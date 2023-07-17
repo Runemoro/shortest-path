@@ -19,6 +19,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
+import shortestpath.pathfinder.CollisionMap;
 
 public class PathMapOverlay extends Overlay {
     private final Client client;
@@ -55,10 +56,11 @@ public class PathMapOverlay extends Overlay {
         if (config.drawCollisionMap()) {
             graphics.setColor(config.colourCollisionMap());
             Rectangle extent = getWorldMapExtent(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
+            final CollisionMap map = plugin.getMap();
             final int z = client.getPlane();
             for (int x = extent.x; x < (extent.x + extent.width + 1); x++) {
                 for (int y = extent.y - extent.height; y < (extent.y + 1); y++) {
-                    if (plugin.getMap().isBlocked(x, y, z)) {
+                    if (map.isBlocked(x, y, z)) {
                         drawOnMap(graphics, new WorldPoint(x, y, z), false);
                     }
                 }

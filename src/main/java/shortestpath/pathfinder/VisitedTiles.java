@@ -7,13 +7,13 @@ import static net.runelite.api.Constants.MAX_Z;
 import static net.runelite.api.Constants.REGION_SIZE;
 
 public class VisitedTiles {
-    private final CollisionMap.RegionExtent regionExtents;
+    private final SplitFlagMap.RegionExtent regionExtents;
     private final int widthInclusive;
 
     private final VisitedRegion[] visitedRegions;
 
     public VisitedTiles() {
-        regionExtents = CollisionMap.getRegionExtents();
+        regionExtents = SplitFlagMap.getRegionExtents();
         widthInclusive = regionExtents.getWidth() + 1;
         final int heightInclusive = regionExtents.getHeight() + 1;
 

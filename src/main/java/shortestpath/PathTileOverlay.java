@@ -19,6 +19,7 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
+import shortestpath.pathfinder.CollisionMap;
 
 public class PathTileOverlay extends Overlay {
     private final Client client;
@@ -67,6 +68,7 @@ public class PathTileOverlay extends Overlay {
     }
 
     private void renderCollisionMap(Graphics2D graphics) {
+        CollisionMap map = plugin.getMap();
         for (Tile[] row : client.getScene().getTiles()[client.getPlane()]) {
             for (Tile tile : row) {
                 if (tile == null) {
@@ -85,12 +87,12 @@ public class PathTileOverlay extends Overlay {
                 int y = location.getY();
                 int z = location.getPlane();
 
-                String s = (!plugin.getMap().n(x, y, z) ? "n" : "") +
-                        (!plugin.getMap().s(x, y, z) ? "s" : "") +
-                        (!plugin.getMap().e(x, y, z) ? "e" : "") +
-                        (!plugin.getMap().w(x, y, z) ? "w" : "");
+                String s = (!map.n(x, y, z) ? "n" : "") +
+                        (!map.s(x, y, z) ? "s" : "") +
+                        (!map.e(x, y, z) ? "e" : "") +
+                        (!map.w(x, y, z) ? "w" : "");
 
-                if (plugin.getMap().isBlocked(x, y, z)) {
+                if (map.isBlocked(x, y, z)) {
                     graphics.setColor(config.colourCollisionMap());
                     graphics.fill(tilePolygon);
                 }

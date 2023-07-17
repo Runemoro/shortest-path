@@ -25,6 +25,7 @@ public class Pathfinder implements Runnable {
     private final int targetPacked;
 
     private final PathfinderConfig config;
+    private final CollisionMap map;
     private final boolean targetInWilderness;
 
     // Capacities should be enough to store all nodes without requiring the queue to grow
@@ -40,6 +41,7 @@ public class Pathfinder implements Runnable {
 
     public Pathfinder(PathfinderConfig config, WorldPoint start, WorldPoint target) {
         this.config = config;
+        this.map = config.getMap();
         this.start = start;
         this.target = target;
         startPacked = WorldPointUtil.packWorldPoint(start);
@@ -72,7 +74,7 @@ public class Pathfinder implements Runnable {
     }
 
     private void addNeighbors(Node node) {
-        List<Node> nodes = config.getMap().getNeighbors(node, config);
+        List<Node> nodes = map.getNeighbors(node, config);
         for (int i = 0; i < nodes.size(); ++i) {
             Node neighbor = nodes.get(i);
             if (visited.get(neighbor.packedPosition) || (config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness))) {

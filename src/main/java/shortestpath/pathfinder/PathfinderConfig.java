@@ -23,8 +23,8 @@ public class PathfinderConfig {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 
-    @Getter
-    private final CollisionMap map;
+    private final SplitFlagMap mapData;
+    private final ThreadLocal<CollisionMap> map;
     private final Map<WorldPoint, List<Transport>> allTransports;
     @Getter
     private Map<WorldPoint, List<Transport>> transports;
@@ -54,9 +54,10 @@ public class PathfinderConfig {
     private int recalculateDistance;
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
-    public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
+    public PathfinderConfig(SplitFlagMap mapData, Map<WorldPoint, List<Transport>> transports, Client client,
                             ShortestPathConfig config, ShortestPathPlugin plugin) {
-        this.map = map;
+        this.mapData = mapData;
+        this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
         this.allTransports = transports;
         this.transports = new HashMap<>();
         this.transportsPacked = new HashMap<>();
@@ -64,6 +65,10 @@ public class PathfinderConfig {
         this.config = config;
         this.plugin = plugin;
         refresh();
+    }
+
+    public CollisionMap getMap() {
+        return map.get();
     }
 
     public void refresh() {
