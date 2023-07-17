@@ -59,7 +59,6 @@ public class Pathfinder implements Runnable {
         cancelled.set(true);
     }
 
-
     public List<WorldPoint> getPath() {
         Node lastNode = bestLastNode; // For thread safety, read bestLastNode once
         if (lastNode == null) {
@@ -68,6 +67,7 @@ public class Pathfinder implements Runnable {
 
         if (pathNeedsUpdate) {
             path = lastNode.getPath();
+            pathNeedsUpdate = false;
         }
 
         return path;
