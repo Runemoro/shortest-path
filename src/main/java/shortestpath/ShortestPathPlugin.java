@@ -48,6 +48,7 @@ import net.runelite.client.util.Text;
 import shortestpath.pathfinder.CollisionMap;
 import shortestpath.pathfinder.Pathfinder;
 import shortestpath.pathfinder.PathfinderConfig;
+import shortestpath.pathfinder.SplitFlagMap;
 
 @PluginDescriptor(
     name = "Shortest Path",
@@ -126,10 +127,10 @@ public class ShortestPathPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        CollisionMap map = CollisionMap.fromResources();
+        SplitFlagMap map = SplitFlagMap.fromResources();
         Map<WorldPoint, List<Transport>> transports = Transport.loadAllFromResources();
 
-        pathfinderConfig = new PathfinderConfig(map, transports, client, config, this);
+        pathfinderConfig = new PathfinderConfig(map, transports, client, config);
 
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);

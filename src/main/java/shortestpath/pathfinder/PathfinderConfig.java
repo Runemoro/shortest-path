@@ -1,6 +1,5 @@
 package shortestpath.pathfinder;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,24 +14,28 @@ import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathConfig;
-import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
+import shortestpath.WorldPointUtil;
 
 public class PathfinderConfig {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
 
-    @Getter
-    private final CollisionMap map;
+    private final SplitFlagMap mapData;
+    private final ThreadLocal<CollisionMap> map;
     private final Map<WorldPoint, List<Transport>> allTransports;
     @Getter
     private Map<WorldPoint, List<Transport>> transports;
+
+    // Copy of transports with packed positions for the hotpath; lists are not copied and are the same reference in both maps
+    @Getter
+    private Map<Integer, List<Transport>> transportsPacked;
+
     private final Client client;
     private final ShortestPathConfig config;
-    private final ShortestPathPlugin plugin;
 
     @Getter
-    private Duration calculationCutoff;
+    private long calculationCutoffMillis;
     @Getter
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
@@ -45,23 +48,26 @@ public class PathfinderConfig {
     private int strengthLevel;
     private int prayerLevel;
     private int woodcuttingLevel;
-    private int recalculateDistance;
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
-    public PathfinderConfig(CollisionMap map, Map<WorldPoint, List<Transport>> transports, Client client,
-                            ShortestPathConfig config, ShortestPathPlugin plugin) {
-        this.map = map;
+    public PathfinderConfig(SplitFlagMap mapData, Map<WorldPoint, List<Transport>> transports, Client client,
+                            ShortestPathConfig config) {
+        this.mapData = mapData;
+        this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
         this.allTransports = transports;
         this.transports = new HashMap<>();
+        this.transportsPacked = new HashMap<>();
         this.client = client;
         this.config = config;
-        this.plugin = plugin;
         refresh();
     }
 
+    public CollisionMap getMap() {
+        return map.get();
+    }
+
     public void refresh() {
-        calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
-        recalculateDistance = config.recalculateDistance();
+        calculationCutoffMillis = config.calculationCutoff() * Constants.GAME_TICK_LENGTH;
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
@@ -87,6 +93,7 @@ public class PathfinderConfig {
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
 
         transports.clear();
+        transportsPacked.clear();
         for (Map.Entry<WorldPoint, List<Transport>> entry : allTransports.entrySet()) {
             List<Transport> usableTransports = new ArrayList<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
@@ -102,7 +109,9 @@ public class PathfinderConfig {
                 }
             }
 
-            transports.put(entry.getKey(), usableTransports);
+            WorldPoint point = entry.getKey();
+            transports.put(point, usableTransports);
+            transportsPacked.put(WorldPointUtil.packWorldPoint(point), usableTransports);
         }
     }
 
@@ -110,18 +119,12 @@ public class PathfinderConfig {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 || WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
     }
 
-    public boolean avoidWilderness(WorldPoint position, WorldPoint neighbor, boolean targetInWilderness) {
-        return avoidWilderness && !isInWilderness(position) && isInWilderness(neighbor) && !targetInWilderness;
+    public static boolean isInWilderness(int packedPoint) {
+        return WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_ABOVE_GROUND) == 0 || WorldPointUtil.distanceToArea(packedPoint, WILDERNESS_UNDERGROUND) == 0;
     }
 
-    public boolean isNear(WorldPoint location) {
-        if (plugin.isStartPointSet() || client.getLocalPlayer() == null) {
-            return true;
-        }
-        return recalculateDistance < 0 ||
-            (client.isInInstancedRegion() ?
-                WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()) :
-                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= recalculateDistance;
+    public boolean avoidWilderness(int packedPosition, int packedNeightborPosition, boolean targetInWilderness) {
+        return avoidWilderness && !isInWilderness(packedPosition) && isInWilderness(packedNeightborPosition) && !targetInWilderness;
     }
 
     private boolean useTransport(Transport transport) {

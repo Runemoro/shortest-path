@@ -4,24 +4,31 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import shortestpath.ShortestPathPlugin;
 import shortestpath.Util;
 
 import static net.runelite.api.Constants.REGION_SIZE;
 
-public abstract class SplitFlagMap {
+public class SplitFlagMap {
+    @Getter
+    private static RegionExtent regionExtents;
 
     // Size is automatically chosen based on the max extents of the collision data
     private final FlagMap[] regionMaps;
-    private final CollisionMap.RegionExtent regionExtents;
     private final int widthInclusive;
     private final int flagCount;
 
     public SplitFlagMap(Map<Integer, byte[]> compressedRegions, int flagCount) {
         this.flagCount = flagCount;
 
-        regionExtents = CollisionMap.getRegionExtents();
         widthInclusive = regionExtents.getWidth() + 1;
         final int heightInclusive = regionExtents.getHeight() + 1;
         regionMaps = new FlagMap[widthInclusive * heightInclusive];
@@ -66,5 +73,51 @@ public abstract class SplitFlagMap {
 
     public static int packPosition(int x, int y) {
         return (x & 0xFFFF) | ((y & 0xFFFF) << 16);
+    }
+
+    public static SplitFlagMap fromResources() {
+        Map<Integer, byte[]> compressedRegions = new HashMap<>();
+        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
+            int minX = Integer.MAX_VALUE;
+            int minY = Integer.MAX_VALUE;
+            int maxX = 0;
+            int maxY = 0;
+
+            ZipEntry entry;
+            while ((entry = in.getNextEntry()) != null) {
+                String[] n = entry.getName().split("_");
+                final int x = Integer.parseInt(n[0]);
+                final int y = Integer.parseInt(n[1]);
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+
+                compressedRegions.put(
+                        SplitFlagMap.packPosition(x, y),
+                        Util.readAllBytes(in)
+                );
+            }
+
+            regionExtents = new RegionExtent(minX, minY, maxX, maxY);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        return new SplitFlagMap(compressedRegions, 2);
+    }
+
+    @RequiredArgsConstructor
+    @Getter
+    public static class RegionExtent {
+        public final int minX, minY, maxX, maxY;
+
+        public int getWidth() {
+            return maxX - minX;
+        }
+
+        public int getHeight() {
+            return maxY - minY;
+        }
     }
 }

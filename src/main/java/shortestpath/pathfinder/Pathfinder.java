@@ -1,8 +1,7 @@
 package shortestpath.pathfinder;
 
-import java.time.Instant;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -11,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.WorldPointUtil;
 
 public class Pathfinder implements Runnable {
     private AtomicBoolean done = new AtomicBoolean();
@@ -20,7 +20,11 @@ public class Pathfinder implements Runnable {
     private final WorldPoint start;
     @Getter
     private final WorldPoint target;
+
+    private final int targetPacked;
+
     private final PathfinderConfig config;
+    private final CollisionMap map;
     private final boolean targetInWilderness;
 
     // Capacities should be enough to store all nodes without requiring the queue to grow
@@ -29,13 +33,17 @@ public class Pathfinder implements Runnable {
     private final Queue<Node> pending = new PriorityQueue<>(256);
     private final VisitedTiles visited = new VisitedTiles();
 
-    @Getter
-    private List<WorldPoint> path = new ArrayList<>();
+    @SuppressWarnings("unchecked") // Casting EMPTY_LIST is safe here
+    private List<WorldPoint> path = (List<WorldPoint>)Collections.EMPTY_LIST;
+    private boolean pathNeedsUpdate = false;
+    private Node bestLastNode;
 
     public Pathfinder(PathfinderConfig config, WorldPoint start, WorldPoint target) {
         this.config = config;
+        this.map = config.getMap();
         this.start = start;
         this.target = target;
+        targetPacked = WorldPointUtil.packWorldPoint(target);
         targetInWilderness = PathfinderConfig.isInWilderness(target);
         
         new Thread(this).start();
@@ -49,14 +57,28 @@ public class Pathfinder implements Runnable {
         cancelled.set(true);
     }
 
+    public List<WorldPoint> getPath() {
+        Node lastNode = bestLastNode; // For thread safety, read bestLastNode once
+        if (lastNode == null) {
+            return path;
+        }
+
+        if (pathNeedsUpdate) {
+            path = lastNode.getPath();
+            pathNeedsUpdate = false;
+        }
+
+        return path;
+    }
+
     private void addNeighbors(Node node) {
-        List<Node> nodes = config.getMap().getNeighbors(node, config);
+        List<Node> nodes = map.getNeighbors(node, config);
         for (int i = 0; i < nodes.size(); ++i) {
             Node neighbor = nodes.get(i);
-            if (visited.get(neighbor.position) || (config.isAvoidWilderness() && config.avoidWilderness(node.position, neighbor.position, targetInWilderness))) {
+            if (visited.get(neighbor.packedPosition) || (config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness))) {
                 continue;
             }
-            if (visited.set(neighbor.position)) {
+            if (visited.set(neighbor.packedPosition)) {
                 if (neighbor instanceof TransportNode) {
                     pending.add(neighbor);
                 } else {
@@ -72,7 +94,8 @@ public class Pathfinder implements Runnable {
 
         int bestDistance = Integer.MAX_VALUE;
         long bestHeuristic = Integer.MAX_VALUE;
-        Instant cutoffTime = Instant.now().plus(config.getCalculationCutoff());
+        long cutoffDurationMillis = config.getCalculationCutoffMillis();
+        long cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
 
         while (!cancelled.get() && (!boundary.isEmpty() || !pending.isEmpty())) {
             Node node = boundary.peekFirst();
@@ -85,21 +108,23 @@ public class Pathfinder implements Runnable {
 
             node = boundary.removeFirst();
 
-            if (node.position.equals(target) || !config.isNear(start)) {
-                path = node.getPath();
+            if (node.packedPosition == targetPacked) {
+                bestLastNode = node;
+                pathNeedsUpdate = true;
                 break;
             }
 
-            int distance = Node.distanceBetween(node.position, target);
-            long heuristic = distance + Node.distanceBetween(node.position, target, 2);
+            int distance = WorldPointUtil.distanceBetween(node.packedPosition, targetPacked);
+            long heuristic = distance + WorldPointUtil.distanceBetween(node.packedPosition, targetPacked, 2);
             if (heuristic < bestHeuristic || (heuristic <= bestHeuristic && distance < bestDistance)) {
-                path = node.getPath();
+                bestLastNode = node;
+                pathNeedsUpdate = true;
                 bestDistance = distance;
                 bestHeuristic = heuristic;
-                cutoffTime = Instant.now().plus(config.getCalculationCutoff());
+                cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
             }
 
-            if (Instant.now().isAfter(cutoffTime)) {
+            if (System.currentTimeMillis() > cutoffTimeMillis) {
                 break;
             }
 
