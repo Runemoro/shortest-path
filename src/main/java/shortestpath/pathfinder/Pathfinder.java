@@ -21,7 +21,6 @@ public class Pathfinder implements Runnable {
     @Getter
     private final WorldPoint target;
 
-    private final int startPacked;
     private final int targetPacked;
 
     private final PathfinderConfig config;
@@ -44,7 +43,6 @@ public class Pathfinder implements Runnable {
         this.map = config.getMap();
         this.start = start;
         this.target = target;
-        startPacked = WorldPointUtil.packWorldPoint(start);
         targetPacked = WorldPointUtil.packWorldPoint(target);
         targetInWilderness = PathfinderConfig.isInWilderness(target);
         
@@ -96,7 +94,7 @@ public class Pathfinder implements Runnable {
 
         int bestDistance = Integer.MAX_VALUE;
         long bestHeuristic = Integer.MAX_VALUE;
-        long cutoffDurationMillis = config.getCalculationCutoff().toMillis();
+        long cutoffDurationMillis = config.getCalculationCutoffMillis();
         long cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
 
         while (!cancelled.get() && (!boundary.isEmpty() || !pending.isEmpty())) {

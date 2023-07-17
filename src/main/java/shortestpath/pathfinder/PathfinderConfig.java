@@ -35,10 +35,9 @@ public class PathfinderConfig {
 
     private final Client client;
     private final ShortestPathConfig config;
-    private final ShortestPathPlugin plugin;
 
     @Getter
-    private Duration calculationCutoff;
+    private long calculationCutoffMillis;
     @Getter
     private boolean avoidWilderness;
     private boolean useAgilityShortcuts;
@@ -54,7 +53,7 @@ public class PathfinderConfig {
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
     public PathfinderConfig(SplitFlagMap mapData, Map<WorldPoint, List<Transport>> transports, Client client,
-                            ShortestPathConfig config, ShortestPathPlugin plugin) {
+                            ShortestPathConfig config) {
         this.mapData = mapData;
         this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
         this.allTransports = transports;
@@ -62,7 +61,6 @@ public class PathfinderConfig {
         this.transportsPacked = new HashMap<>();
         this.client = client;
         this.config = config;
-        this.plugin = plugin;
         refresh();
     }
 
@@ -71,7 +69,7 @@ public class PathfinderConfig {
     }
 
     public void refresh() {
-        calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
+        calculationCutoffMillis = config.calculationCutoff() * Constants.GAME_TICK_LENGTH;
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();

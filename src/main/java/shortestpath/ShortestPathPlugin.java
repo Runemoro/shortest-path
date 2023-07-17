@@ -130,7 +130,7 @@ public class ShortestPathPlugin extends Plugin {
         SplitFlagMap map = SplitFlagMap.fromResources();
         Map<WorldPoint, List<Transport>> transports = Transport.loadAllFromResources();
 
-        pathfinderConfig = new PathfinderConfig(map, transports, client, config, this);
+        pathfinderConfig = new PathfinderConfig(map, transports, client, config);
 
         overlayManager.add(pathOverlay);
         overlayManager.add(pathMinimapOverlay);

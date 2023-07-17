@@ -20,10 +20,6 @@ public class VisitedTiles {
         visitedRegions = new VisitedRegion[widthInclusive * heightInclusive];
     }
 
-    public boolean get(WorldPoint point) {
-        return get(point.getX(), point.getY(), point.getPlane());
-    }
-
     public boolean get(int packedPoint) {
         final int x = WorldPointUtil.unpackWorldX(packedPoint);
         final int y = WorldPointUtil.unpackWorldY(packedPoint);
@@ -43,10 +39,6 @@ public class VisitedTiles {
         }
 
         return region.get(x % REGION_SIZE, y % REGION_SIZE, plane);
-    }
-
-    public boolean set(WorldPoint point) {
-        return set(point.getX(), point.getY(), point.getPlane());
     }
 
     public boolean set(int packedPoint) {
