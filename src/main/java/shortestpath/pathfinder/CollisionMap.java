@@ -12,7 +12,6 @@ import java.util.zip.ZipInputStream;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathPlugin;
 import shortestpath.Transport;
 import shortestpath.Util;
