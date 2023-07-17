@@ -99,6 +99,7 @@ public class PathfinderConfig {
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
 
         transports.clear();
+        transportsPacked.clear();
         for (Map.Entry<WorldPoint, List<Transport>> entry : allTransports.entrySet()) {
             List<Transport> usableTransports = new ArrayList<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
