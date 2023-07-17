@@ -51,7 +51,6 @@ public class PathfinderConfig {
     private int strengthLevel;
     private int prayerLevel;
     private int woodcuttingLevel;
-    private int recalculateDistance;
     private Map<Quest, QuestState> questStates = new HashMap<>();
 
     public PathfinderConfig(SplitFlagMap mapData, Map<WorldPoint, List<Transport>> transports, Client client,
@@ -73,7 +72,6 @@ public class PathfinderConfig {
 
     public void refresh() {
         calculationCutoff = Duration.ofMillis(config.calculationCutoff() * Constants.GAME_TICK_LENGTH);
-        recalculateDistance = config.recalculateDistance();
         avoidWilderness = config.avoidWilderness();
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
@@ -135,16 +133,6 @@ public class PathfinderConfig {
 
     public boolean avoidWilderness(int packedPosition, int packedNeightborPosition, boolean targetInWilderness) {
         return avoidWilderness && !isInWilderness(packedPosition) && isInWilderness(packedNeightborPosition) && !targetInWilderness;
-    }
-
-    public boolean isNear(WorldPoint location) {
-        if (plugin.isStartPointSet() || client.getLocalPlayer() == null) {
-            return true;
-        }
-        return recalculateDistance < 0 ||
-            (client.isInInstancedRegion() ?
-                WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()) :
-                client.getLocalPlayer().getWorldLocation()).distanceTo2D(location) <= recalculateDistance;
     }
 
     private boolean useTransport(Transport transport) {

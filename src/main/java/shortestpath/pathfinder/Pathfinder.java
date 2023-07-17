@@ -110,7 +110,7 @@ public class Pathfinder implements Runnable {
 
             node = boundary.removeFirst();
 
-            if (node.packedPosition == targetPacked || !config.isNear(start)) {
+            if (node.packedPosition == targetPacked) {
                 bestLastNode = node;
                 pathNeedsUpdate = true;
                 break;
