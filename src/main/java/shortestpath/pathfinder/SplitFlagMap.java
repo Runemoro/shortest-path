@@ -1,12 +1,9 @@
 package shortestpath.pathfinder;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -38,15 +35,7 @@ public class SplitFlagMap {
             final int x = unpackX(pos);
             final int y = unpackY(pos);
 
-            FlagMap map;
-            try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(entry.getValue()))) {
-                byte[] bytes = Util.readAllBytes(in);
-                map = new FlagMap(bytes, this.flagCount);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-
-            regionMaps[getIndex(x, y)] = map;
+            regionMaps[getIndex(x, y)] = new FlagMap(entry.getValue(), this.flagCount);
         }
     }
 
@@ -93,10 +82,7 @@ public class SplitFlagMap {
                 maxX = Math.max(maxX, x);
                 maxY = Math.max(maxY, y);
 
-                compressedRegions.put(
-                        SplitFlagMap.packPosition(x, y),
-                        Util.readAllBytes(in)
-                );
+                compressedRegions.put(SplitFlagMap.packPosition(x, y), Util.readAllBytes(in));
             }
 
             regionExtents = new RegionExtent(minX, minY, maxX, maxY);
