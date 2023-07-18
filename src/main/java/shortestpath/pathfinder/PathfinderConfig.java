@@ -100,16 +100,18 @@ public class PathfinderConfig {
         if (!Thread.currentThread().equals(client.getClientThread())) {
             return; // Has to run on the client thread; data will be refreshed when path finding commences
         }
+
         useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
+        useGnomeGliders &= QuestState.FINISHED.equals(Quest.THE_GRAND_TREE.getState(client));
 
         transports.clear();
         transportsPacked.clear();
         for (Map.Entry<WorldPoint, List<Transport>> entry : allTransports.entrySet()) {
             List<Transport> usableTransports = new ArrayList<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
-                if (transport.isQuestLocked()) {
+                for (Quest quest : transport.getQuests()) {
                     try {
-                        questStates.put(transport.getQuest(), transport.getQuest().getState(client));
+                        questStates.put(quest, quest.getState(client));
                     } catch (NullPointerException ignored) {
                     }
                 }
@@ -135,6 +137,15 @@ public class PathfinderConfig {
 
     public boolean avoidWilderness(int packedPosition, int packedNeightborPosition, boolean targetInWilderness) {
         return avoidWilderness && !isInWilderness(packedPosition) && isInWilderness(packedNeightborPosition) && !targetInWilderness;
+    }
+
+    private boolean completedQuests(Transport transport) {
+        for (Quest quest : transport.getQuests()) {
+            if (!QuestState.FINISHED.equals(questStates.getOrDefault(quest, QuestState.NOT_STARTED))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean useTransport(Transport transport) {
@@ -203,7 +214,7 @@ public class PathfinderConfig {
             return false;
         }
 
-        if (isQuestLocked && !QuestState.FINISHED.equals(questStates.getOrDefault(transport.getQuest(), QuestState.NOT_STARTED))) {
+        if (isQuestLocked && !completedQuests(transport)) {
             return false;
         }
 

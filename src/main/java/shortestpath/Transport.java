@@ -38,7 +38,7 @@ public class Transport {
 
     /** The quest required to use this transport */
     @Getter
-    private Quest quest;
+    private List<Quest> quests = new ArrayList<>();
 
     /** Whether the transport is an agility shortcut */
     @Getter
@@ -128,7 +128,7 @@ public class Transport {
 
         // Quest requirements
         if (parts.length >= 6 && !parts[5].isEmpty()) {
-            this.quest = findQuest(parts[5]);
+            this.quests = findQuests(parts[5]);
         }
 
         // Additional travel time
@@ -154,16 +154,21 @@ public class Transport {
 
     /** Whether the transport has a quest requirement */
     public boolean isQuestLocked() {
-        return quest != null;
+        return !quests.isEmpty();
     }
 
-    private static Quest findQuest(String questName) {
-        for (Quest quest : Quest.values()) {
-            if (quest.getName().equals(questName)) {
-                return quest;
+    private static List<Quest> findQuests(String questNamesCombined) {
+        String[] questNames = questNamesCombined.split(";");
+        List<Quest> quests = new ArrayList<>();
+        for (String questName : questNames) {
+            for (Quest quest : Quest.values()) {
+                if (quest.getName().equals(questName)) {
+                    quests.add(quest);
+                    break;
+                }
             }
         }
-        return null;
+        return quests;
     }
 
     private static void addTransports(Map<WorldPoint, List<Transport>> transports, String path, TransportType transportType) {
@@ -202,7 +207,7 @@ public class Transport {
                         transport.wait = 5;
                         transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                         if (!Strings.isNullOrEmpty(questName)) {
-                            transport.quest = findQuest(questName);
+                            transport.quests = findQuests(questName);
                         }
                     }
                 }
