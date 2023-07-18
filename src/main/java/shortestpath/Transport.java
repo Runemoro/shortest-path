@@ -17,6 +17,14 @@ import net.runelite.api.coords.WorldPoint;
  * This class represents a travel point between two WorldPoints.
  */
 public class Transport {
+    /** The locations of the fairy rings */
+    @Getter
+    private static final List<WorldPoint> fairyRings = new ArrayList<>();
+
+    /** The codes of the fairy rings */
+    @Getter
+    private static final List<String> fairyRingCodes = new ArrayList<>();
+
     /** The starting point of this transport */
     @Getter
     private final WorldPoint origin;
@@ -162,7 +170,6 @@ public class Transport {
         try {
             String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream(path)), StandardCharsets.UTF_8);
             Scanner scanner = new Scanner(s);
-            List<WorldPoint> fairyRings = new ArrayList<>();
             List<String> fairyRingsQuestNames = new ArrayList<>();
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
@@ -174,6 +181,7 @@ public class Transport {
                 if (TransportType.FAIRY_RING.equals(transportType)) {
                     String[] p = line.split("\t");
                     fairyRings.add(new WorldPoint(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
+                    fairyRingCodes.add(p.length >= 4 ? p[3].replaceAll("_", " ") : null);
                     fairyRingsQuestNames.add(p.length >= 7 ? p[6] : "");
                 } else {
                     Transport transport = new Transport(line, transportType);
@@ -181,19 +189,21 @@ public class Transport {
                     transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                 }
             }
-            for (WorldPoint origin : fairyRings) {
-                for (int i = 0; i < fairyRings.size(); i++) {
-                    WorldPoint destination = fairyRings.get(i);
-                    String questName = fairyRingsQuestNames.get(i);
-                    if (origin.equals(destination)) {
-                        continue;
-                    }
-                    Transport transport = new Transport(origin, destination);
-                    transport.isFairyRing = true;
-                    transport.wait = 5;
-                    transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
-                    if (!Strings.isNullOrEmpty(questName)) {
-                        transport.quest = findQuest(questName);
+            if (TransportType.FAIRY_RING.equals(transportType)) {
+                for (WorldPoint origin : fairyRings) {
+                    for (int i = 0; i < fairyRings.size(); i++) {
+                        WorldPoint destination = fairyRings.get(i);
+                        String questName = fairyRingsQuestNames.get(i);
+                        if (origin.equals(destination)) {
+                            continue;
+                        }
+                        Transport transport = new Transport(origin, destination);
+                        transport.isFairyRing = true;
+                        transport.wait = 5;
+                        transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
+                        if (!Strings.isNullOrEmpty(questName)) {
+                            transport.quest = findQuest(questName);
+                        }
                     }
                 }
             }

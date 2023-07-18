@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import net.runelite.api.Client;
@@ -137,11 +138,13 @@ public class PathTileOverlay extends Overlay {
             if (TileStyle.LINES.equals(config.pathStyle())) {
                 for (int i = 1; i < path.size(); i++) {
                     drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
+                    drawFairyRingCode(graphics, path.get(i - 1), path.get(i));
                 }
             } else {
                 boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
-                for (WorldPoint point : path) {
-                    drawTile(graphics, point, color, counter++, showTiles);
+                for (int i = 0; i <  path.size(); i++) {
+                    drawTile(graphics, path.get(i), color, counter++, showTiles);
+                    drawFairyRingCode(graphics, path.get(i), (i + 1 == path.size()) ? null : path.get(i + 1));
                 }
             }
         }
@@ -246,10 +249,58 @@ public class PathTileOverlay extends Overlay {
                 return;
             }
             String counterText = Integer.toString(counter);
-            graphics.setColor(Color.WHITE);
+            graphics.setColor(config.colourText());
             graphics.drawString(
                 counterText,
                 (int) (x - graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2), (int) y);
         }
+    }
+
+    private void drawFairyRingCode(Graphics2D graphics, WorldPoint location, WorldPoint locationEnd) {
+        for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
+            for (WorldPoint pointEnd : WorldPoint.toLocalInstance(client, locationEnd))
+            {
+                if (point.getPlane() != client.getPlane()) {
+                    continue;
+                }
+
+                String codeText;
+                if (fairyRingCode(point) == null || (codeText = fairyRingCode(pointEnd)) == null) {
+                    continue;
+                }
+
+                LocalPoint lp = LocalPoint.fromWorld(client, point);
+                if (lp == null) {
+                    continue;
+                }
+
+                Point p = Perspective.localToCanvas(client, lp, client.getPlane());
+                if (p == null) {
+                    continue;
+                }
+
+                Rectangle2D textBounds = graphics.getFontMetrics().getStringBounds(codeText, graphics);
+                graphics.setColor(config.colourText());
+                graphics.drawString(codeText,
+                    (int) (p.getX() - textBounds.getWidth() / 2),
+                    (int) (p.getY() - textBounds.getHeight()));
+            }
+        }
+    }
+
+    private String fairyRingCode(WorldPoint point) {
+        if (point == null) {
+            return null;
+        }
+
+        List<WorldPoint> fairyRings = Transport.getFairyRings();
+
+        for (int i = 0; i < fairyRings.size(); i++) {
+            if (point.equals(fairyRings.get(i))) {
+                return Transport.getFairyRingCodes().get(i);
+            }
+        }
+
+        return null;
     }
 }
