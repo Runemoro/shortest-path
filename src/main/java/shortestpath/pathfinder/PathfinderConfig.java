@@ -14,6 +14,7 @@ import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.ShortestPathConfig;
+import shortestpath.PrimitiveIntHashMap;
 import shortestpath.Transport;
 import shortestpath.WorldPointUtil;
 
@@ -29,7 +30,7 @@ public class PathfinderConfig {
 
     // Copy of transports with packed positions for the hotpath; lists are not copied and are the same reference in both maps
     @Getter
-    private Map<Integer, List<Transport>> transportsPacked;
+    private PrimitiveIntHashMap<List<Transport>> transportsPacked;
 
     private final Client client;
     private final ShortestPathConfig config;
@@ -60,8 +61,8 @@ public class PathfinderConfig {
         this.mapData = mapData;
         this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
         this.allTransports = transports;
-        this.transports = new HashMap<>();
-        this.transportsPacked = new HashMap<>();
+        this.transports = new HashMap<>(allTransports.size());
+        this.transportsPacked = new PrimitiveIntHashMap<>((int)(allTransports.size() * 1.5f));
         this.client = client;
         this.config = config;
         refresh();
