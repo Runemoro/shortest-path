@@ -16,11 +16,21 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
   - Use grapple shortcuts: ✅ `true`
     - Whether to include crossbow grapple agility shortcuts in the path. You must also have the required agility, ranged and strength levels
   - Use boats: ✅ `true`
-    - Whether to include boats, canoes and charter ships in the path
+    - Whether to include boats in the path (e.g. the boat to Fishing Platform)
+  - Use canoes: ⬜️ `false`
+    - Whether to include canoes in the path
+  - Use charter ships: ⬜️ `false`
+    - Whether to include charter ships in the path
+  - Use ships: ✅ `true`
+    - Whether to include passenger ships in the path (e.g. the customs ships to Karamja)
   - Use fairy rings: ⬜️ `false`
     - Whether to include fairy rings in the path
-  - Use teleports: ⬜️ `false`
-    - Whether to include teleportation portals and levers in the path
+  - Use gnome gliders: ✅ `true`
+    - Whether to include gnome gliders in the path
+  - Use teleportation levers: ✅ `true`
+    - Whether to include teleportation levers in the path (e.g. the lever from Edgeville to Wilderness)
+  - Use teleportation portals: ✅ `true`
+    - Whether to include teleportation portals in the path (e.g. the portal from Ferox Enclave to Castle Wars)
   - Cancel instead of recalculating: ⬜️ `false`
     - Whether the path should be cancelled rather than recalculated when the distance limit is exceeded
   - Recalculate distance: `10`
@@ -31,6 +41,8 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Whether to display the number of tiles travelled, number of tiles remaining or disable counting
   - Tile counter step: `1`
     - The number of tiles between the displayed tile counter numbers
+  - Calculation cutoff: `5`
+    - The cutoff threshold in number of ticks (0.6 seconds) of no progress being made towards the path target before the calculation will be stopped
 - Display
   - Draw path on world map: ✅ `true`
     - Whether the path should be drawn on the world map
