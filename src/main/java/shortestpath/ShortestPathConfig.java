@@ -353,4 +353,16 @@ public interface ShortestPathConfig extends Config {
     default Color colourCollisionMap() {
         return new Color(0, 128, 255, 128);
     }
+
+    @Alpha
+    @ConfigItem(
+        keyName = "colourText",
+        name = "Text",
+        description = "Colour of the text of the tile counter and fairy ring codes",
+        position = 30,
+        section = sectionColours
+    )
+    default Color colourText() {
+        return Color.WHITE;
+    }
 }

@@ -65,3 +65,5 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Colour of the transport tiles
   - Collision map: `#800080FF`
     - Colour of the collision map tiles
+  - Text: `#FFFFFFFF`
+    - Colour of the text of the tile counter and fairy ring codes
