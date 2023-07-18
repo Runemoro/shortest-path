@@ -36,7 +36,7 @@ public class Transport {
     /** The skill levels required to use this transport */
     private final int[] skillLevels = new int[Skill.values().length];
 
-    /** The quest required to use this transport */
+    /** The quests required to use this transport */
     @Getter
     private List<Quest> quests = new ArrayList<>();
 
@@ -152,7 +152,7 @@ public class Transport {
         return skillLevels[skill.ordinal()];
     }
 
-    /** Whether the transport has a quest requirement */
+    /** Whether the transport has one or more quest requirements */
     public boolean isQuestLocked() {
         return !quests.isEmpty();
     }
