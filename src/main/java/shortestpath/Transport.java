@@ -44,13 +44,33 @@ public class Transport {
     @Getter
     private boolean isBoat;
 
+    /** Whether the transport is a canoe */
+    @Getter
+    private boolean isCanoe;
+
+    /** Whether the transport is a charter ship */
+    @Getter
+    private boolean isCharterShip;
+
+    /** Whether the transport is a ship */
+    @Getter
+    private boolean isShip;
+
     /** Whether the transport is a fairy ring */
     @Getter
     private boolean isFairyRing;
 
-    /** Whether the transport is a teleport */
+    /** Whether the transport is a gnome glider */
     @Getter
-    private boolean isTeleport;
+    private boolean isGnomeGlider;
+
+    /** Whether the transport is a teleportation lever */
+    @Getter
+    private boolean isTeleportationLever;
+
+    /** Whether the transport is a teleportation portal */
+    @Getter
+    private boolean isTeleportationPortal;
 
     /** The additional travel time */
     @Getter
@@ -61,12 +81,7 @@ public class Transport {
         this.destination = destination;
     }
 
-    Transport(final WorldPoint origin, final WorldPoint destination, final boolean isFairyRing) {
-        this(origin, destination);
-        this.isFairyRing = isFairyRing;
-    }
-
-    Transport(final String line) {
+    Transport(final String line, TransportType transportType) {
         final String DELIM = " ";
 
         String[] parts = line.split("\t");
@@ -113,8 +128,15 @@ public class Transport {
             this.wait = Integer.parseInt(parts[6]);
         }
 
-        isAgilityShortcut = getRequiredLevel(Skill.AGILITY) > 1;
+        isAgilityShortcut = TransportType.AGILITY_SHORTCUT.equals(transportType);
         isGrappleShortcut = isAgilityShortcut && (getRequiredLevel(Skill.RANGED) > 1 || getRequiredLevel(Skill.STRENGTH) > 1);
+        isBoat = TransportType.BOAT.equals(transportType);
+        isCanoe = TransportType.CANOE.equals(transportType);
+        isCharterShip = TransportType.CHARTER_SHIP.equals(transportType);
+        isShip = TransportType.SHIP.equals(transportType);
+        isGnomeGlider = TransportType.GNOME_GLIDER.equals(transportType);
+        isTeleportationLever = TransportType.TELEPORTATION_LEVER.equals(transportType);
+        isTeleportationPortal = TransportType.TELEPORTATION_PORTAL.equals(transportType);
     }
 
     /** The skill level required to use this transport */
@@ -145,7 +167,7 @@ public class Transport {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
 
-                if (line.startsWith("#") || line.isEmpty()) {
+                if (line.startsWith("#") || line.isBlank()) {
                     continue;
                 }
 
@@ -154,9 +176,7 @@ public class Transport {
                     fairyRings.add(new WorldPoint(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
                     fairyRingsQuestNames.add(p.length >= 7 ? p[6] : "");
                 } else {
-                    Transport transport = new Transport(line);
-                    transport.isBoat = TransportType.BOAT.equals(transportType);
-                    transport.isTeleport = TransportType.TELEPORT.equals(transportType);
+                    Transport transport = new Transport(line, transportType);
                     WorldPoint origin = transport.getOrigin();
                     transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                 }
@@ -168,7 +188,8 @@ public class Transport {
                     if (origin.equals(destination)) {
                         continue;
                     }
-                    Transport transport = new Transport(origin, destination, true);
+                    Transport transport = new Transport(origin, destination);
+                    transport.isFairyRing = true;
                     transport.wait = 5;
                     transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                     if (!Strings.isNullOrEmpty(questName)) {
@@ -185,17 +206,29 @@ public class Transport {
         HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
 
         addTransports(transports, "/transports.txt", TransportType.TRANSPORT);
+        addTransports(transports, "/agility_shortcuts.txt", TransportType.AGILITY_SHORTCUT);
         addTransports(transports, "/boats.txt", TransportType.BOAT);
+        addTransports(transports, "/canoes.txt", TransportType.CANOE);
+        addTransports(transports, "/charter_ships.txt", TransportType.CHARTER_SHIP);
+        addTransports(transports, "/ships.txt", TransportType.SHIP);
         addTransports(transports, "/fairy_rings.txt", TransportType.FAIRY_RING);
-        addTransports(transports, "/teleports.txt", TransportType.TELEPORT);
+        addTransports(transports, "/gnome_gliders.txt", TransportType.GNOME_GLIDER);
+        addTransports(transports, "/levers.txt", TransportType.TELEPORTATION_LEVER);
+        addTransports(transports, "/portals.txt", TransportType.TELEPORTATION_PORTAL);
 
         return transports;
     }
 
     private enum TransportType {
         TRANSPORT,
+        AGILITY_SHORTCUT,
         BOAT,
+        CANOE,
+        CHARTER_SHIP,
+        SHIP,
         FAIRY_RING,
-        TELEPORT
+        GNOME_GLIDER,
+        TELEPORTATION_LEVER,
+        TELEPORTATION_PORTAL
     }
 }

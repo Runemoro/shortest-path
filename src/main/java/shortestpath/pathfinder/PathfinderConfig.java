@@ -38,11 +38,16 @@ public class PathfinderConfig {
     private long calculationCutoffMillis;
     @Getter
     private boolean avoidWilderness;
-    private boolean useAgilityShortcuts;
-    private boolean useGrappleShortcuts;
-    private boolean useBoats;
-    private boolean useFairyRings;
-    private boolean useTeleports;
+    private boolean useAgilityShortcuts,
+        useGrappleShortcuts,
+        useBoats,
+        useCanoes,
+        useCharterShips,
+        useShips,
+        useFairyRings,
+        useGnomeGliders,
+        useTeleportationLevers,
+        useTeleportationPortals;
     private int agilityLevel;
     private int rangedLevel;
     private int strengthLevel;
@@ -72,8 +77,13 @@ public class PathfinderConfig {
         useAgilityShortcuts = config.useAgilityShortcuts();
         useGrappleShortcuts = config.useGrappleShortcuts();
         useBoats = config.useBoats();
+        useCanoes = config.useCanoes();
+        useCharterShips = config.useCharterShips();
+        useShips = config.useShips();
         useFairyRings = config.useFairyRings();
-        useTeleports = config.useTeleports();
+        useGnomeGliders = config.useGnomeGliders();
+        useTeleportationLevers = config.useTeleportationLevers();
+        useTeleportationPortals = config.useTeleportationPortals();
 
         if (GameState.LOGGED_IN.equals(client.getGameState())) {
             agilityLevel = client.getBoostedSkillLevel(Skill.AGILITY);
@@ -137,9 +147,13 @@ public class PathfinderConfig {
         final boolean isAgilityShortcut = transport.isAgilityShortcut();
         final boolean isGrappleShortcut = transport.isGrappleShortcut();
         final boolean isBoat = transport.isBoat();
+        final boolean isCanoe = transport.isCanoe();
+        final boolean isCharterShip = transport.isCharterShip();
+        final boolean isShip = transport.isShip();
         final boolean isFairyRing = transport.isFairyRing();
-        final boolean isTeleport = transport.isTeleport();
-        final boolean isCanoe = isBoat && transportWoodcuttingLevel > 1;
+        final boolean isGnomeGlider = transport.isGnomeGlider();
+        final boolean isTeleportationLever = transport.isTeleportationLever();
+        final boolean isTeleportationPortal = transport.isTeleportationPortal();
         final boolean isPrayerLocked = transportPrayerLevel > 1;
         final boolean isQuestLocked = transport.isQuestLocked();
 
@@ -153,21 +167,35 @@ public class PathfinderConfig {
             }
         }
 
-        if (isBoat) {
-            if (!useBoats) {
-                return false;
-            }
+        if (isBoat && !useBoats) {
+            return false;
+        }
 
-            if (isCanoe && woodcuttingLevel < transportWoodcuttingLevel) {
-                return false;
-            }
+        if (isCanoe && (!useCanoes || woodcuttingLevel < transportWoodcuttingLevel)) {
+            return false;
+        }
+
+        if (isCharterShip && !useCharterShips) {
+            return false;
+        }
+
+        if (isShip && !useShips) {
+            return false;
         }
 
         if (isFairyRing && !useFairyRings) {
             return false;
         }
 
-        if (isTeleport && !useTeleports) {
+        if (isGnomeGlider && !useGnomeGliders) {
+            return false;
+        }
+
+        if (isTeleportationLever && !useTeleportationLevers) {
+            return false;
+        }
+
+        if (isTeleportationPortal && !useTeleportationPortals) {
             return false;
         }
 

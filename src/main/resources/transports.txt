@@ -125,8 +125,6 @@
 3229 3223 1	3229 3223 0	Climb-down Ladder 16684				2
 3229 3225 0	3229 3225 1	Climb-up Ladder 16683				2
 3229 3225 1	3229 3225 0	Climb-down Ladder 16684				2
-3246 3179 0	3259 3179 0	Grapple Broken Raft 17068	8 Agility;37 Ranged;19 Strength
-3259 3179 0	3246 3179 0	Grapple Broken Raft 17068	8 Agility;37 Ranged;19 Strength
 3211 3243 1	3211 3243 0	Climb-down Ladder 16679				2
 3211 3243 0	3211 3243 1	Climb-up Ladder 16683				2
 
@@ -161,12 +159,6 @@
 3102 3267 1	3098 3266 0	Climb-down Staircase 15648				1
 3089 3251 0	3093 3251 1	Climb-up Staircase 16670				1
 3093 3251 1	3089 3251 0	Climb-down Staircase 16669				1
-3070 3260 0	3064 3260 0	Climb-into Underwall tunnel 19036	42 Agility		Diary
-3065 3260 0	3071 3260 0	Climb-into Underwall tunnel 19032	42 Agility		Diary
-3069 3261 0	3064 3260 0	Climb-into Underwall tunnel 19036	42 Agility		Diary
-3066 3261 0	3071 3260 0	Climb-into Underwall tunnel 19032	42 Agility		Diary
-3069 3259 0	3064 3260 0	Climb-into Underwall tunnel 19036	42 Agility		Diary
-3067 3260 0	3071 3260 0	Climb-into Underwall tunnel 19032	42 Agility		Diary
 
 # Draynor Sewers
 3085 9672 0	3085 3272 0	Climb-up Ladder 17385				2
@@ -231,10 +223,6 @@
 3062 3283 0	3063 3281 0	Climb-over Stile 7527				6
 
 # Falador
-2948 3309 0	2948 3313 0	Climb-into Underwall tunnel 16527	26 Agility
-2948 3313 0	2948 3309 0	Climb-into Underwall tunnel 16528	26 Agility
-2936 3355 0	2934 3355 0	Climb-over Crumbling wall 24222	5 Agility
-2934 3355 0	2936 3355 0	Climb-over Crumbling wall 24222	5 Agility
 3054 3382 0	3065 9951 0	Climb-down Staircase 24249				1
 3065 9951 0	3053 3382 0	Leave Old passageway 31892
 3053 3382 0	3065 9951 0	Climb-down Staircase 24249				1
@@ -327,10 +315,6 @@
 2973 3386 0	2972 3385 1	Climb-up Staircase 24075				1
 2972 3385 1	2973 3386 0	Climb-down Staircase 24076				1
 2974 3386 0	2972 3385 1	Climb-up Staircase 24075				1
-3033 3390 0	3033 3389 1	Grapple Wall 17049	11 Agility;19 Ranged;37 Strength
-3032 3388 0	3032 3389 1	Grapple Wall 17050	11 Agility;19 Ranged;37 Strength
-3033 3389 1	3033 3390 0	Jump Wall 17051	4 Agility
-3032 3389 1	3032 3388 0	Jump Wall 17052	4 Agility
 
 # Makeover Mage
 2916 3323 0	2916 3323 1	Climb-up Ladder 9558				2
@@ -479,12 +463,6 @@
 2597 3108 1	2597 3108 0	Climb-down Ladder 16681				2
 2596 3107 0	2596 3107 1	Climb-up Ladder 16683				2
 2596 3107 1	2596 3107 0	Climb-down Ladder 16681				2
-2575 3107 0	2575 3112 0	Climb-under Castle wall 16519	16 Agility
-2575 3112 0	2575 3107 0	Climb-into Hole 16520	16 Agility
-2556 3072 0	2556 3073 1	Grapple Wall 17047	39 Agility;21 Ranged;38 Strength
-2556 3075 0	2556 3074 1	Grapple Wall 17047	39 Agility;21 Ranged;38 Strength
-2556 3073 1	2556 3072 0	Jump Wall 17048	4 Agility
-2556 3074 1	2556 3075 0	Jump Wall 17048	4 Agility
 
 # Hazelmere Island
 2677 3088 1	2677 3088 0	Climb-down Ladder 16679				2
@@ -607,9 +585,6 @@
 2683 3268 1	2683 3271 0	Cross Gangplank 2086				3
 2622 3291 0	2622 3291 1	Climb-up Ladder 17026				2
 2622 3291 1	2622 3291 0	Climb-down Ladder 16685				2
-2602 3336 0	2598 3336 0	Walk-across Log balance 16548	33 Agility
-2598 3336 0	2602 3336 0	Walk-across Log balance 16546	33 Agility
-2599 3337 0	2602 3336 0	Walk-across Log balance 16546	33 Agility
 2592 3339 0	2592 3338 0	Open Door 2054				1
 2592 3338 0	2592 3339 0	Open Door 2054				1
 2590 3334 0	2594 3334 1	Climb-up Staircase 15645				1
@@ -785,8 +760,6 @@
 2560 3222 0	2561 9621 0	Climb-down Ladder 16680				2
 
 # Edgeville
-3142 3513 0	3137 3516 0	Climb-into Underwall tunnel 16530	21 Agility			7
-3137 3516 0	3142 3513 0	Climb-into Underwall tunnel 16529	21 Agility			7
 3097 3511 0	3097 3511 1	Climb-up Ladder 16683
 3097 3511 1	3097 3511 0	Climb-down Ladder 16679
 3096 3512 0	3096 3512 1	Climb-up Ladder 16683
@@ -810,24 +783,10 @@
 3132 9918 0	3132 9917 0	Open Gate 1728
 3131 9917 0	3131 9918 0	Open Gate 1727
 3131 9918 0	3131 9917 0	Open Gate 1727
-3149 9906 0	3155 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
-3155 9906 0	3149 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
-3150 9907 0	3155 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
-3150 9905 0	3155 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
-3154 9907 0	3149 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
-3154 9905 0	3149 9906 0	Squeeze-through Obstacle pipe 16511	51 Agility
 3122 3488 0	3122 3487 0	Open Door 102
 3122 3487 0	3122 3488 0	Open Door 102
 
 # Varrock
-3149 3363 0	3150 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3154 3363 0	3153 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3150 3363 0	3151 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3151 3363 0	3152 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3152 3363 0	3154 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3153 3363 0	3152 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3152 3363 0	3151 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
-3151 3363 0	3149 3363 0	Jump-onto Stepping stone 16533	31 Agility				Need to click stone in right direction
 3212 3472 0	3212 3476 1	Climb-up Staircase 11807
 3212 3476 1	3212 3472 0	Climb-down Staircase 11799
 3213 3472 0	3213 3476 1	Climb-up Staircase 11807
@@ -1014,8 +973,6 @@
 3268 3228 0	3267 3228 0	Pay-toll(10gp) Gate 2883
 3267 3227 0	3268 3227 0	Pay-toll(10gp) Gate 2882
 3268 3227 0	3267 3227 0	Pay-toll(10gp) Gate 2882
-3295 3157 0	3295 3159 0	Climb Broken wall 33344	70 Agility		Hard desert diary
-3295 3159 0	3295 3157 0	Enter Big window 33348	70 Agility		Hard desert diary
 3298 3124 0	3297 3124 0	Open Prison door 2692
 3297 3124 0	3298 3124 0	Open Prison door 2692
 3303 3117 0	3304 3115 0	Go-through Shantay pass 4031		1 Shantay pass
@@ -1048,10 +1005,6 @@
 # Citharede Abbey
 3420 3185 0	3420 3185 1	Climb-up Ladder 10493				2
 3420 3185 1	3420 3185 0	Climb-down Ladder 10494				2
-
-# Al Kharid Mine
-3306 3315 0	3302 3315 0	Climb Rocks 16549	38 Agility
-3302 3315 0	3306 3315 0	Climb Rocks 16550	38 Agility
 
 # Mage Trainining Arena
 3363 3300 0	3363 3298 0	Enter Doorway 10721
@@ -1158,16 +1111,10 @@
 2884 9796 0	2884 3396 0	Climb-up Ladder 17385
 2883 3397 0	2883 9797 0	Climb-down Ladder 16680
 2883 9797 0	2883 3397 0	Climb-up Ladder 17385
-2886 9799 0	2892 9799 0	Squeeze-through Obstacle pipe 16509	70 Agility
-2892 9799 0	2886 9799 0	Squeeze-through Obstacle pipe 16509	70 Agility
-2886 9823 0	2888 9823 1	Jump-up Rocks 154	70 Agility
-2888 9823 1	2886 9823 0	Jump-down Rocks 14106	70 Agility
 2888 9831 0	2889 9831 0	Open Prison door 2143					Fails first time, spawning suit of armour
 2888 9830 0	2889 9830 0	Open Prison door 2144					Fails first time, spawning suit of armour
 2889 9830 0	2888 9830 0	Open Prison door 2144
 2889 9831 0	2888 9831 0	Open Prison door 2143
-2936 9810 0	2935 9810 0	Squeeze-through Loose Railing 28849	63 Agility
-2935 9810 0	2936 9810 0	Squeeze-through Loose Railing 28849	63 Agility
 2842 3423 0	2842 9823 0	Climb-down Ladder 17384
 2842 9823 0	2842 3423 0	Climb-up Ladder 17385
 2843 3424 0	2843 9824 0	Climb-down Ladder 17384
@@ -1190,8 +1137,6 @@
 1368 1226 0	1328 1253 0	Exit Portcullis 21772					Chat option 'Yes, I'm scared.'
 1328 1253 0	1368 1226 0	Turn Iron Winch 23104
 1329 1253 0	1368 1226 0	Turn Iron Winch 23104
-2880 9813 0	2877 9813 0	Jump-over Strange floor 16510	80 Agility
-2878 9813 0	2881 9813 0	Jump-over Strange floor 16510	80 Agility
 2903 9813 1	2906 9813 0	Climb Steps 30190
 2906 9813 0	2903 9813 1	Climb Steps 30189
 2883 9825 0	2880 9825 1	Climb Steps 30189
@@ -1255,8 +1200,6 @@
 2813 3450 1	2813 3450 0	Climb-down Ladder 16679
 2812 3451 0	2812 3451 1	Climb-up Ladder 16683
 2812 3451 1	2812 3451 0	Climb-down Ladder 16679
-2841 3427 0	2841 3433 0	Grapple Crossbow Tree 17062	36 Agility;39 Ranged;22 Strength
-2866 3428 0	2869 3428 0	Grapple Rocks 17042	32 Agility;35 Ranged;35 Strength
 
 # Seers Village and Camelot Castle
 2758 3482 0	2758 3483 0	Open Gate 26082
@@ -1866,8 +1809,6 @@
 2429 9825 0	2430 3424 0	Use Tunnel 27258
 2435 9807 0	2429 9807 0	Enter Tunnel 30174					Has a warning
 2435 9806 0	2429 9806 0	Enter Tunnel 30174					Has a warning
-2429 9807 0	2435 9807 0	Enter Tunnel 30174	72 Agility
-2429 9806 0	2435 9806 0	Enter Tunnel 30174	72 Agility
 2402 3420 0	2409 9812 0	Enter Cave entrance 17209
 2409 9812 0	2402 3419 0	Exit Tunnel 17223
 2402 3419 0	2409 9812 0	Enter Cave entrance 17209
@@ -2169,8 +2110,6 @@
 3653 3520 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
 3653 3518 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
 3652 3519 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
-3670 9888 3	3671 9888 2	Jump-down Weathered wall 16526	58 Agility
-3671 9888 2	3670 9888 3	Jump-up Weathered wall 16525	58 Agility
 3671 9889 2	3675 9888 1	Climb-down Stairs 16109
 3675 9888 1	3671 9886 2	Climb-up Stairs 16108
 3671 9887 2	3675 9888 1	Climb-down Stairs 16109
@@ -2287,14 +2226,6 @@
 3412 3540 1	3417 3540 2	Climb-up Staircase 2119
 3417 3541 2	3412 3540 1	Climb-down Staircase 2120
 3412 3541 1	3417 3540 2	Climb-up Staircase 2119
-3447 3575 1	3447 3575 2	Climb-up Spikey chain 16537	71 Agility
-3447 3575 2	3447 3575 1	Climb-down Spikey chain 16538	71 Agility
-3446 3576 1	3446 3576 2	Climb-up Spikey chain 16537	71 Agility
-3446 3576 2	3446 3576 1	Climb-down Spikey chain 16538	71 Agility
-3447 3577 1	3447 3577 2	Climb-up Spikey chain 16537	71 Agility
-3447 3577 2	3447 3577 1	Climb-down Spikey chain 16538	71 Agility
-3448 3576 1	3448 3576 2	Climb-up Spikey chain 16537	71 Agility
-3448 3576 2	3448 3576 1	Climb-down Spikey chain 16538	71 Agility
 
 # Monastery
 3057 3484 0	3057 3484 1	Climb-up Ladder 2641	31 Prayer			2
@@ -2318,8 +2249,6 @@
 3018 3450 0	3018 9850 0	Climb-down Trapdoor 11867
 3018 9850 0	3018 3450 0	Climb-up Ladder 17387
 3020 3450 0	3020 9850 0	Climb-down Trapdoor 11867
-3035 9806 0	3028 9806 0	Squeeze-through Crevice 16543	42 Agility
-3028 9806 0	3035 9806 0	Squeeze-through Crevice 16543	42 Agility
 3058 9777 0	3061 3377 0	Climb-up Staircase 23969
 3061 3377 0	3058 9777 0	Climb-down Staircase 16664
 3058 9776 0	3061 3376 0	Climb-up Staircase 23969
@@ -2446,7 +2375,6 @@
 3019 3960 2	3019 3958 1	Climb-down Ship's ladder 246
 3017 3958 1	3017 3960 2	Climb-up Ship's ladder 245
 3017 3960 2	3017 3958 1	Climb-down Ship's ladder 246
-2998 3916 0	2998 3931 0	Open Door 23555	52 Agility
 2998 3931 0	2998 3916 0	Open Gate 23552
 2997 3931 0	2998 3916 0	Open Gate 23554
 3005 3962 0	3005 10362 0	Climb-down Ladder 14758				2
@@ -3292,8 +3220,6 @@
 3229 3108 0	3483 9510 2	Climb-down Tunnel entrance 3827
 3484 9510 2	3226 3108 0	Climb-up Rope 3829
 3483 9509 2	3226 3108 0	Climb-up Rope 3829
-3500 9510 2	3506 9505 2	Squeeze-through Crevice 16465	86 Agility
-3506 9505 2	3500 9510 2	Squeeze-through Crevice 16465	86 Agility
 3514 9521 2	2711 5206 0	Enter Tunnel 23596
 2711 5206 0	3514 9521 2	Enter Blocked tunnel 22656
 3514 9520 2	2711 5206 0	Enter Tunnel 23596
@@ -3399,8 +3325,6 @@
 3677 2948 0	3677 2948 1	Climb-up Ship's ladder 11308
 3671 2931 0	3668 2931 1	Cross Gangplank 17406				3
 3668 2931 1	3671 2931 0	Cross Gangplank 17407				3
-3708 2969 0	3714 2969 0	Jump-to Stepping stone 19042	60 Agility
-3714 2969 0	3708 2969 0	Jump-to Stepping stone 19042	60 Agility
 3749 2973 0	3748 9373 0	Enter Cave entrance 3650
 3748 9373 0	3749 2973 0	Exit Cave 5553
 3748 9374 0	3749 2973 0	Exit Cave 6702
@@ -3695,8 +3619,6 @@
 3149 4644 0	3185 4601 0	Enter Passageway 15771
 
 # Mort Myre
-3422 3325 0	3417 3325 0	Cross Stepping stone 13504	50 Agility
-3417 3325 0	3422 3325 0	Cross Stepping stone 13504	50 Agility
 3440 3331 0	3441 3329 0	Jump Bridge 3522
 3441 3329 0	3440 3331 0	Jump Bridge 3522
 3441 3331 0	3441 3329 0	Jump Bridge 3522
@@ -3752,13 +3674,6 @@
 3409 3485 2	3409 3485 1	Climb-down Ladder 16679				2
 3415 3489 2	3416 3489 2	Open Cell door 3463
 3416 3489 2	3415 3489 2	Open Cell door 3463
-3423 3476 0	3424 3476 0	Squeeze-through Ornate railing 16552	65 Agility
-3424 3476 0	3427 3477 0	Climb Rocks 16998	65 Agility
-3427 3477 0	3424 3476 0	Climb Rocks 16999	65 Agility
-3424 3476 0	3423 3476 0	Squeeze-through Ornate railing 16552	65 Agility
-3426 3478 0	3424 3476 0	Climb Rocks 16999	65 Agility
-3425 3483 0	3425 3484 0	Squeeze-through Ornate railing 17000	65 Agility
-3425 3484 0	3425 3483 0	Squeeze-through Ornate railing 17000	65 Agility
 
 # Enakhra's Lament
 3194 2926 0	3124 9328 1	Climb-down Secret entrance 11046
@@ -3859,8 +3774,6 @@
 3126 9337 0	3127 9337 0	Open Door 11066				1
 
 # Rellekka
-2688 3697 0	2691 3697 0	Jump Broken Fence 544	57 Agility
-2691 3697 0	2688 3697 0	Jump Broken Fence 544	57 Agility
 2666 3694 0	2666 3694 1	Climb-up Ladder 4187				2
 2666 3694 1	2666 3694 0	Climb-down Ladder 4189				2
 
@@ -3893,8 +3806,6 @@
 2211 3809 0	2213 3809 1	Climb Ladder 16960
 
 # Miscellania
-2573 3859 0	2575 3861 0	Cross Stepping stone 11768	55 Agility
-2575 3861 0	2573 3859 0	Cross Stepping stone 11768	55 Agility
 2509 3847 0	2509 10245 0	Climb-down Ladder 15116				2
 2509 10245 0	2510 3846 0	Climb-up Ladder 15115				2
 2505 10280 0	2505 10283 0	Squeeze-through Crevice 15186
@@ -4181,12 +4092,6 @@
 2808 10003 0	2796 3615 0	Enter Tunnel 2141
 2796 3614 0	2808 10002 0	Enter Cave Entrance 2123
 2808 10001 0	2796 3615 0	Enter Tunnel 2141
-2775 10003 0	2773 10003 0	Jump-over Strange floor 16544	81 Agility
-2773 10003 0	2775 10003 0	Jump-over Strange floor 16544	81 Agility
-2768 10002 0	2770 10002 0	Jump-over Strange floor 16544	81 Agility
-2770 10002 0	2768 10002 0	Jump-over Strange floor 16544	81 Agility
-2735 10008 0	2730 10008 0	Squeeze-through Crevice 16539	61 Agility
-2730 10008 0	2735 10008 0	Squeeze-through Crevice 16539	61 Agility
 2703 9991 0	2703 9989 0	Climb Steps 29993
 2703 9989 0	2703 9991 0	Climb Steps 29993
 2823 3555 0	2822 3555 0	Open Door 3745				1
@@ -4234,11 +4139,6 @@
 2909 3654 0	2907 10035 0	Enter Cave Entrance 3757
 2906 10035 0	2908 3654 0	Exit Cave Exit 3758
 2907 3654 0	2907 10035 0	Enter Cave Entrance 3757
-2915 3672 0	2918 3672 0	Climb Rocks 16545	64 Agility
-2918 3672 0	2915 3672 0	Climb Rocks 16545	64 Agility
-2921 3672 0	2924 3673 0	Climb Rocks 16545	64 Agility
-2924 3673 0	2921 3672 0	Climb Rocks 16545	64 Agility
-2946 3678 0	2949 3681 0	Climb Rocks 16545	64 Agility
 2834 3627 0	2834 3629 0	Climb Rocks 3748
 2834 3629 0	2834 3627 0	Climb Rocks 3748
 2833 3627 0	2833 3629 0	Climb Rocks 3748
@@ -4266,9 +4166,6 @@
 2830 3677 0	2831 10076 2	Climb-down Troll ladder 18833
 2832 3677 0	2831 10076 2	Climb-down Troll ladder 18833
 2831 3678 0	2831 10076 2	Climb-down Troll ladder 18833
-2838 3693 0	2844 3693 0	Climb Rocks 16464	73 Agility
-2844 3693 0	2838 3693 0	Climb Rocks 16464	73 Agility
-2843 3692 0	2838 3693 0	Climb Rocks 16464	73 Agility
 2840 3690 0	2837 10090 2	Enter Stronghold 3771
 2837 10090 2	2840 3690 0	Leave Exit 3774
 2837 10089 2	2840 3690 0	Leave Exit 3773
@@ -4283,12 +4180,6 @@
 2853 10064 0	2852 10060 1	Climb-up Stone Staircase 3788
 2869 10084 0	2869 10085 0	Open Storeroom Door 3810
 2869 10085 0	2869 10084 0	Open Storeroom Door 3810
-2872 3671 0	2869 3671 0	Climb Rocks 16521	41 Agility
-2869 3671 0	2872 3671 0	Climb Rocks 16521	41 Agility
-2878 3665 0	2878 3668 0	Climb Rocks 16522	43 Agility
-2878 3668 0	2878 3665 0	Climb Rocks 16522	43 Agility
-2877 3666 0	2878 3668 0	Climb Rocks 16522	43 Agility
-2879 3667 0	2878 3665 0	Climb Rocks 16522	43 Agility
 2888 3662 0	2888 3660 0	Climb Rocks 3803
 2888 3660 0	2888 3662 0	Climb Rocks 3803
 2887 3662 0	2887 3660 0	Climb Rocks 3804
@@ -4299,14 +4190,6 @@
 2892 10074 2	2893 3671 0	Exit Cave Exit 3760
 2894 3671 0	2893 10074 2	Enter Cave Entrance 3759
 2894 10074 2	2893 3671 0	Exit Cave Exit 3760
-2900 3680 0	2903 3680 0	Climb Rocks 16524	47 Agility
-2903 3680 0	2900 3680 0	Climb Rocks 16524	47 Agility
-2901 3679 0	2903 3680 0	Climb Rocks 16524	47 Agility
-2902 3681 0	2900 3680 0	Climb Rocks 16524	47 Agility
-2886 3684 0	2884 3684 0	Climb Rocks 3804	43 Agility
-2884 3684 0	2886 3684 0	Climb Rocks 3804	43 Agility
-2886 3683 0	2884 3683 0	Climb Rocks 3803	43 Agility
-2884 3683 0	2886 3683 0	Climb Rocks 3803	43 Agility
 2837 3736 0	2839 3739 0	Go-through Ice gate 5044
 2839 3739 0	2837 3739 0	Go-through Ice gate 5043
 2837 3739 0	2839 3739 0	Go-through Ice gate 5043
@@ -4356,16 +4239,10 @@
 2920 5274 0	2919 5276 1	Climb-up Rope 26375
 2919 5274 0	2919 5276 1	Climb-up Rope 26375
 2915 5300 1	2912 5299 2	Climb-up Rope 26371
-2907 3682 0	2909 3684 0	Climb Rocks 16523	44 Agility
-2909 3684 0	2907 3682 0	Climb Rocks 16523	44 Agility
 2909 3686 0	2911 3686 0	Climb Rocks 3748
 2911 3686 0	2909 3686 0	Climb Rocks 3748
 2909 3687 0	2911 3687 0	Climb Rocks 3748
 2911 3687 0	2909 3687 0	Climb Rocks 3748
-2927 3758 0	2927 3761 0	Climb Rocky handholds 26400	60 Agility
-2927 3761 0	2928 3757 0	Climb Rocky handholds 26401	60 Agility
-2928 3757 0	2927 3761 0	Climb Rocky handholds 26400	60 Agility
-2929 3758 0	2927 3761 0	Climb Rocky handholds 26400	60 Agility
 2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
 2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
 2943 3767 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
@@ -4382,12 +4259,6 @@
 2612 3474 1	2612 3474 0	Climb-down Ladder 16679				2
 2613 3475 0	2613 3475 1	Climb-up Ladder 16683				2
 2613 3475 1	2613 3475 0	Climb-down Ladder 16679				2
-2603 3477 0	2598 3477 0	Walk-across Log balance 23274	20 Agility
-2599 3478 0	2603 3477 0	Walk-across Log balance 23274	20 Agility
-2602 3478 0	2598 3477 0	Walk-across Log balance 23274	20 Agility
-2598 3477 0	2603 3477 0	Walk-across Log balance 23274	20 Agility
-2602 3476 0	2598 3477 0	Walk-across Log balance 23274	20 Agility
-2599 3476 0	2603 3477 0	Walk-across Log balance 23274	20 Agility
 2642 3429 0	2642 3429 1	Climb-up Ladder 16683				2
 2642 3429 1	2642 3429 0	Climb-down Ladder 16679				2
 2641 3428 0	2641 3428 1	Climb-up Ladder 16683				2
@@ -4446,10 +4317,6 @@
 # Karamja
 2910 3049 0	2906 3049 0	Cross A wooden log 23644				5
 2906 3049 0	2910 3049 0	Cross A wooden log 23644				5
-2874 3133 0	2874 3127 0	Grapple Strong Tree 17074	53 Agility;42 Ranged;21 Strength
-2874 3127 0	2874 3133 0	Grapple Strong Tree 17074	53 Agility;42 Ranged;21 Strength
-2874 3136 0	2874 3142 0	Grapple Strong Tree 17074	53 Agility;42 Ranged;21 Strength
-2874 3142 0	2874 3136 0	Grapple Strong Tree 17074	53 Agility;42 Ranged;21 Strength
 2879 2954 0	2876 2952 0	Climb over Broken cart 2216			Shilo Village	2
 2880 2953 0	2876 2952 0	Climb over Broken cart 2216			Shilo Village	2
 2880 2952 0	2876 2952 0	Climb over Broken cart 2216			Shilo Village	2
@@ -4481,38 +4348,23 @@
 2834 2953 0	2776 3214 0	Pay-fare Travel cart 2256			Shilo Village	5
 2834 2952 0	2776 3214 0	Pay-fare Travel cart 2256			Shilo Village	5
 2836 9599 0	2836 9600 0	Open Wall 2606			Dragon Slayer I	2
-2836 9600 0	2836 9599 0	Open Wall 2606			Dragon Slayer I	2
-2832 9657 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
-2833 9658 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
-2833 9656 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
-2834 9657 0	2834 3258 0	Climb Climbing rope 25213			Dragon Slayer I	1
-2832 3255 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2832 3256 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2832 3257 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2833 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2834 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2835 3258 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2833 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2834 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2835 3254 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2836 3255 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2836 3256 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-2836 3257 0	2833 9658 0	Enter Hole 25154			Dragon Slayer I	1
-
-# Feldip Hills
-2546 2873 0	2546 2871 0	Climb Rocks 31757	10 Agility
-2546 2871 0	2546 2873 0	Climb Rocks 31757	10 Agility
-2485 2898 0	2489 2898 0	Climb-down Rocks 31759	30 Agility		Dragon Slayer I
-2489 2898 0	2485 2898 0	Climb-down Rocks 31758	30 Agility		Dragon Slayer I
-
-# Necropolis
-3289 2700 0	3295 2700 0	Cross Stepping stone 43989	62 Agility
-3295 2700 0	3289 2700 0	Cross Stepping stone 43989	62 Agility
-3295 2704 0	3295 2708 0	Cross Stepping stone 43990	62 Agility
-3295 2708 0	3295 2704 0	Cross Stepping stone 43990	62 Agility
-
-# Observatory
-2449 3155 0	2444 3165 0	Grapple Rocks 31850	23 Agility
+2836 9600 0	2836 9599 0	Open Wall 2606				2
+2832 9657 0	2834 3258 0	Climb Climbing rope 25213				1
+2833 9658 0	2834 3258 0	Climb Climbing rope 25213				1
+2833 9656 0	2834 3258 0	Climb Climbing rope 25213				1
+2834 9657 0	2834 3258 0	Climb Climbing rope 25213				1
+2832 3255 0	2833 9658 0	Enter Hole 25154				1
+2832 3256 0	2833 9658 0	Enter Hole 25154				1
+2832 3257 0	2833 9658 0	Enter Hole 25154				1
+2833 3258 0	2833 9658 0	Enter Hole 25154				1
+2834 3258 0	2833 9658 0	Enter Hole 25154				1
+2835 3258 0	2833 9658 0	Enter Hole 25154				1
+2833 3254 0	2833 9658 0	Enter Hole 25154				1
+2834 3254 0	2833 9658 0	Enter Hole 25154				1
+2835 3254 0	2833 9658 0	Enter Hole 25154				1
+2836 3255 0	2833 9658 0	Enter Hole 25154				1
+2836 3256 0	2833 9658 0	Enter Hole 25154				1
+2836 3257 0	2833 9658 0	Enter Hole 25154				1
 
 # Lunar Isle
 2128 3893 2	2126 3893 1	Climb Ladder 16961				2
