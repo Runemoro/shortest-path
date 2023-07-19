@@ -1,6 +1,5 @@
 package shortestpath;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 
 // This class is not intended as a general purpose replacement for a hashmap; it lacks convenience features
@@ -15,7 +14,7 @@ public class PrimitiveIntHashMap<V> {
     // How full the map should get before growing it again. Smaller values speed up lookup times at the expense of space
     private static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
-    private class IntNode<V> {
+    private static class IntNode<V> {
         private int key;
         private V value;
 

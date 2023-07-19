@@ -75,7 +75,7 @@ public class Pathfinder implements Runnable {
         List<Node> nodes = map.getNeighbors(node, visited, config);
         for (int i = 0; i < nodes.size(); ++i) {
             Node neighbor = nodes.get(i);
-            if ((config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness))) {
+            if (config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness)) {
                 continue;
             }
 
