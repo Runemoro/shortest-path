@@ -1,5 +1,6 @@
 package shortestpath.pathfinder;
 
+import net.runelite.api.coords.WorldPoint;
 import shortestpath.WorldPointUtil;
 
 import static net.runelite.api.Constants.MAX_Z;
@@ -17,6 +18,10 @@ public class VisitedTiles {
         final int heightInclusive = regionExtents.getHeight() + 1;
 
         visitedRegions = new VisitedRegion[widthInclusive * heightInclusive];
+    }
+
+    public boolean get(WorldPoint point) {
+        return get(point.getX(), point.getY(), point.getPlane());
     }
 
     public boolean get(int packedPoint) {
