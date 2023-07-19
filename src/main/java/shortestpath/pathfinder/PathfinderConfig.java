@@ -62,7 +62,7 @@ public class PathfinderConfig {
         this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
         this.allTransports = transports;
         this.transports = new HashMap<>(allTransports.size());
-        this.transportsPacked = new PrimitiveIntHashMap<>((int)(allTransports.size() * 1.5f));
+        this.transportsPacked = new PrimitiveIntHashMap<>(allTransports.size());
         this.client = client;
         this.config = config;
         refresh();
