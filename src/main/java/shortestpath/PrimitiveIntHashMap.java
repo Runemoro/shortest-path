@@ -195,13 +195,13 @@ public class PrimitiveIntHashMap<V> {
 
     private void recreateArrays() {
         @SuppressWarnings({"unchecked", "SuspiciousArrayCast"})
-        IntNode<V>[][] temp = (IntNode<V>[][])Array.newInstance(IntNode[].class, maxSize);
+        IntNode<V>[][] temp = (IntNode<V>[][])new IntNode[maxSize][];
         buckets = temp;
     }
 
     private IntNode<V>[] createBucket(int size) {
         @SuppressWarnings({"unchecked", "SuspiciousArrayCast"})
-        IntNode<V>[] temp = (IntNode<V>[])Array.newInstance(IntNode.class, size);
+        IntNode<V>[] temp = (IntNode<V>[])new IntNode[size];
         return temp;
     }
 
