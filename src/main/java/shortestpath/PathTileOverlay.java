@@ -280,10 +280,12 @@ public class PathTileOverlay extends Overlay {
                 }
 
                 Rectangle2D textBounds = graphics.getFontMetrics().getStringBounds(codeText, graphics);
+                int x = (int) (p.getX() - textBounds.getWidth() / 2);
+                int y = (int) (p.getY() - textBounds.getHeight());
+                graphics.setColor(Color.BLACK);
+                graphics.drawString(codeText, x + 1, y + 1);
                 graphics.setColor(config.colourText());
-                graphics.drawString(codeText,
-                    (int) (p.getX() - textBounds.getWidth() / 2),
-                    (int) (p.getY() - textBounds.getHeight()));
+                graphics.drawString(codeText, x, y);
             }
         }
     }
