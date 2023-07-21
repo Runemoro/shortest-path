@@ -6,6 +6,10 @@ import java.util.Deque;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.Getter;
@@ -13,6 +17,10 @@ import net.runelite.api.coords.WorldPoint;
 import shortestpath.WorldPointUtil;
 
 public class Pathfinder implements Runnable {
+    private static final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    private Future<?> future;
+
     private AtomicBoolean done = new AtomicBoolean();
     private AtomicBoolean cancelled = new AtomicBoolean();
 
@@ -46,7 +54,7 @@ public class Pathfinder implements Runnable {
         targetPacked = WorldPointUtil.packWorldPoint(target);
         targetInWilderness = PathfinderConfig.isInWilderness(target);
 
-        new Thread(this).start();
+        future = executorService.submit(this);
     }
 
     public boolean isDone() {
@@ -55,6 +63,14 @@ public class Pathfinder implements Runnable {
 
     public void cancel() {
         cancelled.set(true);
+    }
+
+    public List<WorldPoint> getCompletedPath() {
+        try {
+            future.get();
+        } catch (ExecutionException | InterruptedException ignored) {
+        }
+        return getPath();
     }
 
     public List<WorldPoint> getPath() {
