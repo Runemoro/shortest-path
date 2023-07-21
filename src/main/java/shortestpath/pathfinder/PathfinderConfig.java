@@ -47,6 +47,7 @@ public class PathfinderConfig {
         useShips,
         useFairyRings,
         useGnomeGliders,
+        useSpiritTrees,
         useTeleportationLevers,
         useTeleportationPortals;
     private int agilityLevel;
@@ -65,7 +66,6 @@ public class PathfinderConfig {
         this.transportsPacked = new PrimitiveIntHashMap<>(allTransports.size());
         this.client = client;
         this.config = config;
-        refresh();
     }
 
     public CollisionMap getMap() {
@@ -82,6 +82,7 @@ public class PathfinderConfig {
         useCharterShips = config.useCharterShips();
         useShips = config.useShips();
         useFairyRings = config.useFairyRings();
+        useSpiritTrees = config.useSpiritTrees();
         useGnomeGliders = config.useGnomeGliders();
         useTeleportationLevers = config.useTeleportationLevers();
         useTeleportationPortals = config.useTeleportationPortals();
@@ -102,8 +103,9 @@ public class PathfinderConfig {
             return; // Has to run on the client thread; data will be refreshed when path finding commences
         }
 
-        useFairyRings &= !QuestState.NOT_STARTED.equals(Quest.FAIRYTALE_II__CURE_A_QUEEN.getState(client));
-        useGnomeGliders &= QuestState.FINISHED.equals(Quest.THE_GRAND_TREE.getState(client));
+        useFairyRings &= !QuestState.NOT_STARTED.equals(getQuestState(Quest.FAIRYTALE_II__CURE_A_QUEEN));
+        useGnomeGliders &= QuestState.FINISHED.equals(getQuestState(Quest.THE_GRAND_TREE));
+        useSpiritTrees &= QuestState.FINISHED.equals(getQuestState(Quest.TREE_GNOME_VILLAGE));
 
         transports.clear();
         transportsPacked.clear();
@@ -112,7 +114,7 @@ public class PathfinderConfig {
             for (Transport transport : entry.getValue()) {
                 for (Quest quest : transport.getQuests()) {
                     try {
-                        questStates.put(quest, quest.getState(client));
+                        questStates.put(quest, getQuestState(quest));
                     } catch (NullPointerException ignored) {
                     }
                 }
@@ -140,6 +142,10 @@ public class PathfinderConfig {
         return avoidWilderness && !isInWilderness(packedPosition) && isInWilderness(packedNeightborPosition) && !targetInWilderness;
     }
 
+    public QuestState getQuestState(Quest quest) {
+        return quest.getState(client);
+    }
+
     private boolean completedQuests(Transport transport) {
         for (Quest quest : transport.getQuests()) {
             if (!QuestState.FINISHED.equals(questStates.getOrDefault(quest, QuestState.NOT_STARTED))) {
@@ -164,6 +170,7 @@ public class PathfinderConfig {
         final boolean isShip = transport.isShip();
         final boolean isFairyRing = transport.isFairyRing();
         final boolean isGnomeGlider = transport.isGnomeGlider();
+        final boolean isSpiritTree = transport.isSpiritTree();
         final boolean isTeleportationLever = transport.isTeleportationLever();
         final boolean isTeleportationPortal = transport.isTeleportationPortal();
         final boolean isPrayerLocked = transportPrayerLevel > 1;
@@ -200,6 +207,10 @@ public class PathfinderConfig {
         }
 
         if (isGnomeGlider && !useGnomeGliders) {
+            return false;
+        }
+
+        if (isSpiritTree && !useSpiritTrees) {
             return false;
         }
 

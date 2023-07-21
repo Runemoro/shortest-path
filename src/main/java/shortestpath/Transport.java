@@ -72,6 +72,10 @@ public class Transport {
     @Getter
     private boolean isGnomeGlider;
 
+    /** Whether the transport is a spirit tree */
+    @Getter
+    private boolean isSpiritTree;
+
     /** Whether the transport is a teleportation lever */
     @Getter
     private boolean isTeleportationLever;
@@ -143,6 +147,7 @@ public class Transport {
         isCharterShip = TransportType.CHARTER_SHIP.equals(transportType);
         isShip = TransportType.SHIP.equals(transportType);
         isGnomeGlider = TransportType.GNOME_GLIDER.equals(transportType);
+        isSpiritTree = TransportType.SPIRIT_TREE.equals(transportType);
         isTeleportationLever = TransportType.TELEPORTATION_LEVER.equals(transportType);
         isTeleportationPortal = TransportType.TELEPORTATION_PORTAL.equals(transportType);
     }
@@ -228,6 +233,7 @@ public class Transport {
         addTransports(transports, "/ships.txt", TransportType.SHIP);
         addTransports(transports, "/fairy_rings.txt", TransportType.FAIRY_RING);
         addTransports(transports, "/gnome_gliders.txt", TransportType.GNOME_GLIDER);
+        addTransports(transports, "/spirit_trees.txt", TransportType.SPIRIT_TREE);
         addTransports(transports, "/levers.txt", TransportType.TELEPORTATION_LEVER);
         addTransports(transports, "/portals.txt", TransportType.TELEPORTATION_PORTAL);
 
@@ -243,6 +249,7 @@ public class Transport {
         SHIP,
         FAIRY_RING,
         GNOME_GLIDER,
+        SPIRIT_TREE,
         TELEPORTATION_LEVER,
         TELEPORTATION_PORTAL
     }

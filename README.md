@@ -13,7 +13,7 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Whether the wilderness should be avoided if possible (otherwise, will suggest using wilderness lever to travel from Edgeville to Ardougne)
   - Use agility shortcuts: ✅ `true`
     - Whether to include agility shortcuts in the path. You must also have the required agility level
-  - Use grapple shortcuts: ✅ `true`
+  - Use grapple shortcuts: ⬜️ `false`
     - Whether to include crossbow grapple agility shortcuts in the path. You must also have the required agility, ranged and strength levels
   - Use boats: ✅ `true`
     - Whether to include boats in the path (e.g. the boat to Fishing Platform)
@@ -23,10 +23,12 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Whether to include charter ships in the path
   - Use ships: ✅ `true`
     - Whether to include passenger ships in the path (e.g. the customs ships to Karamja)
-  - Use fairy rings: ⬜️ `false`
+  - Use fairy rings: ✅ `true`
     - Whether to include fairy rings in the path
   - Use gnome gliders: ✅ `true`
     - Whether to include gnome gliders in the path
+  - Use spirit trees: ✅ `true`
+    - Whether to include spirit trees in the path
   - Use teleportation levers: ✅ `true`
     - Whether to include teleportation levers in the path (e.g. the lever from Edgeville to Wilderness)
   - Use teleportation portals: ✅ `true`
