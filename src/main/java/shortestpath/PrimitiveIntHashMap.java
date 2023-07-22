@@ -37,10 +37,18 @@ public class PrimitiveIntHashMap<V> {
     }
 
     public PrimitiveIntHashMap(int initialSize, float loadFactor) {
+        if (loadFactor < 0.0f || loadFactor > 1.0f) {
+            throw new IllegalArgumentException("Load factor must be between 0 and 1");
+        }
+
         this.loadFactor = loadFactor;
         size = 0;
         setNewSize(initialSize);
         recreateArrays();
+    }
+
+    public int size() {
+        return size;
     }
 
     public V get(int key) {
@@ -57,6 +65,10 @@ public class PrimitiveIntHashMap<V> {
     }
 
     public V put(int key, V value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Cannot insert a null value");
+        }
+
         int bucketIndex = getBucket(key);
         IntNode<V>[] bucket = buckets[bucketIndex];
 
@@ -138,7 +150,7 @@ public class PrimitiveIntHashMap<V> {
 
     private void setNewSize(int size) {
         if (size < MINIMUM_SIZE) {
-            size = MINIMUM_SIZE;
+            size = MINIMUM_SIZE - 1;
         }
 
         maxSize = getNewMaxSize(size);
