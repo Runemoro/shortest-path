@@ -33,6 +33,10 @@ public class WorldPointUtil {
         return (packedPoint >> 30) & 0x3;
     }
 
+    public static int distanceBetween(int previousPacked, int currentPacked) {
+        return distanceBetween(previousPacked, currentPacked, 1);
+    }
+
     public static int distanceBetween(int previousPacked, int currentPacked, int diagonal) {
         final int previousX = WorldPointUtil.unpackWorldX(previousPacked);
         final int previousY = WorldPointUtil.unpackWorldY(previousPacked);
@@ -50,16 +54,21 @@ public class WorldPointUtil {
         return Integer.MAX_VALUE;
     }
 
-    public static int distanceBetween(int previousPacked, int currentPacked) {
-        return distanceBetween(previousPacked, currentPacked, 1);
-    }
-
     public static int distanceBetween(WorldPoint previous, WorldPoint current) {
-        return distanceBetween(WorldPointUtil.packWorldPoint(previous), WorldPointUtil.packWorldPoint(current), 1);
+        return distanceBetween(previous, current, 1);
     }
 
     public static int distanceBetween(WorldPoint previous, WorldPoint current, int diagonal) {
-        return distanceBetween(WorldPointUtil.packWorldPoint(previous), WorldPointUtil.packWorldPoint(current), diagonal);
+        final int dx = Math.abs(previous.getX() - current.getX());
+        final int dy = Math.abs(previous.getY() - current.getY());
+
+        if (diagonal == 1) {
+            return Math.max(dx, dy);
+        } else if (diagonal == 2) {
+            return dx + dy;
+        }
+
+        return Integer.MAX_VALUE;
     }
 
     // Matches WorldArea.distanceTo
