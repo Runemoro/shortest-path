@@ -55,7 +55,7 @@ public class WorldPointUtil {
     }
 
     public static int distanceBetween(WorldPoint previous, WorldPoint current) {
-        return distanceBetween(WorldPointUtil.packWorldPoint(previous), WorldPointUtil.packWorldPoint(current), 1);
+        return distanceBetween(previous, current, 1);
     }
 
     public static int distanceBetween(WorldPoint previous, WorldPoint current, int diagonal) {
