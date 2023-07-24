@@ -301,8 +301,8 @@ public interface ShortestPathConfig extends Config {
 
     @ConfigItem(
         keyName = "drawDebugPanel",
-        name = "Show Debug Stats",
-        description = "Toggle displaying Pathfinding debug info",
+        name = "Show debug panel",
+        description = "Toggle displaying a pathfinding debug stats panel",
         position = 25,
         section = sectionDisplay
     )
