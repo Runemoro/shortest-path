@@ -156,7 +156,6 @@ public class Pathfinder implements Runnable {
         @Getter
         private int nodesChecked = 0, transportsChecked = 0;
         private long startNanos, endNanos;
-        private long startHeapBytes, endHeapBytes;
         private volatile boolean started = false, ended = false;
 
         public int getTotalNodesChecked() {
@@ -167,27 +166,14 @@ public class Pathfinder implements Runnable {
             return endNanos - startNanos;
         }
 
-        // This is not technically correct as GC could happen during pathfinding
-        // However it's close enough to the actual value most of the time to not matter too much
-        public long getEstimatedUsedBytes() {
-            if (endHeapBytes <= startHeapBytes) {
-                // GC definitely occurred; cannot accurately estimate memory usage
-                return -1;
-            }
-
-            return endHeapBytes - startHeapBytes;
-        }
-
         private void start() {
             started = true;
             nodesChecked = 0;
             transportsChecked = 0;
-            startHeapBytes = Util.getUsedHeapBytes();
             startNanos = System.nanoTime();
         }
 
         private void end() {
-            endHeapBytes = Util.getUsedHeapBytes();
             endNanos = System.nanoTime();
             ended = true;
         }

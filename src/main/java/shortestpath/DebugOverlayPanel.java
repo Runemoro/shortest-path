@@ -16,13 +16,10 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.text.NumberFormat;
 import java.util.List;
 
 public class DebugOverlayPanel extends OverlayPanel {
     private final ShortestPathPlugin plugin;
-    private final NumberFormat numberFormatter;
-    private final LineComponent memoryDisclaimer;
     private final SeparatorLine separator;
 
     @Inject
@@ -32,8 +29,6 @@ public class DebugOverlayPanel extends OverlayPanel {
 
         separator = new SeparatorLine();
         separator.setColor(new Color(0, true)); // Invisible color
-        memoryDisclaimer = makeText("Memory usage is a rough approximation", Color.YELLOW);
-        numberFormatter = NumberFormat.getNumberInstance(); // Use user's locale
 
         setPosition(OverlayPosition.TOP_LEFT);
     }
@@ -42,13 +37,6 @@ public class DebugOverlayPanel extends OverlayPanel {
         return LineComponent.builder()
                 .left(left)
                 .right(right)
-                .build();
-    }
-
-    private LineComponent makeText(String text, Color color) {
-        return LineComponent.builder()
-                .left(text)
-                .leftColor(color)
                 .build();
     }
 
@@ -90,20 +78,6 @@ public class DebugOverlayPanel extends OverlayPanel {
         double milliTime = stats.getElapsedTimeNanos() / 1000000.0;
         String time = String.format("%.2fms", milliTime);
         components.add(makeLine("Time:", time));
-
-        // Don't show estimated memory usage if it is obvious GC occurred
-        long estimatedMemory = stats.getEstimatedUsedBytes();
-        if (estimatedMemory <= 0) {
-            components.add(makeLine("Memory:", "N/A"));
-        } else {
-            String memory = numberFormatter.format(stats.getEstimatedUsedBytes() / 1024.0 / 1024.0) + "MB";
-            components.add(makeLine("Memory:", memory));
-        }
-
-        components.add(separator);
-
-        // Warn users that memory usage is not entirely accurate
-        components.add(memoryDisclaimer);
 
         return super.render(graphics);
     }
