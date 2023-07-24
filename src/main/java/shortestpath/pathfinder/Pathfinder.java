@@ -80,10 +80,14 @@ public class Pathfinder implements Runnable {
         return path;
     }
 
-    private void addNeighbors(Node node) {
+    private Node addNeighbors(Node node) {
         List<Node> nodes = map.getNeighbors(node, visited, config);
         for (int i = 0; i < nodes.size(); ++i) {
             Node neighbor = nodes.get(i);
+            if (neighbor.packedPosition == targetPacked) {
+                return neighbor;
+            }
+
             if (config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness)) {
                 continue;
             }
@@ -97,6 +101,8 @@ public class Pathfinder implements Runnable {
                 ++stats.nodesChecked;
             }
         }
+
+        return null;
     }
 
     @Override
@@ -140,7 +146,12 @@ public class Pathfinder implements Runnable {
                 break;
             }
 
-            addNeighbors(node);
+            // Check if target was found without processing the queue to find it
+            if ((p = addNeighbors(node)) != null) {
+                bestLastNode = p;
+                pathNeedsUpdate = true;
+                break;
+            }
         }
 
         done = !cancelled;

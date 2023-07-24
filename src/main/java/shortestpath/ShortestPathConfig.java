@@ -77,7 +77,7 @@ public interface ShortestPathConfig extends Config {
 
     @ConfigItem(
         keyName = "useCharterShips",
-        name = "Use charter chips",
+        name = "Use charter ships",
         description = "Whether to include charter ships in the path",
         position = 6,
         section = sectionSettings
@@ -302,7 +302,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
         keyName = "drawDebugPanel",
         name = "Show debug panel",
-        description = "Toggle displaying a pathfinding debug stats panel",
+        description = "Toggles displaying the pathfinding debug stats panel",
         position = 25,
         section = sectionDisplay
     )
