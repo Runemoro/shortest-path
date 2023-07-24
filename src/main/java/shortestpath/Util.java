@@ -19,9 +19,4 @@ public class Util {
             result.write(buffer, 0, read);
         }
     }
-
-    public static long getUsedHeapBytes() {
-        Runtime runtime = Runtime.getRuntime();
-        return runtime.totalMemory() - runtime.freeMemory();
-    }
 }
