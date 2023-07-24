@@ -300,10 +300,21 @@ public interface ShortestPathConfig extends Config {
     }
 
     @ConfigItem(
+        keyName = "drawDebugPanel",
+        name = "Show Debug Stats",
+        description = "Toggle displaying Pathfinding debug info",
+        position = 25,
+        section = sectionDisplay
+    )
+    default boolean drawDebugPanel() {
+        return false;
+    }
+
+    @ConfigItem(
         keyName = "pathStyle",
         name = "Path style",
         description = "Whether to display the path as tiles or a segmented line",
-        position = 25,
+        position = 26,
         section = sectionDisplay
     )
     default TileStyle pathStyle() {
@@ -313,7 +324,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigSection(
         name = "Colours",
         description = "Colours for the path map, minimap and scene tiles",
-        position = 26
+        position = 27
     )
     String sectionColours = "sectionColours";
 
@@ -322,7 +333,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPath",
         name = "Path",
         description = "Colour of the path tiles on the world map, minimap and in the game scene",
-        position = 27,
+        position = 28,
         section = sectionColours
     )
     default Color colourPath() {
@@ -334,7 +345,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPathCalculating",
         name = "Calculating",
         description = "Colour of the path tiles while the pathfinding calculation is in progress",
-        position = 28,
+        position = 29,
         section = sectionColours
     )
     default Color colourPathCalculating() {
@@ -346,7 +357,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourTransports",
         name = "Transports",
         description = "Colour of the transport tiles",
-        position = 29,
+        position = 30,
         section = sectionColours
     )
     default Color colourTransports() {
@@ -358,7 +369,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourCollisionMap",
         name = "Collision map",
         description = "Colour of the collision map tiles",
-        position = 30,
+        position = 31,
         section = sectionColours
     )
     default Color colourCollisionMap() {
@@ -370,7 +381,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourText",
         name = "Text",
         description = "Colour of the text of the tile counter and fairy ring codes",
-        position = 31,
+        position = 32,
         section = sectionColours
     )
     default Color colourText() {

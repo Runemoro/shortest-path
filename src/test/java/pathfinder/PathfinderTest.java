@@ -157,6 +157,8 @@ public class PathfinderTest {
             pathfinderConfig,
             new WorldPoint(startX, startY, startZ),
             new WorldPoint(endX, endY, endZ));
-        return pathfinder.getCompletedPath().size();
+
+        pathfinder.run();
+        return pathfinder.getPath().size();
     }
 }

@@ -1,5 +1,6 @@
 package shortestpath;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
 import java.awt.Color;
@@ -15,6 +16,12 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.regex.Pattern;
+
 import lombok.Getter;
 import net.runelite.api.Client;
 import net.runelite.api.KeyCode;
@@ -34,6 +41,7 @@ import net.runelite.api.worldmap.WorldMap;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -94,6 +102,9 @@ public class ShortestPathPlugin extends Plugin {
     private PathMapTooltipOverlay pathMapTooltipOverlay;
 
     @Inject
+    private DebugOverlayPanel debugOverlayPanel;
+
+    @Inject
     private SpriteManager spriteManager;
 
     @Inject
@@ -113,6 +124,8 @@ public class ShortestPathPlugin extends Plugin {
     private BufferedImage minimapSpriteResizeable;
     private Rectangle minimapRectangle = new Rectangle();
 
+    private ExecutorService pathfindingExecutor = Executors.newSingleThreadExecutor();
+    private Future<?> pathfinderFuture;
     private final Object pathfinderMutex = new Object();
     @Getter
     private Pathfinder pathfinder;
@@ -136,6 +149,10 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.add(pathMinimapOverlay);
         overlayManager.add(pathMapOverlay);
         overlayManager.add(pathMapTooltipOverlay);
+
+        if (config.drawDebugPanel()) {
+            overlayManager.add(debugOverlayPanel);
+        }
     }
 
     @Override
@@ -144,12 +161,24 @@ public class ShortestPathPlugin extends Plugin {
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
         overlayManager.remove(pathMapTooltipOverlay);
+        overlayManager.remove(debugOverlayPanel);
+
+        if (pathfindingExecutor != null) {
+            pathfindingExecutor.shutdownNow();
+            pathfindingExecutor = null;
+        }
     }
 
     public void restartPathfinding(WorldPoint start, WorldPoint end) {
         synchronized (pathfinderMutex) {
             if (pathfinder != null) {
                 pathfinder.cancel();
+                pathfinderFuture.cancel(true);
+            }
+
+            if (pathfindingExecutor == null) {
+                ThreadFactory shortestPathNaming = new ThreadFactoryBuilder().setNameFormat("shortest-path-%d").build();
+                pathfindingExecutor = Executors.newSingleThreadExecutor(shortestPathNaming);
             }
         }
 
@@ -157,6 +186,7 @@ public class ShortestPathPlugin extends Plugin {
             pathfinderConfig.refresh();
             synchronized (pathfinderMutex) {
                 pathfinder = new Pathfinder(pathfinderConfig, start, end);
+                pathfinderFuture = pathfindingExecutor.submit(pathfinder);
             }
         });
     }
@@ -174,6 +204,31 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         return false;
+    }
+
+    private final Pattern TRANSPORT_OPTIONS = Pattern.compile("avoidWilderness|useAgilityShortcuts|useGrappleShortcuts|useBoats|useCanoes|useCharterShips|useShips|useFairyRings|useGnomeGliders|useSpiritTrees|useTeleportationLevers|useTeleportationPortals");
+
+    @Subscribe
+    public void onConfigChanged(ConfigChanged event) {
+        if (!CONFIG_GROUP.equals(event.getGroup())) {
+            return;
+        }
+
+        if ("drawDebugPanel".equals(event.getKey())) {
+            if (config.drawDebugPanel()) {
+                overlayManager.add(debugOverlayPanel);
+            } else {
+                overlayManager.remove(debugOverlayPanel);
+            }
+            return;
+        }
+
+        // Transport option changed; rerun pathfinding
+        if (TRANSPORT_OPTIONS.matcher(event.getKey()).find()) {
+            if (pathfinder != null) {
+                restartPathfinding(pathfinder.getStart(), pathfinder.getTarget());
+            }
+        }
     }
 
     @Subscribe
