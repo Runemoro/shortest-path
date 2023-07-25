@@ -206,7 +206,7 @@ public class ShortestPathPlugin extends Plugin {
         return false;
     }
 
-    private final Pattern TRANSPORT_OPTIONS = Pattern.compile("avoidWilderness|useAgilityShortcuts|useGrappleShortcuts|useBoats|useCanoes|useCharterShips|useShips|useFairyRings|useGnomeGliders|useSpiritTrees|useTeleportationLevers|useTeleportationPortals");
+    private final Pattern TRANSPORT_OPTIONS_REGEX = Pattern.compile("^(avoidWilderness|use\\w+)$");
 
     @Subscribe
     public void onConfigChanged(ConfigChanged event) {
@@ -224,7 +224,7 @@ public class ShortestPathPlugin extends Plugin {
         }
 
         // Transport option changed; rerun pathfinding
-        if (TRANSPORT_OPTIONS.matcher(event.getKey()).find()) {
+        if (TRANSPORT_OPTIONS_REGEX.matcher(event.getKey()).find()) {
             if (pathfinder != null) {
                 restartPathfinding(pathfinder.getStart(), pathfinder.getTarget());
             }
