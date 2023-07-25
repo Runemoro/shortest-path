@@ -278,32 +278,10 @@ public interface ShortestPathConfig extends Config {
     }
 
     @ConfigItem(
-        keyName = "drawTransports",
-        name = "Draw transports",
-        description = "Whether transports should be drawn",
-        position = 23,
-        section = sectionDisplay
-    )
-    default boolean drawTransports() {
-        return false;
-    }
-
-    @ConfigItem(
-        keyName = "drawCollisionMap",
-        name = "Draw collision map",
-        description = "Whether the collision map should be drawn",
-        position = 24,
-        section = sectionDisplay
-    )
-    default boolean drawCollisionMap() {
-        return false;
-    }
-
-    @ConfigItem(
         keyName = "pathStyle",
         name = "Path style",
         description = "Whether to display the path as tiles or a segmented line",
-        position = 25,
+        position = 23,
         section = sectionDisplay
     )
     default TileStyle pathStyle() {
@@ -313,7 +291,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigSection(
         name = "Colours",
         description = "Colours for the path map, minimap and scene tiles",
-        position = 26
+        position = 24
     )
     String sectionColours = "sectionColours";
 
@@ -322,7 +300,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPath",
         name = "Path",
         description = "Colour of the path tiles on the world map, minimap and in the game scene",
-        position = 27,
+        position = 25,
         section = sectionColours
     )
     default Color colourPath() {
@@ -334,7 +312,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourPathCalculating",
         name = "Calculating",
         description = "Colour of the path tiles while the pathfinding calculation is in progress",
-        position = 28,
+        position = 26,
         section = sectionColours
     )
     default Color colourPathCalculating() {
@@ -346,7 +324,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourTransports",
         name = "Transports",
         description = "Colour of the transport tiles",
-        position = 29,
+        position = 27,
         section = sectionColours
     )
     default Color colourTransports() {
@@ -358,7 +336,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourCollisionMap",
         name = "Collision map",
         description = "Colour of the collision map tiles",
-        position = 30,
+        position = 28,
         section = sectionColours
     )
     default Color colourCollisionMap() {
@@ -370,7 +348,7 @@ public interface ShortestPathConfig extends Config {
         keyName = "colourText",
         name = "Text",
         description = "Colour of the text of the tile counter and fairy ring codes",
-        position = 31,
+        position = 29,
         section = sectionColours
     )
     default Color colourText() {
@@ -378,18 +356,41 @@ public interface ShortestPathConfig extends Config {
     }
 
     @ConfigSection(
-            name = "Debug Options",
-            description = "Various options for debugging",
-            position = 32
+        name = "Debug Options",
+        description = "Various options for debugging",
+        position = 30,
+        closedByDefault = true
     )
     String sectionDebug = "sectionDebug";
 
     @ConfigItem(
-            keyName = "drawDebugPanel",
-            name = "Show debug panel",
-            description = "Toggles displaying the pathfinding debug stats panel",
-            position = 33,
-            section = sectionDebug
+        keyName = "drawTransports",
+        name = "Draw transports",
+        description = "Whether transports should be drawn",
+        position = 31,
+        section = sectionDebug
+    )
+    default boolean drawTransports() {
+        return false;
+    }
+
+    @ConfigItem(
+        keyName = "drawCollisionMap",
+        name = "Draw collision map",
+        description = "Whether the collision map should be drawn",
+        position = 32,
+        section = sectionDebug
+    )
+    default boolean drawCollisionMap() {
+        return false;
+    }
+
+    @ConfigItem(
+        keyName = "drawDebugPanel",
+        name = "Show debug panel",
+        description = "Toggles displaying the pathfinding debug stats panel",
+        position = 33,
+        section = sectionDebug
     )
     default boolean drawDebugPanel() {
         return false;

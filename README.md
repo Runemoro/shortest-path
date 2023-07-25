@@ -52,10 +52,6 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Whether the path should be drawn on the minimap
   - Draw path on tiles: ✅ `true`
     - Whether the path should be drawn on the game tiles
-  - Draw transports: ⬜️ `false`
-    - Whether transports should be drawn
-  - Draw collision map: ⬜️ `false`
-    - Whether the collision map should be drawn
   - Path style: `Tiles`
     - Whether to display the path as tiles or a segmented line
 - Colours
@@ -69,3 +65,10 @@ Draws the shortest path to a chosen destination on the map (right click a spot o
     - Colour of the collision map tiles
   - Text: `#FFFFFFFF`
     - Colour of the text of the tile counter and fairy ring codes
+- Debug Options
+  - Draw transports: ⬜️ `false`
+    - Whether transports should be drawn
+  - Draw collision map: ⬜️ `false`
+    - Whether the collision map should be drawn
+  - Show debug panel: ⬜️ `false`
+    - Toggles displaying the pathfinding debug stats panel
