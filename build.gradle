@@ -24,7 +24,7 @@ dependencies {
 
 group = 'shortestpath'
 version = '1.11'
-sourceCompatibility = '1.8'
+sourceCompatibility = '1.11'
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'

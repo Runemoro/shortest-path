@@ -224,6 +224,8 @@ public class Transport {
 
     public static HashMap<WorldPoint, List<Transport>> loadAllFromResources() {
         HashMap<WorldPoint, List<Transport>> transports = new HashMap<>();
+        fairyRings.clear();
+        fairyRingCodes.clear();
 
         addTransports(transports, "/transports.txt", TransportType.TRANSPORT);
         addTransports(transports, "/agility_shortcuts.txt", TransportType.AGILITY_SHORTCUT);

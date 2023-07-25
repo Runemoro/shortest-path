@@ -6,23 +6,16 @@ import java.util.Deque;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
+import shortestpath.Util;
 import shortestpath.WorldPointUtil;
 
 public class Pathfinder implements Runnable {
-    private static final ExecutorService executorService = Executors.newSingleThreadExecutor();
-
-    private Future<?> future;
-
-    private AtomicBoolean done = new AtomicBoolean();
-    private AtomicBoolean cancelled = new AtomicBoolean();
+    private PathfinderStats stats;
+    private volatile boolean done = false;
+    private volatile boolean cancelled = false;
 
     @Getter
     private final WorldPoint start;
@@ -47,30 +40,30 @@ public class Pathfinder implements Runnable {
     private Node bestLastNode;
 
     public Pathfinder(PathfinderConfig config, WorldPoint start, WorldPoint target) {
+        stats = new PathfinderStats();
         this.config = config;
         this.map = config.getMap();
         this.start = start;
         this.target = target;
         targetPacked = WorldPointUtil.packWorldPoint(target);
         targetInWilderness = PathfinderConfig.isInWilderness(target);
-
-        future = executorService.submit(this);
     }
 
     public boolean isDone() {
-        return done.get();
+        return done;
     }
 
     public void cancel() {
-        cancelled.set(true);
+        cancelled = true;
     }
 
-    public List<WorldPoint> getCompletedPath() {
-        try {
-            future.get();
-        } catch (ExecutionException | InterruptedException ignored) {
+    public PathfinderStats getStats() {
+        if (stats.started && stats.ended) {
+            return stats;
         }
-        return getPath();
+
+        // Don't give incomplete results
+        return null;
     }
 
     public List<WorldPoint> getPath() {
@@ -87,10 +80,14 @@ public class Pathfinder implements Runnable {
         return path;
     }
 
-    private void addNeighbors(Node node) {
+    private Node addNeighbors(Node node) {
         List<Node> nodes = map.getNeighbors(node, visited, config);
         for (int i = 0; i < nodes.size(); ++i) {
             Node neighbor = nodes.get(i);
+            if (neighbor.packedPosition == targetPacked) {
+                return neighbor;
+            }
+
             if (config.isAvoidWilderness() && config.avoidWilderness(node.packedPosition, neighbor.packedPosition, targetInWilderness)) {
                 continue;
             }
@@ -98,14 +95,19 @@ public class Pathfinder implements Runnable {
             visited.set(neighbor.packedPosition);
             if (neighbor instanceof TransportNode) {
                 pending.add(neighbor);
+                ++stats.transportsChecked;
             } else {
                 boundary.addLast(neighbor);
+                ++stats.nodesChecked;
             }
         }
+
+        return null;
     }
 
     @Override
     public void run() {
+        stats.start();
         boundary.addFirst(new Node(start, null));
 
         int bestDistance = Integer.MAX_VALUE;
@@ -113,7 +115,7 @@ public class Pathfinder implements Runnable {
         long cutoffDurationMillis = config.getCalculationCutoffMillis();
         long cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
 
-        while (!cancelled.get() && (!boundary.isEmpty() || !pending.isEmpty())) {
+        while (!cancelled && (!boundary.isEmpty() || !pending.isEmpty())) {
             Node node = boundary.peekFirst();
             Node p = pending.peek();
 
@@ -144,13 +146,47 @@ public class Pathfinder implements Runnable {
                 break;
             }
 
-            addNeighbors(node);
+            // Check if target was found without processing the queue to find it
+            if ((p = addNeighbors(node)) != null) {
+                bestLastNode = p;
+                pathNeedsUpdate = true;
+                break;
+            }
         }
 
-        done.set(!cancelled.get());
+        done = !cancelled;
 
         boundary.clear();
         visited.clear();
         pending.clear();
+
+        stats.end(); // Include cleanup in stats to get the total cost of pathfinding
+    }
+
+    public static class PathfinderStats {
+        @Getter
+        private int nodesChecked = 0, transportsChecked = 0;
+        private long startNanos, endNanos;
+        private volatile boolean started = false, ended = false;
+
+        public int getTotalNodesChecked() {
+            return nodesChecked + transportsChecked;
+        }
+
+        public long getElapsedTimeNanos() {
+            return endNanos - startNanos;
+        }
+
+        private void start() {
+            started = true;
+            nodesChecked = 0;
+            transportsChecked = 0;
+            startNanos = System.nanoTime();
+        }
+
+        private void end() {
+            endNanos = System.nanoTime();
+            ended = true;
+        }
     }
 }

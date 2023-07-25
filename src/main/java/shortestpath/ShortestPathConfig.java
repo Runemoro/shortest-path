@@ -77,7 +77,7 @@ public interface ShortestPathConfig extends Config {
 
     @ConfigItem(
         keyName = "useCharterShips",
-        name = "Use charter chips",
+        name = "Use charter ships",
         description = "Whether to include charter ships in the path",
         position = 6,
         section = sectionSettings
@@ -375,5 +375,23 @@ public interface ShortestPathConfig extends Config {
     )
     default Color colourText() {
         return Color.WHITE;
+    }
+
+    @ConfigSection(
+            name = "Debug Options",
+            description = "Various options for debugging",
+            position = 32
+    )
+    String sectionDebug = "sectionDebug";
+
+    @ConfigItem(
+            keyName = "drawDebugPanel",
+            name = "Show debug panel",
+            description = "Toggles displaying the pathfinding debug stats panel",
+            position = 33,
+            section = sectionDebug
+    )
+    default boolean drawDebugPanel() {
+        return false;
     }
 }
