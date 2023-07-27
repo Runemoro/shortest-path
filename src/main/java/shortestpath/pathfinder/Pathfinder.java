@@ -9,7 +9,6 @@ import java.util.Queue;
 
 import lombok.Getter;
 import net.runelite.api.coords.WorldPoint;
-import shortestpath.Util;
 import shortestpath.WorldPointUtil;
 
 public class Pathfinder implements Runnable {

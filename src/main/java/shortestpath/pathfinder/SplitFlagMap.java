@@ -21,11 +21,8 @@ public class SplitFlagMap {
     // Size is automatically chosen based on the max extents of the collision data
     private final FlagMap[] regionMaps;
     private final int widthInclusive;
-    private final int flagCount;
 
     public SplitFlagMap(Map<Integer, byte[]> compressedRegions, int flagCount) {
-        this.flagCount = flagCount;
-
         widthInclusive = regionExtents.getWidth() + 1;
         final int heightInclusive = regionExtents.getHeight() + 1;
         regionMaps = new FlagMap[widthInclusive * heightInclusive];
@@ -35,7 +32,7 @@ public class SplitFlagMap {
             final int x = unpackX(pos);
             final int y = unpackY(pos);
 
-            regionMaps[getIndex(x, y)] = new FlagMap(entry.getValue(), this.flagCount);
+            regionMaps[getIndex(x, y)] = new FlagMap(entry.getValue(), flagCount);
         }
     }
 

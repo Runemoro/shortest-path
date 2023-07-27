@@ -18,7 +18,7 @@ public class CollisionMap {
         this.collisionData = collisionData;
     }
 
-    public boolean get(int x, int y, int z, int flag) {
+    private boolean get(int x, int y, int z, int flag) {
         return collisionData.get(x, y, z, flag);
     }
 

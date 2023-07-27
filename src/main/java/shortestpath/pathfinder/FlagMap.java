@@ -7,14 +7,13 @@ import java.util.Locale;
 import static net.runelite.api.Constants.MAX_Z;
 
 public class FlagMap {
-    public static final int PLANE_COUNT = 4;
-    protected final BitSet flags;
-    public final int minX;
-    public final int minY;
-    public final int maxX;
-    public final int maxY;
+    private final int minX;
+    private final int minY;
+    private final int maxX;
+    private final int maxY;
     private final int width;
     private final int height;
+    private final BitSet flags;
     private final int flagCount;
 
     public FlagMap(int minX, int minY, int maxX, int maxY, int flagCount) {
@@ -25,7 +24,7 @@ public class FlagMap {
         this.flagCount = flagCount;
         width = (maxX - minX + 1);
         height = (maxY - minY + 1);
-        flags = new BitSet(width * height * PLANE_COUNT * flagCount);
+        flags = new BitSet(width * height * MAX_Z * flagCount);
     }
 
     public FlagMap(byte[] bytes, int flagCount) {
