@@ -31,7 +31,7 @@ public class Pathfinder implements Runnable {
     // They were found by checking the max queue size
     private final Deque<Node> boundary = new ArrayDeque<>(4096);
     private final Queue<Node> pending = new PriorityQueue<>(256);
-    private final VisitedTiles visited = new VisitedTiles();
+    private final VisitedTiles visited;
 
     @SuppressWarnings("unchecked") // Casting EMPTY_LIST is safe here
     private List<WorldPoint> path = (List<WorldPoint>)Collections.EMPTY_LIST;
@@ -44,6 +44,7 @@ public class Pathfinder implements Runnable {
         this.map = config.getMap();
         this.start = start;
         this.target = target;
+        visited = new VisitedTiles(map);
         targetPacked = WorldPointUtil.packWorldPoint(target);
         targetInWilderness = PathfinderConfig.isInWilderness(target);
     }

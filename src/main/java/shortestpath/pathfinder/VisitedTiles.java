@@ -3,7 +3,6 @@ package shortestpath.pathfinder;
 import net.runelite.api.coords.WorldPoint;
 import shortestpath.WorldPointUtil;
 
-import static net.runelite.api.Constants.MAX_Z;
 import static net.runelite.api.Constants.REGION_SIZE;
 
 public class VisitedTiles {
@@ -11,13 +10,15 @@ public class VisitedTiles {
     private final int widthInclusive;
 
     private final VisitedRegion[] visitedRegions;
+    private final byte[] visitedRegionPlanes;
 
-    public VisitedTiles() {
+    public VisitedTiles(CollisionMap map) {
         regionExtents = SplitFlagMap.getRegionExtents();
         widthInclusive = regionExtents.getWidth() + 1;
         final int heightInclusive = regionExtents.getHeight() + 1;
 
         visitedRegions = new VisitedRegion[widthInclusive * heightInclusive];
+        visitedRegionPlanes = map.getPlanes();
     }
 
     public boolean get(WorldPoint point) {
@@ -60,7 +61,7 @@ public class VisitedTiles {
 
         VisitedRegion region = visitedRegions[regionIndex];
         if (region == null) {
-            region = new VisitedRegion();
+            region = new VisitedRegion(visitedRegionPlanes[regionIndex]);
             visitedRegions[regionIndex] = region;
         }
 
@@ -79,9 +80,15 @@ public class VisitedTiles {
         return (regionX - regionExtents.minX) + (regionY - regionExtents.minY) * widthInclusive;
     }
 
-    private class VisitedRegion {
+    private static class VisitedRegion {
         // This assumes a row is at most 64 tiles and fits in a long
-        private final long[] planes = new long[MAX_Z * REGION_SIZE];
+        private final long[] planes;
+        private final byte planeCount;
+
+        VisitedRegion(byte planeCount) {
+            this.planeCount = planeCount;
+            this.planes = new long[planeCount * REGION_SIZE];
+        }
 
         // Sets a tile as visited in the tile bitset
         // Returns true if the tile is unique and hasn't been seen before or false if it was seen before
@@ -93,6 +100,11 @@ public class VisitedTiles {
         }
 
         public boolean get(int x, int y, int plane) {
+            if (plane >= planeCount) {
+                // This check is necessary since we check visited tiles before checking the collision map, e.g. the node
+                // at (2816, 3455, 1) will check its neighbour to the north which is in a new region with no plane = 1
+                return true;
+            }
             return (planes[y + plane * REGION_SIZE] & (1L << x)) != 0;
         }
     }
