@@ -131,7 +131,7 @@ public class CollisionMap {
                 List<Transport> neighborTransports = config.getTransportsPacked().getOrDefault(neighborPacked, (List<Transport>)Collections.EMPTY_LIST);
                 for (int t = 0; t < neighborTransports.size(); ++t) {
                     Transport transport = neighborTransports.get(t);
-                    if (visited.get(transport.getDestination())) continue;
+                    if (visited.get(transport.getOrigin())) continue;
                     neighbors.add(new Node(transport.getOrigin(), node));
                 }
             }
