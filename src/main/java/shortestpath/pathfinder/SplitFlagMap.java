@@ -24,7 +24,7 @@ public class SplitFlagMap {
     private final FlagMap[] regionMaps;
     private final int widthInclusive;
 
-    public SplitFlagMap(Map<Integer, byte[]> compressedRegions, byte flagCount) {
+    public SplitFlagMap(Map<Integer, byte[]> compressedRegions) {
         widthInclusive = regionExtents.getWidth() + 1;
         final int heightInclusive = regionExtents.getHeight() + 1;
         regionMaps = new FlagMap[widthInclusive * heightInclusive];
@@ -35,7 +35,7 @@ public class SplitFlagMap {
             final int x = unpackX(pos);
             final int y = unpackY(pos);
             final int index = getIndex(x, y);
-            FlagMap flagMap = new FlagMap(entry.getValue(), flagCount);
+            FlagMap flagMap = new FlagMap(x * REGION_SIZE, y * REGION_SIZE, entry.getValue());
             regionMaps[index] = flagMap;
             regionMapPlaneCounts[index] = flagMap.getPlaneCount();
         }
@@ -92,7 +92,7 @@ public class SplitFlagMap {
             throw new UncheckedIOException(e);
         }
 
-        return new SplitFlagMap(compressedRegions, (byte) 2);
+        return new SplitFlagMap(compressedRegions);
     }
 
     @RequiredArgsConstructor

@@ -93,6 +93,10 @@ public class VisitedTiles {
         // Sets a tile as visited in the tile bitset
         // Returns true if the tile is unique and hasn't been seen before or false if it was seen before
         public boolean set(int x, int y, int plane) {
+            if (plane >= planeCount) {
+                // Plane is out of bounds; report that it has been visited to avoid further exploration
+                return false;
+            }
             final int index = y + plane * REGION_SIZE;
             boolean unique = (planes[index] & (1L << x)) == 0;
             planes[index] |= 1L << x;
