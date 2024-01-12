@@ -88,3 +88,9 @@
 # Crash Island, Ape Atoll							
 2892 2724 0	2803 2706 0	Travel Lumdo 1454				5	
 2803 2706 0	2892 2724 0	Travel Lumdo 1454				5	
+							
+# Al Kharid, Tempoross							
+3271 3144 0	3148 2843 0	Board Ferry 41311				8	
+3272 3143 0	3148 2843 0	Board Ferry 41311				8	
+3148 2843 0	3272 3143 0	Board Ferry 41311				8	
+3148 2842 0	3272 3143 0	Board Ferry 41311				8	
