@@ -2281,6 +2281,15 @@
 2915 3221 1	2913 3221 0	Climb-down Ship's ladder 9745				2	
 2909 3226 0	2909 3229 1	Cross Gangplank 34667				3	
 2909 3229 1	2909 3226 0	Cross Gangplank 34668				3	
+2941 3248 0	2940 3248 0	Open Door 2595		1 Maze key		1	
+2940 3248 0	2941 3248 0	Open Door 2595				1	
+2938 3252 0	2937 3252 0	Open Exit door 2602				1	
+2925 3244 0	2926 3244 0	Open Red door 2596		1 Key		1	
+2926 3244 0	2925 3244 0	Open Red door 2596		1 Key		1	
+2925 3248 0	2926 3248 0	Open Red door 2596		1 Key		1	
+2926 3248 0	2925 3248 0	Open Red door 2596		1 Key		1	
+2926 3253 0	2925 3253 0	Open Red door 2596		1 Key		1	
+2925 3253 0	2926 3253 0	Open Red door 2596		1 Key		1	
 							
 # Burthorpe							
 2892 3556 0	2892 3556 1	Climb-up Ladder 16683				2	
