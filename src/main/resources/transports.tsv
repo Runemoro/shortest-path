@@ -2281,6 +2281,8 @@
 2915 3221 1	2913 3221 0	Climb-down Ship's ladder 9745				2	
 2909 3226 0	2909 3229 1	Cross Gangplank 34667				3	
 2909 3229 1	2909 3226 0	Cross Gangplank 34668				3	
+2933 3289 0	2933 3288 0	Open Guild Door 14910	40 Crafting	1 Brown apron		1	Golden apron, Crafting cape, Max cape
+2933 3288 0	2933 3289 0	Open Guild Door 14910				1	
 2941 3248 0	2940 3248 0	Open Door 2595		1 Maze key		1	
 2940 3248 0	2941 3248 0	Open Door 2595				1	
 2938 3252 0	2937 3252 0	Open Exit door 2602				1	
