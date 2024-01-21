@@ -491,9 +491,9 @@ public class ShortestPathPlugin extends Plugin {
     private Widget getMinimapDrawWidget() {
         if (client.isResized()) {
             if (client.getVarbitValue(Varbits.SIDE_PANELS) == 1) {
-                return client.getWidget(ComponentID.RESIZABLE_VIEWPORT_MINIMAP_DRAW_AREA);
+                return client.getWidget(ComponentID.RESIZABLE_VIEWPORT_BOTTOM_LINE_MINIMAP_DRAW_AREA);
             }
-            return client.getWidget(ComponentID.RESIZABLE_VIEWPORT_BOTTOM_LINE_MINIMAP_DRAW_AREA);
+            return client.getWidget(ComponentID.RESIZABLE_VIEWPORT_MINIMAP_DRAW_AREA);
         }
         return client.getWidget(ComponentID.FIXED_VIEWPORT_MINIMAP_DRAW_AREA);
     }
