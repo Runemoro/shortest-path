@@ -11,6 +11,7 @@ import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.ComponentID;
+import net.runelite.api.widgets.InterfaceID;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.JagexColors;
 import net.runelite.client.ui.overlay.Overlay;
@@ -37,7 +38,7 @@ public class PathMapTooltipOverlay extends Overlay {
         setPosition(OverlayPosition.DYNAMIC);
         setPriority(OverlayPriority.LOW);
         setLayer(OverlayLayer.MANUAL);
-        drawAfterInterface(ComponentID.WORLD_MAP_MAPVIEW);
+        drawAfterInterface(InterfaceID.WORLD_MAP);
     }
 
     @Override
