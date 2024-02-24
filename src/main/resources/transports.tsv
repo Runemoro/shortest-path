@@ -1,4 +1,4 @@
-# X Y Z	X Y Z	menuOption menuTarget objectID	Skill requirements	Item requirements	Quest	Travel time	Notes
+# X Y Z	X Y Z	menuOption menuTarget objectID	Skill requirements	Item requirements	Quest	Travel time	Info
 # Tutorial Island							
 3097 3107 0	3098 3107 0	Open Door 9398				1	
 3098 3107 0	3097 3107 0	Open Door 9398				1	
@@ -166,14 +166,14 @@
 3084 9673 0	3084 3273 0	Climb-up Ladder 17385				2	
 3083 9672 0	3083 3272 0	Climb-up Ladder 17385				2	
 3084 9671 0	3084 3271 0	Climb-up Ladder 17385				2	
-3085 3272 0	3085 9672 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3084 3273 0	3084 9673 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3083 3272 0	3083 9672 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3084 3271 0	3084 9671 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3118 3243 0	3118 9644 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3117 3244 0	3118 9644 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3119 3244 0	3118 9644 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
-3118 3245 0	3118 9644 0	Climb-down Trapdoor 6435				1	Needs to be opened first, closed ID is 6434
+3085 3272 0	3085 9672 0	Climb-down Trapdoor 6435				1	
+3084 3273 0	3084 9673 0	Climb-down Trapdoor 6435				1	
+3083 3272 0	3083 9672 0	Climb-down Trapdoor 6435				1	
+3084 3271 0	3084 9671 0	Climb-down Trapdoor 6435				1	
+3118 3243 0	3118 9644 0	Climb-down Trapdoor 6435				1	
+3117 3244 0	3118 9644 0	Climb-down Trapdoor 6435				1	
+3119 3244 0	3118 9644 0	Climb-down Trapdoor 6435				1	
+3118 3245 0	3118 9644 0	Climb-down Trapdoor 6435				1	
 3119 9643 0	3118 3243 0	Climb-up Ladder 6436				2	
 3118 9644 0	3118 3243 0	Climb-up Ladder 6436				2	
 3117 9643 0	3118 3243 0	Climb-up Ladder 6436				2	
@@ -329,8 +329,8 @@
 2908 3336 2	2908 3336 1	Climb-down Staircase 11890				1	
 							
 # Killerwatt Plane							
-3110 3363 2	2677 5214 2	Enter Interdimensional rift 11355			Ernest the Chicken	1	Has several warnings
-3111 3363 2	2677 5214 2	Enter Interdimensional rift 11355			Ernest the Chicken	1	Has several warnings
+3110 3363 2	2677 5214 2	Enter Interdimensional rift 11355			Ernest the Chicken	1	
+3111 3363 2	2677 5214 2	Enter Interdimensional rift 11355			Ernest the Chicken	1	
 							
 # Ferox Enclave							
 3140 3637 0	3137 3637 1	Climb Stairs 39643				1	
@@ -934,12 +934,12 @@
 1914 5226 0	3081 3421 0	Climb-up Ladder 20784					
 1912 5226 0	3081 3421 0	Climb-up Ladder 20784					
 1913 5227 0	3081 3421 0	Climb-up Ladder 20784					
-1902 5223 0	2042 5245 0	Climb-down Ladder 20785					Has a warning screen
-1903 5222 0	2042 5245 0	Climb-down Ladder 20785					Has a warning screen
-1902 5221 0	2042 5245 0	Climb-down Ladder 20785					Has a warning screen
+1902 5223 0	2042 5245 0	Climb-down Ladder 20785					
+1903 5222 0	2042 5245 0	Climb-down Ladder 20785					
+1902 5221 0	2042 5245 0	Climb-down Ladder 20785					
 2042 5245 0	1859 5243 0	Climb-up Ladder 19003					
-2026 5219 0	2123 5252 0	Climb-down Ladder 19004					Has a warning screen
-2025 5218 0	2123 5252 0	Climb-down Ladder 19004					Has a warning screen
+2026 5219 0	2123 5252 0	Climb-down Ladder 19004					
+2025 5218 0	2123 5252 0	Climb-down Ladder 19004					
 2122 5251 0	2042 5245 0	Climb-up Dripping vine 23705					
 2026 5217 0	2123 5252 0	Climb-down Ladder 19004					
 2150 5279 0	2123 5252 0	Climb-up Goo covered vine 23703					
@@ -1032,8 +1032,8 @@
 3367 3307 1	3366 3306 0	Climb-down Stairs 10773					
 							
 # HAM Hideout							
-3165 3252 0	3149 9652 0	Climb-down Trapdoor 5492					Trapdoor open (varbit 235 is 1)
-3166 3251 0	3149 9652 0	Climb-down Trapdoor 5492					Trapdoor open (varbit 235 is 1)
+3165 3252 0	3149 9652 0	Climb-down Trapdoor 5492					
+3166 3251 0	3149 9652 0	Climb-down Trapdoor 5492					
 3149 9652 0	3165 3251 0	Climb-up Ladder 5493					
 3150 9653 0	3165 3251 0	Climb-up Ladder 5493					
 3148 9653 0	3165 3251 0	Climb-up Ladder 5493					
@@ -1120,8 +1120,8 @@
 2884 9796 0	2884 3396 0	Climb-up Ladder 17385					
 2883 3397 0	2883 9797 0	Climb-down Ladder 16680					
 2883 9797 0	2883 3397 0	Climb-up Ladder 17385					
-2888 9831 0	2889 9831 0	Open Prison door 2143					Fails first time, spawning suit of armour
-2888 9830 0	2889 9830 0	Open Prison door 2144					Fails first time, spawning suit of armour
+2888 9831 0	2889 9831 0	Open Prison door 2143					
+2888 9830 0	2889 9830 0	Open Prison door 2144					
 2889 9830 0	2888 9830 0	Open Prison door 2144					
 2889 9831 0	2888 9831 0	Open Prison door 2143					
 2842 3423 0	2842 9823 0	Climb-down Ladder 17384					
@@ -1140,10 +1140,10 @@
 2873 9846 0	1310 1237 0	Crawl Cave 26567					
 1292 1253 0	1240 1226 0	Turn Iron Winch 23104					
 1291 1253 0	1240 1226 0	Turn Iron Winch 23104					
-1240 1226 0	1291 1253 0	Exit Portcullis 21772					Chat option 'Yes, I'm scared.'
+1240 1226 0	1291 1253 0	Exit Portcullis 21772					
 1309 1269 0	1304 1290 0	Turn Iron Winch 23104					
-1304 1290 0	1309 1269 0	Exit Portcullis 21772					Chat option 'Yes, I'm scared.'
-1368 1226 0	1328 1253 0	Exit Portcullis 21772					Chat option 'Yes, I'm scared.'
+1304 1290 0	1309 1269 0	Exit Portcullis 21772					
+1368 1226 0	1328 1253 0	Exit Portcullis 21772					
 1328 1253 0	1368 1226 0	Turn Iron Winch 23104					
 1329 1253 0	1368 1226 0	Turn Iron Winch 23104					
 2903 9813 1	2906 9813 0	Climb Steps 30190					
@@ -1325,7 +1325,7 @@
 2511 3463 0	2527 3413 0	Get in Barrel 2022					
 2512 3466 0	2527 3413 0	Climb Dead Tree 2020					
 2512 3476 0	2527 3413 0	Swim to Rock 1996					
-2511 3463 0	2575 9861 0	Open Door 2010		1 Glarial's amulet	during Waterfall Quest		
+2511 3463 0	2575 9861 0	Open Door 2010		1 Glarial's amulet	Waterfall Quest		
 2575 9861 0	2511 3463 0	Open Door 2000					
 2568 9893 0	2568 9894 0	Open Door 2002		Key, id 298			
 2568 9894 0	2568 9893 0	Open Door 2002					
@@ -1336,19 +1336,19 @@
 2557 9844 0	2557 3444 0	Climb-up Ladder 17387				2	
 							
 # Tree Gnome Village Dungeon (during Waterfall quest)							
-2533 3156 0	2533 9556 0	Climb-down Ladder 5250			During Waterfall Quest		
-2534 3155 0	2534 9555 0	Climb-down Ladder 5250			During Waterfall Quest		
-2532 3155 0	2532 9555 0	Climb-down Ladder 5250			During Waterfall Quest		
-2533 9556 0	2533 3156 0	Climb-up Ladder 17387			During Waterfall Quest		
+2533 3156 0	2533 9556 0	Climb-down Ladder 5250			Waterfall Quest		
+2534 3155 0	2534 9555 0	Climb-down Ladder 5250			Waterfall Quest		
+2532 3155 0	2532 9555 0	Climb-down Ladder 5250			Waterfall Quest		
+2533 9556 0	2533 3156 0	Climb-up Ladder 17387			Waterfall Quest		
 							
 # Tree Gnome Village Dungeon (after Waterfall quest)							
-2533 3156 0	2597 4436 0	Climb-down Ladder 5250					Waterfall Quest
-2532 3155 0	2596 4435 0	Climb-down Ladder 5250					Waterfall Quest
-2534 3155 0	2598 4435 0	Climb-down Ladder 5250					Waterfall Quest
-2597 4436 0	2533 3156 0	Climb-up Ladder 5251					Waterfall Quest
-2596 4435 0	2533 3156 0	Climb-up Ladder 5251					Waterfall Quest
-2598 4435 0	2533 3156 0	Climb-up Ladder 5251					Waterfall Quest
-2597 4434 0	2533 3156 0	Climb-up Ladder 5251					Waterfall Quest
+2533 3156 0	2597 4436 0	Climb-down Ladder 5250			Waterfall Quest		
+2532 3155 0	2596 4435 0	Climb-down Ladder 5250			Waterfall Quest		
+2534 3155 0	2598 4435 0	Climb-down Ladder 5250			Waterfall Quest		
+2597 4436 0	2533 3156 0	Climb-up Ladder 5251			Waterfall Quest		
+2596 4435 0	2533 3156 0	Climb-up Ladder 5251			Waterfall Quest		
+2598 4435 0	2533 3156 0	Climb-up Ladder 5251			Waterfall Quest		
+2597 4434 0	2533 3156 0	Climb-up Ladder 5251			Waterfall Quest		
 							
 # Lithkren							
 3555 4002 0	3549 10448 0	Climb-down Staircase 32080					
@@ -1441,11 +1441,11 @@
 3605 10289 0	3603 10290 0	Climb Stairs 31485					
 3680 3855 0	3595 10291 0	Climb Down Trap Door 30842					
 3680 3853 0	3595 10291 0	Climb Down Trap Door 30842					
-3666 3810 0	3685 3756 0	Jump on Rubber cap mushroom 30606					Chat option 'I don't care, I'm doing it'
-3666 3809 0	3685 3756 0	Jump on Rubber cap mushroom 30606					Chat option 'I don't care, I'm doing it'
-3663 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					Chat option 'I don't care, I'm doing it'
-3664 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					Chat option 'I don't care, I'm doing it'
-3665 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					Chat option 'I don't care, I'm doing it'
+3666 3810 0	3685 3756 0	Jump on Rubber cap mushroom 30606					
+3666 3809 0	3685 3756 0	Jump on Rubber cap mushroom 30606					
+3663 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					
+3664 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					
+3665 3808 0	3685 3756 0	Jump on Rubber cap mushroom 30606					
 3768 3868 1	3768 3868 0	Climb-down Trapdoor 30725					
 3768 3868 0	3768 3868 1	Climb-up Ladder 30727					
 3767 3868 1	3768 3868 0	Climb-down Trapdoor 30725					
@@ -1816,8 +1816,8 @@
 2430 3424 0	2429 9824 0	Enter Cave 26709					
 2429 9824 0	2430 3424 0	Use Tunnel 27257					
 2429 9825 0	2430 3424 0	Use Tunnel 27258					
-2435 9807 0	2429 9807 0	Enter Tunnel 30174					Has a warning
-2435 9806 0	2429 9806 0	Enter Tunnel 30174					Has a warning
+2435 9807 0	2429 9807 0	Enter Tunnel 30174					
+2435 9806 0	2429 9806 0	Enter Tunnel 30174					
 2402 3420 0	2409 9812 0	Enter Cave entrance 17209					
 2409 9812 0	2402 3419 0	Exit Tunnel 17223					
 2402 3419 0	2409 9812 0	Enter Cave entrance 17209					
@@ -1845,7 +1845,7 @@
 1512 3416 1	1512 3416 0	Climb-down Ladder 18325					
 							
 # Shayzien							
-1483 3549 0	1483 9951 3	Enter Crypt Entrance 32403					Has warning, at least without light source
+1483 3549 0	1483 9951 3	Enter Crypt Entrance 32403					
 1483 9951 3	1483 3549 0	Climb-up Ladder 32401					
 1561 3596 0	1561 3592 1	Climb Stairs 27201					
 1561 3592 1	1561 3596 0	Climb Stairs 27202					
@@ -1857,12 +1857,12 @@
 1580 3586 1	1580 3590 0	Climb Stairs 27202					
 							
 # Meyerditch							
-3649 3220 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale (?)		
-3631 3219 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale (?)		
-3649 3219 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale (?)		
-3631 3220 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale (?)		
-3649 3218 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale (?)		
-3631 3218 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale (?)		
+3649 3220 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale		
+3631 3219 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale		
+3649 3219 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale		
+3631 3220 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale		
+3649 3218 0	3631 3219 0	Enter Door 32660			Darkness of Hallowvale		
+3631 3218 0	3649 3219 0	Enter Door 32659			Darkness of Hallowvale		
 3632 3205 0	3632 3202 1	Climb-up Stairs up 17976					
 3632 3202 1	3632 3205 0	Climb-down Stairs down 17978					
 3604 3202 0	3602 3202 1	Climb-up Ladder 17974					
@@ -2027,12 +2027,12 @@
 3613 3342 1	3613 3338 0	Climb-down Staircase 39492					
 3599 3317 0	3603 3317 1	Climb-up Staircase 39491					
 3603 3317 1	3599 3317 0	Climb-down Staircase 39492					
-3667 3375 0	3670 3375 0	Climb Wall 39542					Attached long rope: varb(10449) = 1
-3670 3375 0	3667 3375 0	Climb Wall 39542					Attached long rope: varb(10449) = 1
-3670 3375 0	3673 3375 0	Climb Wall 39541					Attached long rope: varb(10450) = 1
-3673 3375 0	3670 3375 0	Climb Wall 39541					Attached long rope: varb(10450) = 1
-3672 3376 0	3670 3375 0	Climb Wall 39541					Attached long rope: varb(10450) = 1
-3672 3374 0	3670 3375 0	Climb Wall 39541					Attached long rope: varb(10450) = 1
+3667 3375 0	3670 3375 0	Climb Wall 39542					
+3670 3375 0	3667 3375 0	Climb Wall 39542					
+3670 3375 0	3673 3375 0	Climb Wall 39541					
+3673 3375 0	3670 3375 0	Climb Wall 39541					
+3672 3376 0	3670 3375 0	Climb Wall 39541					
+3672 3374 0	3670 3375 0	Climb Wall 39541					
 							
 # The Hollows							
 3480 9837 0	3480 9836 0	Search Wall 5052					
@@ -2115,10 +2115,10 @@
 3667 3517 0	3667 3522 1	Climb-up Staircase 16646					
 3667 3522 1	3667 3517 0	Climb-down Staircase 16647					
 3669 9888 3	3654 3519 0	Climb-up Ladder 16110					
-3654 3519 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
-3653 3520 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
-3653 3518 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
-3652 3519 0	3669 9888 3	Climb-down Trapdoor 16114					Needs to be opened first
+3654 3519 0	3669 9888 3	Climb-down Trapdoor 16114					
+3653 3520 0	3669 9888 3	Climb-down Trapdoor 16114					
+3653 3518 0	3669 9888 3	Climb-down Trapdoor 16114					
+3652 3519 0	3669 9888 3	Climb-down Trapdoor 16114					
 3671 9889 2	3675 9888 1	Climb-down Stairs 16109					
 3675 9888 1	3671 9886 2	Climb-up Stairs 16108					
 3671 9887 2	3675 9888 1	Climb-down Stairs 16109					
@@ -2159,16 +2159,16 @@
 3612 3543 0	3614 3543 1	Climb-up Ship's ladder 16111					
 3605 3545 1	3605 3548 0	Cross Gangplank 16651				3	
 3605 3548 0	3605 3545 1	Cross Gangplank 16652				3	
-3604 3550 0	3602 3550 0	Jump-To Rock 16115					5 Run energy
-3602 3550 0	3604 3550 0	Jump-To Rock 16115					5 Run energy
-3599 3552 0	3597 3552 0	Jump-To Rock 16115					5 Run energy
-3597 3552 0	3599 3552 0	Jump-To Rock 16115					5 Run energy
-3595 3554 0	3595 3556 0	Jump-To Rock 16115					5 Run energy
-3595 3556 0	3595 3554 0	Jump-To Rock 16115					5 Run energy
-3597 3559 0	3597 3561 0	Jump-To Rock 16115					5 Run energy
-3597 3561 0	3597 3559 0	Jump-To Rock 16115					5 Run energy
-3599 3564 0	3601 3564 0	Jump-To Rock 16115					5 Run energy
-3601 3564 0	3599 3564 0	Jump-To Rock 16115					5 Run energy
+3604 3550 0	3602 3550 0	Jump-To Rock 16115					
+3602 3550 0	3604 3550 0	Jump-To Rock 16115					
+3599 3552 0	3597 3552 0	Jump-To Rock 16115					
+3597 3552 0	3599 3552 0	Jump-To Rock 16115					
+3595 3554 0	3595 3556 0	Jump-To Rock 16115					
+3595 3556 0	3595 3554 0	Jump-To Rock 16115					
+3597 3559 0	3597 3561 0	Jump-To Rock 16115					
+3597 3561 0	3597 3559 0	Jump-To Rock 16115					
+3599 3564 0	3601 3564 0	Jump-To Rock 16115					
+3601 3564 0	3599 3564 0	Jump-To Rock 16115					
 							
 # Fenkenstrain's Castle							
 3559 3550 0	3559 3554 1	Climb-up Staircase 5206					
@@ -2215,10 +2215,10 @@
 # Slayer Tower							
 3417 3536 0	3412 9932 3	Climb-down Ladder 30191					
 3412 9932 3	3417 3536 0	Climb-up Ladder 30192					
-3421 3550 0	3421 3550 1	Climb-up Spikey chain 16537					Warning if no nosepeg
-3422 3551 0	3422 3551 1	Climb-up Spikey chain 16537					Warning if no nosepeg
-3423 3550 0	3423 3550 1	Climb-up Spikey chain 16537					Warning if no nosepeg
-3422 3549 0	3422 3549 1	Climb-up Spikey chain 16537					Warning if no nosepeg
+3421 3550 0	3421 3550 1	Climb-up Spikey chain 16537					
+3422 3551 0	3422 3551 1	Climb-up Spikey chain 16537					
+3423 3550 0	3423 3550 1	Climb-up Spikey chain 16537					
+3422 3549 0	3422 3549 1	Climb-up Spikey chain 16537					
 3421 3550 1	3421 3550 0	Climb-down Spikey chain 16538					
 3422 3551 1	3422 3551 0	Climb-down Spikey chain 16538					
 3422 3549 1	3422 3549 0	Climb-down Spikey chain 16538					
@@ -2281,7 +2281,7 @@
 2915 3221 1	2913 3221 0	Climb-down Ship's ladder 9745				2	
 2909 3226 0	2909 3229 1	Cross Gangplank 34667				3	
 2909 3229 1	2909 3226 0	Cross Gangplank 34668				3	
-2933 3289 0	2933 3288 0	Open Guild Door 14910	40 Crafting	1 Brown apron		1	Golden apron, Crafting cape, Max cape
+2933 3289 0	2933 3288 0	Open Guild Door 14910	40 Crafting	1 Brown apron		1	
 2933 3288 0	2933 3289 0	Open Guild Door 14910				1	
 2941 3248 0	2940 3248 0	Open Door 2595		1 Maze key		1	
 2940 3248 0	2941 3248 0	Open Door 2595				1	
@@ -2322,7 +2322,7 @@
 2905 3571 1	2905 3571 0	Climb-down Ladder 16679				2	
 2906 3570 0	2906 3570 1	Climb-up Ladder 16683				2	
 2906 3570 1	2906 3570 0	Climb-down Ladder 16679				2	
-2877 3546 0	2876 3546 0	Open Door 24318				1	Warrior's Guild Requirements
+2877 3546 0	2876 3546 0	Open Door 24318				1	
 2876 3546 0	2877 3546 0	Open Door 24318				1	
 2855 3546 0	2855 3545 0	Open Door 24309				1	
 2855 3545 0	2855 3546 0	Open Door 24309				1	
@@ -3140,7 +3140,7 @@
 3314 2753 1	3314 2755 0	Climb-down Ladder 20354				2	
 3315 2796 0	2800 5160 0	Climb-down Ladder 20275				2	
 2799 5160 0	3315 2796 0	Climb-up Ladder 20277				2	
-2800 5160 0	3318 9273 2	Climb-down Ladder 20278				2	Has warning
+2800 5160 0	3318 9273 2	Climb-down Ladder 20278				2	
 3318 9273 2	2800 5160 0	Climb-up Ladder 20281				2	
 3286 9275 2	3286 9273 0	Climb-down Ladder 20285				2	
 3286 9273 0	3286 9275 2	Climb-up Ladder 20284				2	
@@ -3440,10 +3440,10 @@
 2750 4438 0	2730 4563 0	Walk-down Stairs 4971		0 Glowing fungus			
 2750 4436 0	2730 4563 0	Walk-down Stairs 4971		0 Glowing fungus			
 2807 4493 0	2725 4452 0	Go-down Lift 4940					
-2725 4452 0	2807 4493 0	Go-up Lift 4942					Need to walk on one of the four tiles first
-2724 4452 0	2807 4493 0	Go-up Lift 4942					Need to walk on one of the four tiles first
-2723 4452 0	2807 4493 0	Go-up Lift 4942					Need to walk on one of the four tiles first
-2722 4452 0	2807 4493 0	Go-up Lift 4942					Need to walk on one of the four tiles first
+2725 4452 0	2807 4493 0	Go-up Lift 4942					
+2724 4452 0	2807 4493 0	Go-up Lift 4942					
+2723 4452 0	2807 4493 0	Go-up Lift 4942					
+2722 4452 0	2807 4493 0	Go-up Lift 4942					
 2797 4529 0	2733 4529 0	Climb-up Ladder 4968				2	
 2733 4529 0	2797 4529 0	Climb-down Ladder 4967				2	
 2796 4528 0	2732 4528 0	Climb-up Ladder 4968				2	
@@ -3651,13 +3651,13 @@
 3442 9734 1	3440 3337 0	Exit Grotto 3526					
 3439 3337 0	3442 9734 1	Enter Grotto 3516					
 3441 3337 0	3442 9734 1	Enter Grotto 3516					
-3444 3458 0	3444 3457 0	Open Gate 3506					Has warning
-3443 3458 0	3443 3457 0	Open Gate 3507					Has warning
+3444 3458 0	3444 3457 0	Open Gate 3506					
+3443 3458 0	3443 3457 0	Open Gate 3507					
 3444 3457 0	3444 3458 0	Open Gate 3506					
 3443 3457 0	3443 3458 0	Open Gate 3507					
 							
 # Paterdomus							
-3405 3506 0	3405 9906 0	Climb-down Trapdoor 1581					Needs to be opened first
+3405 3506 0	3405 9906 0	Climb-down Trapdoor 1581					
 3405 9906 0	3405 3506 0	Climb-up Ladder 17385				2	
 3405 9895 0	3405 9894 0	Open Gate 3444					
 3405 9894 0	3405 9895 0	Open Gate 3444					
@@ -3666,8 +3666,8 @@
 3360 9904 0	3440 9899 0	Climb-up Ladder 12764				2	
 3440 9899 0	3360 9904 0	Climb-down Trapdoor 12762					
 3440 9887 0	3423 3485 0	Pass-through Holy barrier 3443					
-3423 3485 0	3440 9887 0	Climb-down Trapdoor 3433					Needs to be opened first
-3422 3484 0	3440 9887 0	Climb-down Trapdoor 3433					Needs to be opened first
+3423 3485 0	3440 9887 0	Climb-down Trapdoor 3433					
+3422 3484 0	3440 9887 0	Climb-down Trapdoor 3433					
 3408 3489 0	3409 3489 0	Open Large door 3489					
 3409 3489 0	3408 3489 0	Open Large door 3489					
 3408 3488 0	3409 3488 0	Open Large door 3490					
@@ -4266,10 +4266,10 @@
 2911 3686 0	2909 3686 0	Climb Rocks 3748					
 2909 3687 0	2911 3687 0	Climb Rocks 3748					
 2911 3687 0	2909 3687 0	Climb Rocks 3748					
-2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
-2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
-2943 3767 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
-2942 3768 0	2950 3767 0	Climb Rocky handholds 26405					Has warning
+2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					
+2943 3769 0	2950 3767 0	Climb Rocky handholds 26405					
+2943 3767 0	2950 3767 0	Climb Rocky handholds 26405					
+2942 3768 0	2950 3767 0	Climb Rocky handholds 26405					
 							
 # Hemenster							
 2661 3500 0	2662 3500 0	Squeeze-through Loose Railing 51					
@@ -4290,10 +4290,10 @@
 2658 3439 0	2659 3437 0	Open Guild door 11665					
 2658 3437 0	2657 3439 0	Open Guild door 11665					
 2659 3438 0	2657 3439 0	Open Guild door 11665					
-2668 3429 0	2668 3429 2	Climb-up Tower ladder 11661					Has warning
-2667 3428 0	2668 3429 2	Climb-up Tower ladder 11661					Has warning
-2668 3427 0	2668 3429 2	Climb-up Tower ladder 11661					Has warning
-2669 3428 0	2668 3429 2	Climb-up Tower ladder 11661					Has warning
+2668 3429 0	2668 3429 2	Climb-up Tower ladder 11661					
+2667 3428 0	2668 3429 2	Climb-up Tower ladder 11661					
+2668 3427 0	2668 3429 2	Climb-up Tower ladder 11661					
+2669 3428 0	2668 3429 2	Climb-up Tower ladder 11661					
 2668 3429 2	2667 3429 0	Climb-down Tower ladder 11662					
 2667 3428 2	2667 3429 0	Climb-down Tower ladder 11662					
 2668 3427 2	2667 3429 0	Climb-down Tower ladder 11662					
