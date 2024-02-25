@@ -139,13 +139,13 @@ public class PathTileOverlay extends Overlay {
             if (TileStyle.LINES.equals(config.pathStyle())) {
                 for (int i = 1; i < path.size(); i++) {
                     drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
-                    drawTransports(graphics, path.get(i - 1), path.get(i));
+                    drawTransportInfo(graphics, path.get(i - 1), path.get(i));
                 }
             } else {
                 boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
                 for (int i = 0; i <  path.size(); i++) {
                     drawTile(graphics, path.get(i), color, counter++, showTiles);
-                    drawTransports(graphics, path.get(i), (i + 1 == path.size()) ? null : path.get(i + 1));
+                    drawTransportInfo(graphics, path.get(i), (i + 1 == path.size()) ? null : path.get(i + 1));
                 }
             }
         }
@@ -257,7 +257,10 @@ public class PathTileOverlay extends Overlay {
         }
     }
 
-    private void drawTransports(Graphics2D graphics, WorldPoint location, WorldPoint locationEnd) {
+    private void drawTransportInfo(Graphics2D graphics, WorldPoint location, WorldPoint locationEnd) {
+        if (!config.showTransportInfo()) {
+            return;
+        }
         for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
             for (WorldPoint pointEnd : WorldPoint.toLocalInstance(client, locationEnd))
             {
@@ -265,17 +268,14 @@ public class PathTileOverlay extends Overlay {
                     continue;
                 }
 
-                if(!WorldPointUtil.isTransport(point, pointEnd)){
-                    continue;
-                }
-
                 int vertical_offset = 0;
-                for(Transport transport : plugin.getTransports().get(point)) {
+                for (Transport transport : plugin.getTransports().getOrDefault(point, new ArrayList<>())) {
                     if (!pointEnd.equals(transport.getDestination())) {
                         continue;
                     }
-                    String text = transport.getDisplayNotes();
-                    if(text == null || text.isEmpty()){
+
+                    String text = transport.getDisplayInfo();
+                    if (text == null || text.isEmpty()) {
                         continue;
                     }
 
@@ -298,7 +298,7 @@ public class PathTileOverlay extends Overlay {
                     graphics.setColor(config.colourText());
                     graphics.drawString(text, x, y);
 
-                    vertical_offset += (int)height + TRANSPORT_LABEL_GAP;
+                    vertical_offset += (int) height + TRANSPORT_LABEL_GAP;
                 }
             }
         }
