@@ -81,9 +81,9 @@ public class Transport {
     @Getter
     private int wait;
 
-    /** Notes to display for this transport. For spirit trees, fairy rings, and others, this is the option to pick. */
+    /** Info to display for this transport. For spirit trees, fairy rings, and others, this is the destination option to pick. */
     @Getter
-    private String displayNotes;
+    private String displayInfo;
 
     Transport(final WorldPoint origin, final WorldPoint destination) {
         this.origin = origin;
@@ -139,7 +139,7 @@ public class Transport {
 
         // Destination
         if (parts.length >= 8 && !parts[7].isEmpty()) {
-            this.displayNotes = parts[7];
+            this.displayInfo = parts[7];
         }
 
         isAgilityShortcut = TransportType.AGILITY_SHORTCUT.equals(transportType);
@@ -214,7 +214,7 @@ public class Transport {
                         Transport transport = new Transport(origin, destination);
                         transport.isFairyRing = true;
                         transport.wait = 5;
-                        transport.displayNotes = fairyRingCodes.get(i);
+                        transport.displayInfo = fairyRingCodes.get(i);
                         transports.computeIfAbsent(origin, k -> new ArrayList<>()).add(transport);
                         if (!Strings.isNullOrEmpty(questName)) {
                             transport.quests = findQuests(questName);
