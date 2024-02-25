@@ -62,13 +62,9 @@ public class Node {
 
         if (previous != null) {
             previousCost = previous.cost;
-            distance = WorldPointUtil.distanceBetween(previous.packedPosition, packedPosition);
-            final int previousPlane = WorldPointUtil.unpackWorldPlane(previous.packedPosition);
-            final int currentPlane = WorldPointUtil.unpackWorldPlane(previous.packedPosition);
-            boolean isTransport = distance > 1 || previousPlane != currentPlane;
-            if (isTransport) {
-                distance = wait;
-            }
+            // Travel wait time is converted to distance as if the player is walking 1 tile/tick.
+            // TODO: reduce the distance if the player is currently running and has enough run energy for the distance?
+            distance = wait > 0 ? wait : WorldPointUtil.distanceBetween(previous.packedPosition, packedPosition);
         }
 
         return previousCost + distance;
