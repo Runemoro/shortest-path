@@ -1,28 +1,33 @@
 package shortestpath;
 
+import com.google.inject.Inject;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.geom.Area;
+import java.util.ArrayList;
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
-
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.geom.Area;
-import java.util.List;
+import shortestpath.pathfinder.CollisionMap;
 
 public class PathMapOverlay extends Overlay {
     private final Client client;
     private final ShortestPathPlugin plugin;
     private final ShortestPathConfig config;
+
     @Inject
     private WorldMapOverlay worldMapOverlay;
-    private Area mapClipArea;
 
     @Inject
     private PathMapOverlay(Client client, ShortestPathPlugin plugin, ShortestPathConfig config) {
@@ -31,7 +36,8 @@ public class PathMapOverlay extends Overlay {
         this.config = config;
         setPosition(OverlayPosition.DYNAMIC);
         setPriority(OverlayPriority.LOW);
-        setLayer(OverlayLayer.ABOVE_WIDGETS);
+        setLayer(OverlayLayer.MANUAL);
+        drawAfterLayer(ComponentID.WORLD_MAP_MAPVIEW);
     }
 
     @Override
@@ -40,20 +46,38 @@ public class PathMapOverlay extends Overlay {
             return null;
         }
 
-        if (client.getWidget(WidgetInfo.WORLD_MAP_VIEW) == null) {
+        if (client.getWidget(ComponentID.WORLD_MAP_MAPVIEW) == null) {
             return null;
         }
 
+        Area worldMapClipArea = getWorldMapClipArea(client.getWidget(ComponentID.WORLD_MAP_MAPVIEW).getBounds());
+        graphics.setClip(worldMapClipArea);
+
+        if (config.drawCollisionMap()) {
+            graphics.setColor(config.colourCollisionMap());
+            Rectangle extent = getWorldMapExtent(client.getWidget(ComponentID.WORLD_MAP_MAPVIEW).getBounds());
+            final CollisionMap map = plugin.getMap();
+            final int z = client.getPlane();
+            for (int x = extent.x; x < (extent.x + extent.width + 1); x++) {
+                for (int y = extent.y - extent.height; y < (extent.y + 1); y++) {
+                    if (map.isBlocked(x, y, z)) {
+                        drawOnMap(graphics, new WorldPoint(x, y, z), false);
+                    }
+                }
+            }
+        }
+
         if (config.drawTransports()) {
-            for (WorldPoint a : plugin.transports.keySet()) {
+            graphics.setColor(Color.WHITE);
+            for (WorldPoint a : plugin.getTransports().keySet()) {
                 Point mapA = worldMapOverlay.mapWorldPointToGraphicsPoint(a);
-                if (mapA == null) {
+                if (mapA == null || !worldMapClipArea.contains(mapA.getX(), mapA.getY())) {
                     continue;
                 }
 
-                for (WorldPoint b : plugin.transports.get(a)) {
-                    Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b);
-                    if (mapB == null) {
+                for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
+                    Point mapB = worldMapOverlay.mapWorldPointToGraphicsPoint(b.getDestination());
+                    if (mapB == null || !worldMapClipArea.contains(mapB.getX(), mapB.getY())) {
                         continue;
                     }
 
@@ -62,44 +86,59 @@ public class PathMapOverlay extends Overlay {
             }
         }
 
-        mapClipArea = getWorldMapClipArea(client.getWidget(WidgetInfo.WORLD_MAP_VIEW).getBounds());
-
-        if (plugin.path != null && !plugin.pathUpdateScheduled) {
-            for (WorldPoint point : plugin.path) {
-                drawOnMap(graphics, point, new Color(255, 0, 0, 255));
-            }
-        } else if (plugin.pathUpdateScheduled && plugin.pathfinder != null) {
-            List<WorldPoint> bestPath = plugin.pathfinder.currentBest();
-
-            if (bestPath != null) {
-                for (WorldPoint point : bestPath) {
-                    drawOnMap(graphics, point, new Color(0, 0, 255, 255));
+        if (plugin.getPathfinder() != null) {
+            Color colour = plugin.getPathfinder().isDone() ? config.colourPath() : config.colourPathCalculating();
+            List<WorldPoint> path = plugin.getPathfinder().getPath();
+            for (int i = 0; i < path.size(); i++) {
+                graphics.setColor(colour);
+                WorldPoint point = path.get(i);
+                WorldPoint last = (i > 0) ? path.get(i - 1) : point;
+                if (point.distanceTo(last) > 1) {
+                    drawOnMap(graphics, last, point, true);
                 }
+                drawOnMap(graphics, point, true);
             }
         }
 
         return null;
     }
 
-    private void drawOnMap(Graphics2D graphics, WorldPoint point, Color color) {
-        Point start = worldMapOverlay.mapWorldPointToGraphicsPoint(point);
-        Point end = worldMapOverlay.mapWorldPointToGraphicsPoint(point.dx(1).dy(-1));
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, boolean checkHover) {
+        drawOnMap(graphics, point, point.dx(1).dy(-1), checkHover);
+    }
+
+    private void drawOnMap(Graphics2D graphics, WorldPoint point, WorldPoint offset, boolean checkHover) {
+        Point start = plugin.mapWorldPointToGraphicsPoint(point);
+        Point end = plugin.mapWorldPointToGraphicsPoint(offset);
 
         if (start == null || end == null) {
             return;
         }
 
-        if (!mapClipArea.contains(start.getX(), start.getY()) || !mapClipArea.contains(end.getX(), end.getY())) {
-            return;
-        }
+        int x = start.getX();
+        int y = start.getY();
+        final int width = end.getX() - x;
+        final int height = end.getY() - y;
+        x -= width / 2;
+        y -= height / 2;
 
-        graphics.setColor(color);
-        graphics.fillRect(start.getX(), start.getY(), end.getX() - start.getX(), end.getY() - start.getY());
+        if (point.distanceTo(offset) > 1) {
+            graphics.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{9}, 0));
+            graphics.drawLine(start.getX(), start.getY(), end.getX(), end.getY());
+        } else {
+            Point cursorPos = client.getMouseCanvasPosition();
+            if (checkHover &&
+                cursorPos.getX() >= x && cursorPos.getX() <= (end.getX() - width / 2) &&
+                cursorPos.getY() >= y && cursorPos.getY() <= (end.getY() - width / 2)) {
+                graphics.setColor(graphics.getColor().darker());
+            }
+            graphics.fillRect(x, y, width, height);
+        }
     }
 
     private Area getWorldMapClipArea(Rectangle baseRectangle) {
-        final Widget overview = client.getWidget(WidgetInfo.WORLD_MAP_OVERVIEW_MAP);
-        final Widget surfaceSelector = client.getWidget(WidgetInfo.WORLD_MAP_SURFACE_SELECTOR);
+        final Widget overview = client.getWidget(ComponentID.WORLD_MAP_OVERVIEW_MAP);
+        final Widget surfaceSelector = client.getWidget(ComponentID.WORLD_MAP_SURFACE_SELECTOR);
 
         Area clipArea = new Area(baseRectangle);
 
@@ -112,5 +151,12 @@ public class PathMapOverlay extends Overlay {
         }
 
         return clipArea;
+    }
+
+    private Rectangle getWorldMapExtent(Rectangle baseRectangle) {
+        WorldPoint topLeft = plugin.calculateMapPoint(new Point(baseRectangle.x, baseRectangle.y));
+        WorldPoint bottomRight = plugin.calculateMapPoint(
+            new Point(baseRectangle.x + baseRectangle.width, baseRectangle.y + baseRectangle.height));
+        return new Rectangle(topLeft.getX(), topLeft.getY(), bottomRight.getX() - topLeft.getX(), topLeft.getY() - bottomRight.getY());
     }
 }

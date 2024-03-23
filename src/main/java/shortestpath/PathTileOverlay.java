@@ -1,7 +1,18 @@
 package shortestpath;
 
+import com.google.inject.Inject;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
+import net.runelite.api.Point;
 import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
@@ -9,14 +20,13 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
-
-import javax.inject.Inject;
-import java.awt.*;
+import shortestpath.pathfinder.CollisionMap;
 
 public class PathTileOverlay extends Overlay {
     private final Client client;
     private final ShortestPathPlugin plugin;
     private final ShortestPathConfig config;
+    private static final int TRANSPORT_LABEL_GAP = 3;
 
     @Inject
     public PathTileOverlay(Client client, ShortestPathPlugin plugin, ShortestPathConfig config) {
@@ -28,82 +38,117 @@ public class PathTileOverlay extends Overlay {
         setLayer(OverlayLayer.ABOVE_SCENE);
     }
 
-    @Override
-    public Dimension render(Graphics2D graphics) {
-        if (config.drawTransports()) {
-            for (WorldPoint a : plugin.transports.keySet()) {
-                drawTile(graphics, a, new Color(0, 255, 0, 128));
+    private void renderTransports(Graphics2D graphics) {
+        for (WorldPoint a : plugin.getTransports().keySet()) {
+            drawTile(graphics, a, config.colourTransports(), -1, true);
 
-                Point ca = tileCenter(a);
+            Point ca = tileCenter(a);
 
-                if (ca == null) {
-                    continue;
-                }
+            if (ca == null) {
+                continue;
+            }
 
-                for (WorldPoint b : plugin.transports.get(a)) {
-                    Point cb = tileCenter(b);
-
+            StringBuilder s = new StringBuilder();
+            for (Transport b : plugin.getTransports().getOrDefault(a, new ArrayList<>())) {
+                for (WorldPoint origin : WorldPoint.toLocalInstance(client, b.getOrigin())) {
+                    Point cb = tileCenter(origin);
                     if (cb != null) {
-                        graphics.drawLine(ca.x, ca.y, cb.x, cb.y);
+                        graphics.drawLine(ca.getX(), ca.getY(), cb.getX(), cb.getY());
                     }
-                }
-
-                StringBuilder s = new StringBuilder();
-                for (WorldPoint b : plugin.transports.get(a)) {
-                    if (b.getPlane() > a.getPlane()) {
+                    if (origin.getPlane() > a.getPlane()) {
                         s.append("+");
-                    } else if (b.getPlane() < a.getPlane()) {
+                    } else if (origin.getPlane() < a.getPlane()) {
                         s.append("-");
                     } else {
                         s.append("=");
                     }
                 }
-                graphics.setColor(Color.WHITE);
-                graphics.drawString(s.toString(), ca.x, ca.y);
             }
+            graphics.setColor(Color.WHITE);
+            graphics.drawString(s.toString(), ca.getX(), ca.getY());
         }
+    }
 
-        if (config.drawCollisionMap()) {
-            for (Tile[] row : client.getScene().getTiles()[client.getPlane()]) {
-                for (Tile tile : row) {
-                    if (tile == null) {
-                        continue;
-                    }
+    private void renderCollisionMap(Graphics2D graphics) {
+        CollisionMap map = plugin.getMap();
+        for (Tile[] row : client.getScene().getTiles()[client.getPlane()]) {
+            for (Tile tile : row) {
+                if (tile == null) {
+                    continue;
+                }
 
-                    Polygon tilePolygon = Perspective.getCanvasTilePoly(client, tile.getLocalLocation());
+                Polygon tilePolygon = Perspective.getCanvasTilePoly(client, tile.getLocalLocation());
 
-                    if (tilePolygon == null) {
-                        continue;
-                    }
+                if (tilePolygon == null) {
+                    continue;
+                }
 
-                    int x = tile.getWorldLocation().getX();
-                    int y = tile.getWorldLocation().getY();
-                    int z = tile.getWorldLocation().getPlane();
+                WorldPoint location = client.isInInstancedRegion() ?
+                    WorldPoint.fromLocalInstance(client, tile.getLocalLocation()) : tile.getWorldLocation();
+                int x = location.getX();
+                int y = location.getY();
+                int z = location.getPlane();
 
-                    String s = (!plugin.map.n(x, y, z) ? "n" : "") +
-                            (!plugin.map.s(x, y, z) ? "s" : "") +
-                            (!plugin.map.e(x, y, z) ? "e" : "") +
-                            (!plugin.map.w(x, y, z) ? "w" : "");
+                String s = (!map.n(x, y, z) ? "n" : "") +
+                        (!map.s(x, y, z) ? "s" : "") +
+                        (!map.e(x, y, z) ? "e" : "") +
+                        (!map.w(x, y, z) ? "w" : "");
 
-                    if (!s.isEmpty() && !s.equals("nsew")) {
-                        graphics.setColor(Color.WHITE);
-                        int stringX = (int) (tilePolygon.getBounds().getCenterX() - graphics.getFontMetrics().getStringBounds(s, graphics).getWidth() / 2);
-                        int stringY = (int) tilePolygon.getBounds().getCenterY();
-                        graphics.drawString(s, stringX, stringY);
-                    } else if (!s.isEmpty()) {
-                        graphics.setColor(new Color(0, 128, 255, 128));
-                        graphics.fill(tilePolygon);
-                    }
+                if (map.isBlocked(x, y, z)) {
+                    graphics.setColor(config.colourCollisionMap());
+                    graphics.fill(tilePolygon);
+                }
+                if (!s.isEmpty() && !s.equals("nsew")) {
+                    graphics.setColor(Color.WHITE);
+                    int stringX = (int) (tilePolygon.getBounds().getCenterX() - graphics.getFontMetrics().getStringBounds(s, graphics).getWidth() / 2);
+                    int stringY = (int) tilePolygon.getBounds().getCenterY();
+                    graphics.drawString(s, stringX, stringY);
                 }
             }
         }
+    }
 
-        if (config.drawTiles() && plugin.path != null) {
-            for (WorldPoint point : plugin.path) {
-                drawTile(graphics, point, new Color(255, 0, 0, 128));
-            }
+    @Override
+    public Dimension render(Graphics2D graphics) {
+        if (config.drawTransports()) {
+            this.renderTransports(graphics);
         }
 
+        if (config.drawCollisionMap()) {
+            this.renderCollisionMap(graphics);
+        }
+
+        if (config.drawTiles() && plugin.getPathfinder() != null && plugin.getPathfinder().getPath() != null) {
+            Color color;
+            if (plugin.getPathfinder().isDone()) {
+                color = new Color(
+                    config.colourPath().getRed(),
+                    config.colourPath().getGreen(),
+                    config.colourPath().getBlue(),
+                    config.colourPath().getAlpha() / 2);
+            } else {
+                color = new Color(
+                    config.colourPathCalculating().getRed(),
+                    config.colourPathCalculating().getGreen(),
+                    config.colourPathCalculating().getBlue(),
+                    config.colourPathCalculating().getAlpha() / 2);
+            }
+
+            List<WorldPoint> path = plugin.getPathfinder().getPath();
+            int counter = 0;
+            if (TileStyle.LINES.equals(config.pathStyle())) {
+                for (int i = 1; i < path.size(); i++) {
+                    drawLine(graphics, path.get(i - 1), path.get(i), color, 1 + counter++);
+                    drawTransportInfo(graphics, path.get(i - 1), path.get(i));
+                }
+            } else {
+                boolean showTiles = TileStyle.TILES.equals(config.pathStyle());
+                for (int i = 0; i <  path.size(); i++) {
+                    drawTile(graphics, path.get(i), color, counter++, showTiles);
+                    drawTransportInfo(graphics, path.get(i), (i + 1 == path.size()) ? null : path.get(i + 1));
+                }
+            }
+        }
 
         return null;
     }
@@ -128,22 +173,134 @@ public class PathTileOverlay extends Overlay {
         return new Point(cx, cy);
     }
 
-    private void drawTile(Graphics2D graphics, WorldPoint point, Color color) {
-        if (point.getPlane() != client.getPlane()) {
+    private void drawTile(Graphics2D graphics, WorldPoint location, Color color, int counter, boolean draw) {
+        for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
+            if (point.getPlane() != client.getPlane()) {
+                continue;
+            }
+
+            LocalPoint lp = LocalPoint.fromWorld(client, point);
+            if (lp == null) {
+                continue;
+            }
+
+            Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+            if (poly == null) {
+                continue;
+            }
+
+            if (draw) {
+                graphics.setColor(color);
+                graphics.fill(poly);
+            }
+
+            drawCounter(graphics, poly.getBounds().getCenterX(), poly.getBounds().getCenterY(), counter);
+        }
+    }
+
+    private void drawLine(Graphics2D graphics, WorldPoint startLoc, WorldPoint endLoc, Color color, int counter) {
+        WorldPoint start = WorldPoint.toLocalInstance(client, startLoc).iterator().next();
+        WorldPoint end = WorldPoint.toLocalInstance(client, endLoc).iterator().next();
+
+        final int z = client.getPlane();
+        if (start.getPlane() != z) {
             return;
         }
 
-        LocalPoint lp = LocalPoint.fromWorld(client, point);
-        if (lp == null) {
+        LocalPoint lpStart = LocalPoint.fromWorld(client, start);
+        LocalPoint lpEnd = LocalPoint.fromWorld(client, end);
+
+        if (lpStart == null || lpEnd == null) {
             return;
         }
 
-        Polygon poly = Perspective.getCanvasTilePoly(client, lp);
-        if (poly == null) {
+        final int startHeight = Perspective.getTileHeight(client, lpStart, z);
+        final int endHeight = Perspective.getTileHeight(client, lpEnd, z);
+
+        Point p1 = Perspective.localToCanvas(client, lpStart.getX(), lpStart.getY(), startHeight);
+        Point p2 = Perspective.localToCanvas(client, lpEnd.getX(), lpEnd.getY(), endHeight);
+
+        if (p1 == null || p2 == null) {
             return;
         }
+
+        Line2D.Double line = new Line2D.Double(p1.getX(), p1.getY(), p2.getX(), p2.getY());
 
         graphics.setColor(color);
-        graphics.fill(poly);
+        graphics.setStroke(new BasicStroke(4));
+        graphics.draw(line);
+
+        if (counter == 1) {
+            drawCounter(graphics, p1.getX(), p1.getY(), 0);
+        }
+        drawCounter(graphics, p2.getX(), p2.getY(), counter);
+    }
+
+    private void drawCounter(Graphics2D graphics, double x, double y, int counter) {
+        if (counter >= 0 && !TileCounter.DISABLED.equals(config.showTileCounter())) {
+            int n = config.tileCounterStep() > 0 ? config.tileCounterStep() : 1;
+            int s = plugin.getPathfinder().getPath().size();
+            if ((counter % n != 0) && (s != (counter + 1))) {
+                return;
+            }
+            if (TileCounter.REMAINING.equals(config.showTileCounter())) {
+                counter = s - counter - 1;
+            }
+            if (n > 1 && counter == 0) {
+                return;
+            }
+            String counterText = Integer.toString(counter);
+            graphics.setColor(config.colourText());
+            graphics.drawString(
+                counterText,
+                (int) (x - graphics.getFontMetrics().getStringBounds(counterText, graphics).getWidth() / 2), (int) y);
+        }
+    }
+
+    private void drawTransportInfo(Graphics2D graphics, WorldPoint location, WorldPoint locationEnd) {
+        if (!config.showTransportInfo()) {
+            return;
+        }
+        for (WorldPoint point : WorldPoint.toLocalInstance(client, location)) {
+            for (WorldPoint pointEnd : WorldPoint.toLocalInstance(client, locationEnd))
+            {
+                if (point.getPlane() != client.getPlane()) {
+                    continue;
+                }
+
+                int vertical_offset = 0;
+                for (Transport transport : plugin.getTransports().getOrDefault(point, new ArrayList<>())) {
+                    if (!pointEnd.equals(transport.getDestination())) {
+                        continue;
+                    }
+
+                    String text = transport.getDisplayInfo();
+                    if (text == null || text.isEmpty()) {
+                        continue;
+                    }
+
+                    LocalPoint lp = LocalPoint.fromWorld(client, point);
+                    if (lp == null) {
+                        continue;
+                    }
+
+                    Point p = Perspective.localToCanvas(client, lp, client.getPlane());
+                    if (p == null) {
+                        continue;
+                    }
+
+                    Rectangle2D textBounds = graphics.getFontMetrics().getStringBounds(text, graphics);
+                    double height = textBounds.getHeight();
+                    int x = (int) (p.getX() - textBounds.getWidth() / 2);
+                    int y = (int) (p.getY() - height) - (vertical_offset);
+                    graphics.setColor(Color.BLACK);
+                    graphics.drawString(text, x + 1, y + 1);
+                    graphics.setColor(config.colourText());
+                    graphics.drawString(text, x, y);
+
+                    vertical_offset += (int) height + TRANSPORT_LABEL_GAP;
+                }
+            }
+        }
     }
 }

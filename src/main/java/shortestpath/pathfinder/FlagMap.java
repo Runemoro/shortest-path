@@ -1,55 +1,39 @@
 package shortestpath.pathfinder;
 
-import java.nio.ByteBuffer;
 import java.util.BitSet;
+import java.util.Locale;
+import lombok.Getter;
+import static net.runelite.api.Constants.REGION_SIZE;
 
 public class FlagMap {
-    public static final int PLANE_COUNT = 4;
-    protected final BitSet flags;
-    public final int minX;
-    public final int minY;
-    public final int maxX;
-    public final int maxY;
-    private final int width;
-    private final int height;
-    private final int flagCount;
+    private static final byte FLAG_COUNT = 2;
+    private final BitSet flags;
+    @Getter
+    private final byte planeCount;
+    private final int minX;
+    private final int minY;
 
-    public FlagMap(int minX, int minY, int maxX, int maxY, int flagCount) {
+    public FlagMap(int minX, int minY, byte planeCount) {
         this.minX = minX;
         this.minY = minY;
-        this.maxX = maxX;
-        this.maxY = maxY;
-        this.flagCount = flagCount;
-        width = (maxX - minX + 1);
-        height = (maxY - minY + 1);
-        flags = new BitSet(width * height * PLANE_COUNT * flagCount);
+        this.planeCount = planeCount;
+        flags = new BitSet(REGION_SIZE * REGION_SIZE * planeCount * FLAG_COUNT);
     }
 
-    public FlagMap(byte[] bytes, int flagCount) {
-        ByteBuffer buffer = ByteBuffer.wrap(bytes);
-        minX = buffer.getInt();
-        minY = buffer.getInt();
-        maxX = buffer.getInt();
-        maxY = buffer.getInt();
-        this.flagCount = flagCount;
-        width = (maxX - minX + 1);
-        height = (maxY - minY + 1);
-        flags = BitSet.valueOf(buffer);
+    public FlagMap(int minX, int minY, byte[] bytes) {
+        this.minX = minX;
+        this.minY = minY;
+        flags = BitSet.valueOf(bytes);
+        int scale = REGION_SIZE * REGION_SIZE * FLAG_COUNT;
+        this.planeCount = (byte) ((flags.size() + scale - 1) / scale);
     }
 
     public byte[] toBytes() {
-        byte[] bytes = new byte[16 + flags.size()];
-        ByteBuffer buffer = ByteBuffer.wrap(bytes);
-        buffer.putInt(minX);
-        buffer.putInt(minY);
-        buffer.putInt(maxX);
-        buffer.putInt(maxY);
-        buffer.put(flags.toByteArray());
-        return bytes;
+        return flags.toByteArray();
     }
 
     public boolean get(int x, int y, int z, int flag) {
-        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z > PLANE_COUNT - 1) {
+        if (x < minX || x >= (minX + REGION_SIZE) || y < minY || y >= (minY + REGION_SIZE) || z < 0 || z >= planeCount) {
             return false;
         }
 
@@ -61,10 +45,16 @@ public class FlagMap {
     }
 
     private int index(int x, int y, int z, int flag) {
-        if (x < minX || x > maxX || y < minY || y > maxY || z < 0 || z > PLANE_COUNT - 1 || flag < 0 || flag > flagCount - 1) {
-            throw new IndexOutOfBoundsException(x + " " + y + " " + z);
+        if (x < minX || x >= (minX + REGION_SIZE) || y < minY || y >= (minY + REGION_SIZE) || z < 0 || z >= planeCount || flag < 0 || flag >= FLAG_COUNT) {
+            throw new IndexOutOfBoundsException(
+                String.format(Locale.ENGLISH, "[%d,%d,%d,%d] when extents are [>=%d,>=%d,>=%d,>=%d] - [<=%d,<=%d,<%d,<%d]",
+                        x, y, z, flag,
+                        minX, minY, 0, 0,
+                        minX + REGION_SIZE - 1, minY + REGION_SIZE - 1, planeCount, FLAG_COUNT
+                )
+            );
         }
 
-        return (z * width * height + (y - minY) * width + (x - minX)) * flagCount + flag;
+        return (z * REGION_SIZE * REGION_SIZE + (y - minY) * REGION_SIZE + (x - minX)) * FLAG_COUNT + flag;
     }
 }

@@ -1,80 +1,111 @@
 package shortestpath.pathfinder;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.Weigher;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import shortestpath.ShortestPathPlugin;
 import shortestpath.Util;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.zip.GZIPInputStream;
+import static net.runelite.api.Constants.REGION_SIZE;
 
-public abstract class SplitFlagMap {
-    private static final int MAXIMUM_SIZE = 20 * 1024 * 1024;
-    private final int regionSize;
-    private final LoadingCache<Position, FlagMap> regionMaps;
-    private final int flagCount;
+public class SplitFlagMap {
+    @Getter
+    private static RegionExtent regionExtents;
 
-    public SplitFlagMap(int regionSize, Map<Position, byte[]> compressedRegions, int flagCount) {
-        this.regionSize = regionSize;
-        this.flagCount = flagCount;
-        regionMaps = CacheBuilder
-                .newBuilder()
-                .weigher((Weigher<Position, FlagMap>) (k, v) -> v.flags.size() / 8)
-                .maximumWeight(MAXIMUM_SIZE)
-                .build(CacheLoader.from(position -> {
-                    byte[] compressedRegion = compressedRegions.get(position);
+    @Getter
+    private final byte[] regionMapPlaneCounts;
+    // Size is automatically chosen based on the max extents of the collision data
+    private final FlagMap[] regionMaps;
+    private final int widthInclusive;
 
-                    if (compressedRegion == null) {
-                        return new FlagMap(position.x * regionSize, position.y * regionSize, (position.x + 1) * regionSize - 1, (position.y + 1) * regionSize - 1, this.flagCount);
-                    }
+    public SplitFlagMap(Map<Integer, byte[]> compressedRegions) {
+        widthInclusive = regionExtents.getWidth() + 1;
+        final int heightInclusive = regionExtents.getHeight() + 1;
+        regionMaps = new FlagMap[widthInclusive * heightInclusive];
+        regionMapPlaneCounts = new byte[regionMaps.length];
 
-                    try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(compressedRegion))) {
-                        return new FlagMap(Util.readAllBytes(in), this.flagCount);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                }));
+        for (Map.Entry<Integer, byte[]> entry : compressedRegions.entrySet()) {
+            final int pos = entry.getKey();
+            final int x = unpackX(pos);
+            final int y = unpackY(pos);
+            final int index = getIndex(x, y);
+            FlagMap flagMap = new FlagMap(x * REGION_SIZE, y * REGION_SIZE, entry.getValue());
+            regionMaps[index] = flagMap;
+            regionMapPlaneCounts[index] = flagMap.getPlaneCount();
+        }
     }
 
     public boolean get(int x, int y, int z, int flag) {
-        try {
-            return regionMaps.get(new Position(x / regionSize, y / regionSize)).get(x, y, z, flag);
-        } catch (ExecutionException e) {
-            throw new UncheckedExecutionException(e);
+        final int index = getIndex(x / REGION_SIZE, y / REGION_SIZE);
+        if (index < 0 || index >= regionMaps.length || regionMaps[index] == null) {
+            return false;
         }
+
+        return regionMaps[index].get(x, y, z, flag);
     }
 
-    public static class Position {
-        public final int x;
-        public final int y;
+    private int getIndex(int regionX, int regionY) {
+        return (regionX - regionExtents.getMinX()) + (regionY - regionExtents.getMinY()) * widthInclusive;
+    }
 
-        public Position(int x, int y) {
-            this.x = x;
-            this.y = y;
+    public static int unpackX(int position) {
+        return position & 0xFFFF;
+    }
+
+    public static int unpackY(int position) {
+        return (position >> 16) & 0xFFFF;
+    }
+
+    public static int packPosition(int x, int y) {
+        return (x & 0xFFFF) | ((y & 0xFFFF) << 16);
+    }
+
+    public static SplitFlagMap fromResources() {
+        Map<Integer, byte[]> compressedRegions = new HashMap<>();
+        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
+            int minX = Integer.MAX_VALUE;
+            int minY = Integer.MAX_VALUE;
+            int maxX = 0;
+            int maxY = 0;
+
+            ZipEntry entry;
+            while ((entry = in.getNextEntry()) != null) {
+                String[] n = entry.getName().split("_");
+                final int x = Integer.parseInt(n[0]);
+                final int y = Integer.parseInt(n[1]);
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+
+                compressedRegions.put(SplitFlagMap.packPosition(x, y), Util.readAllBytes(in));
+            }
+
+            regionExtents = new RegionExtent(minX, minY, maxX, maxY);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
 
-        @Override
-        public boolean equals(Object o) {
-            return o instanceof Position &&
-                    ((Position) o).x == x &&
-                    ((Position) o).y == y;
+        return new SplitFlagMap(compressedRegions);
+    }
+
+    @RequiredArgsConstructor
+    @Getter
+    public static class RegionExtent {
+        public final int minX, minY, maxX, maxY;
+
+        public int getWidth() {
+            return maxX - minX;
         }
 
-        @Override
-        public int hashCode() {
-            return x * 31 + y;
-        }
-
-        @Override
-        public String toString() {
-            return "(" + x + ", " + y + ")";
+        public int getHeight() {
+            return maxY - minY;
         }
     }
 }
