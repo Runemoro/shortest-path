@@ -13,14 +13,16 @@ public class Pathfinder {
     private final Set<WorldPoint> visited = new HashSet<>();
     private final Map<WorldPoint, List<WorldPoint>> transports;
     private final boolean avoidWilderness;
+    private final boolean avoidSailingHazards;
     private Node nearest;
 
-    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness) {
+    public Pathfinder(CollisionMap map, Map<WorldPoint, List<WorldPoint>> transports, WorldPoint start, WorldPoint target, boolean avoidWilderness, boolean avoidSailingHazards) {
         this.map = map;
         this.transports = transports;
         this.target = target;
         this.start = new Node(start, null);
         this.avoidWilderness = avoidWilderness;
+        this.avoidSailingHazards = avoidSailingHazards;
         nearest = null;
     }
 
@@ -96,6 +98,10 @@ public class Pathfinder {
 
     private void addNeighbor(Node node, WorldPoint neighbor) {
         if (avoidWilderness && ShortestPathPlugin.isInWilderness(neighbor)) {
+            return;
+        }
+
+        if (avoidSailingHazards && ShortestPathPlugin.isInSailingHazard(neighbor)) {
             return;
         }
 

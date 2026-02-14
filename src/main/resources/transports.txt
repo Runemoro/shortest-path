@@ -1176,6 +1176,24 @@
 3018 3231 0 2962 9650 0 Climb-down Manhole 10321
 2962 9650 0 3018 3233 0 Climb-up Ladder 10309
 
+# The Pandemonium
+3027 3217 0 3065 3002 0 Travel Captain Tobias 14978
+3028 3217 0 3065 3002 0 Travel Captain Tobias 14978
+3029 3217 0 3065 3002 0 Travel Captain Tobias 14978
+3027 3218 0 3065 3002 0 Travel Captain Tobias 14978
+3028 3218 0 3065 3002 0 Travel Captain Tobias 14978
+3029 3218 0 3065 3002 0 Travel Captain Tobias 14978
+3065 3002 0 3029 3217 0 Travel Captain Tobias 14978
+2949 3151 0 3065 3002 0 Travel Customs officer 14984
+2950 3151 0 3065 3002 0 Travel Customs officer 14984
+2951 3151 0 3065 3002 0 Travel Customs officer 14984
+2949 3152 0 3065 3002 0 Travel Customs officer 14984
+2950 3152 0 3065 3002 0 Travel Customs officer 14984
+2951 3152 0 3065 3002 0 Travel Customs officer 14984
+3065 3002 0 2950 3151 0 Travel Customs officer 14984
+3046 2996 0 3046 9396 0 Enter Cave entrance 58092
+3046 9396 0 3046 2996 0 Exit Cave exit 58092
+
 # Wizard Tower
 3105 3162 0 3104 9576 0 Climb-down Ladder 2147
 3104 9576 0 3105 3162 0 Climb-up Ladder 2148
@@ -3884,3 +3902,173 @@
 # Karamja
 2910 3049 0 2906 3049 0 Cross A wooden log 23644
 2906 3049 0 2910 3049 0 Cross A wooden log 23644
+
+# Sailing
+# The Pandemonium
+3070 2987 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 3070 2987 0 Board Gangplank 59832
+# Land's End
+1507 3403 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1507 3403 0 Board Gangplank 59832
+# Hosidius
+1726 3452 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1726 3452 0 Board Gangplank 59832
+# Musa Point
+2961 3146 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2961 3146 0 Board Gangplank 59832
+# Port Piscarilius
+1845 3687 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1845 3687 0 Board Gangplank 59832
+# Rimmington
+2906 3225 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2906 3225 0 Board Gangplank 59832
+# Catherby
+2796 3412 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2796 3412 0 Board Gangplank 59832
+# Brimhaven
+2758 3230 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2758 3230 0 Board Gangplank 59832
+# Ardougne
+2671 3265 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2671 3265 0 Board Gangplank 59832
+# Port Khazard
+2686 3162 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2686 3162 0 Board Gangplank 59832
+# Witchaven
+2747 3305 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2747 3305 0 Board Gangplank 59832
+# Entrana
+2879 3336 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2879 3336 0 Board Gangplank 59832
+# Civitas illa Fortis
+1775 3142 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1775 3142 0 Board Gangplank 59832
+# Corsair Cove
+2580 2844 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2580 2844 0 Board Gangplank 59832
+# Dognose Island
+3061 2631 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 3061 2631 0 Board Gangplank 59832
+# Cairn Isle
+2750 2952 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2750 2952 0 Board Gangplank 59832
+# Chinchompa Island
+1893 3429 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1893 3429 0 Board Gangplank 59832
+# Sunset Coast
+1512 2974 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1512 2974 0 Board Gangplank 59832
+# Remote Island
+2972 2602 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2972 2602 0 Board Gangplank 59832
+# The Summer Shore
+3174 2367 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 3174 2367 0 Board Gangplank 59832
+# The Little Pearl
+3354 2216 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 3354 2216 0 Board Gangplank 59832
+# Aldarin
+1452 2970 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1452 2970 0 Board Gangplank 59832
+# Vatrachos Island
+1872 2984 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1872 2984 0 Board Gangplank 59832
+# The Onyx Crest
+2997 2288 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2997 2288 0 Board Gangplank 59832
+# Ruins of Unkah
+3144 2825 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 3144 2825 0 Board Gangplank 59832
+# Shimmering Atoll
+1557 2770 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1557 2770 0 Board Gangplank 59832
+# Void Knights' Outpost
+2651 2678 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2651 2678 0 Board Gangplank 59832
+# Port Roberts
+1861 3307 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1861 3307 0 Board Gangplank 59832
+# Anglers' Retreat
+2466 2720 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2466 2720 0 Board Gangplank 59832
+# Minotaurs' Rest
+1958 3116 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1958 3116 0 Board Gangplank 59832
+# Isle of Souls
+2283 2822 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2283 2822 0 Board Gangplank 59832
+# Isle of Bones
+2533 2530 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2533 2530 0 Board Gangplank 59832
+# Laguna Aurorae
+1202 2732 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1202 2732 0 Board Gangplank 59832
+# Charred Island
+2660 2394 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2660 2394 0 Board Gangplank 59832
+# Tear of the Soul
+2318 2773 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2318 2773 0 Board Gangplank 59832
+# Rellekka
+2630 3705 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2630 3705 0 Board Gangplank 59832
+# Wintumber Island
+2057 2605 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2057 2605 0 Board Gangplank 59832
+# The Crown Jewel
+1765 2658 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1765 2658 0 Board Gangplank 59832
+# Etceteria
+2613 3840 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2613 3840 0 Board Gangplank 59832
+# Port Tyras
+2144 3120 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2144 3120 0 Board Gangplank 59832
+# Lledrith Island
+2097 3187 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2097 3187 0 Board Gangplank 59832
+# Deepfin Point
+1923 2758 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1923 2758 0 Board Gangplank 59832
+# Jatizso
+2412 3780 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2412 3780 0 Board Gangplank 59832
+# Neitiznot
+2309 3782 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2309 3782 0 Board Gangplank 59832
+# Rainbow's End
+2345 2269 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2345 2269 0 Board Gangplank 59832
+# Prifddinas
+2158 3324 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2158 3324 0 Board Gangplank 59832
+# Sunbleak Island
+2189 2326 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2189 2326 0 Board Gangplank 59832
+# Ynysdail
+2222 3464 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2222 3464 0 Board Gangplank 59832
+# Waterbirth Island
+2543 3765 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2543 3765 0 Board Gangplank 59832
+# Piscatoris
+2304 3689 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2304 3689 0 Board Gangplank 59832
+# Lunar Isle
+2152 3881 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2152 3881 0 Board Gangplank 59832
+# Buccaneers' Haven
+2080 3690 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2080 3690 0 Board Gangplank 59832
+# Drumstick Isle
+2150 3529 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2150 3529 0 Board Gangplank 59832
+# Weiss
+2861 3971 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2861 3971 0 Board Gangplank 59832
+# Brittle Isle
+1954 4055 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 1954 4055 0 Board Gangplank 59832
+# Grimstone
+2928 4055 0 3051 3193 0 Board Gangplank 59832
+3051 3193 0 2928 4055 0 Board Gangplank 59832
