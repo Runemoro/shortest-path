@@ -41,6 +41,17 @@ import java.util.zip.ZipInputStream;
 public class ShortestPathPlugin extends Plugin {
     private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
     private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
+    private static final WorldArea[] SAILING_HAZARDS = {
+        new WorldArea(2750, 2820, 320, 200, 0), // Stormy Seas (Storm Tempor / south Kharazi)
+        new WorldArea(2080, 2700, 480, 400, 0), // Fetid Waters (Breakbone/Backwater/Mythic/Souls)
+        new WorldArea(1700, 2800, 300, 200, 0), // Fetid Waters (Zul-Egil area)
+        new WorldArea(2100, 2100, 400, 250, 0), // Tangled Kelp (Rainbow Reef / Southern Expanse)
+        new WorldArea(1750, 3750, 1250, 350, 0), // Icy Seas (Northern Ocean)
+        new WorldArea(1750, 4050, 700, 250, 0), // Eternal Cold (Forgotten Ocean)
+        new WorldArea(2700, 4050, 350, 250, 0), // Eternal Cold (Grimstone area)
+        new WorldArea(3100, 2100, 500, 700, 0), // Cursed Seas (Eastern Ocean)
+        new WorldArea(3100, 2800, 400, 300, 0), // Scalding Seas (Untamed Ocean)
+    };
     @Inject
     public Client client;
     @Inject
@@ -117,7 +128,7 @@ public class ShortestPathPlugin extends Plugin {
                     if (target == null) {
                         path = null;
                     } else {
-                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target));
+                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target), config.avoidSailingHazards() && !isInSailingHazard(target));
                         path = pathfinder.find();
                         pathUpdateScheduled = false;
                     }
@@ -144,6 +155,15 @@ public class ShortestPathPlugin extends Plugin {
     public static boolean isInWilderness(WorldPoint p) {
         return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
                 WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
+    }
+
+    public static boolean isInSailingHazard(WorldPoint p) {
+        for (WorldArea hazard : SAILING_HAZARDS) {
+            if (hazard.distanceTo(p) == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Subscribe

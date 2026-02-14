@@ -53,4 +53,9 @@ public interface ShortestPathConfig extends Config {
     default boolean avoidWilderness() {
         return true;
     }
+
+    @ConfigItem(keyName = "avoidSailingHazards", name = "Avoid sailing hazards", description = "Whether sailing hazard zones should be avoided if possible")
+    default boolean avoidSailingHazards() {
+        return true;
+    }
 }
