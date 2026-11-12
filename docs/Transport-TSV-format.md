@@ -1,0 +1,190 @@
+# Transport TSV format
+
+This document describes the canonical column set and allowed values used across all files in `src/main/resources/transports/` (loaded by `ResourceLoader.transports()`). It reflects the actual parser behavior in `shortestpath.transport.parser`.
+
+All transport TSV files share the same structure: rows are tab-separated fields, comment lines start with `#`, and many columns are optional depending on the transport type. The focus below is on columns and permitted value formats rather than file-specific variants.
+
+## Quick rules
+
+- Header: the first line is the header and may either be a commented header starting with `#` (optionally followed by a single space) or a bare header line (no `#`). Both forms are supported; the header defines tab-separated column names. Unknown columns are ignored by the pathfinding parser.
+- Header-driven mapping: column order does not matter — the parser maps fields by the header text.
+- Rows: split on tabs; ignore lines beginning with `#` (other than a commented header) and blank lines.
+- Coordinate fields (Origin/Destination) are three integers separated by single spaces: `x y plane` (example: `3221 3218 0`).
+- Empty cells are preserved. For permutation-style transports (e.g., fairy rings), leave Origin or Destination empty to signal “permutation” ([details below](#permutation-generation)).
+- If a transport is a two-way connection, add two separate rows (one for each direction); the parser does not auto-generate reversals.
+- Optional columns may be empty; keep column positions consistent within a file.
+
+## Canonical columns recognized by the parser
+
+- [Origin](#origin)
+- [Destination](#destination)
+- [menuOption menuTarget objectID](#menuoption-menutarget-objectid)
+- [Skills](#skills)
+- [Items](#items)
+- [Quests](#quests)
+- [Duration](#duration)
+- [Display info](#display-info)
+- [Consumable](#consumable-flag)
+- [Wilderness level](#wilderness-level)
+- [Varbits](#varbits)
+- [VarPlayers](#varplayers)
+
+Other columns (for example, `menuOption menuTarget objectID`) may appear and are used by other layers (e.g., UI/interaction) but are ignored by the pathfinding parser.
+
+### Origin
+
+- Format: `x y plane` (three integers) or empty
+- Meaning: starting tile for object-based transports.
+- Special: an empty Origin marks a permutation row that pairs with every row that has an Origin and an empty Destination (see [Permutation generation](#permutation-generation)).
+- Example: `3097 3107 0`
+
+### Destination
+
+- Format: `x y plane` (three integers) or empty
+- Meaning: target tile of the transport/teleport.
+- Special: an empty Destination marks a permutation row that pairs with every row that has a Destination and an empty Origin. (see [Permutation generation](#permutation-generation)).
+- Example: `3221 3218 0`
+
+### menuOption menuTarget objectID
+
+- Format: The in-game text displayed in the context menu. The ID is the object ID as given as either a gameobject ID, Wall ID, or Ground object ID (e.g., `Open Door 9398` or `Travel Spirit-tree 8355`).
+
+### Skills
+
+- Format: one or more `LEVEL SkillName` tokens separated by `;`.
+  - single: `25 Magic`
+  - multiple: `75 Construction;83 Farming`
+- `Max` resolves the current maximum, for example `Max Quest` or `Max Music`.
+  `Music` counts released, visible, non-holiday tracks required for the music cape.
+- Notes (parser constraints):
+  - Use exactly one space between the level and the skill name (e.g., `83 Farming`).
+  - Skill names must match the client’s enum names exactly (case/spacing), e.g., `Magic`, `Construction`.
+
+### Items
+
+- Format: expressions describing required items. Supported patterns:
+  - OR group (any of): `ID=qty||ID2=qty` (or single `|`) — example: `3853=1||3855=1`.
+  - AND group (all required): `NAME=qty&&NAME2=qty` (or single `&`) — example (runes): `AIR_RUNE=3&&FIRE_RUNE=1&&LAW_RUNE=1`.
+  - Single token: `8013=1` or `EQUIPMENT_NAME=1`.
+  - There are two ways of selecting items:
+    - by numeric item ID (e.g., `3853=1` for Games necklace)
+    - by named constant recognized by the client (e.g., `LAW_RUNE=1`). These names are defined in `item-variations.tsv` — the sole name registry, resolved by Java code via `ItemVariations.fromName(...)` — and are used to combine multiple items with the same properties (e.g., runes that count as the same type, swords with slash, crossbows).
+- Parsing specifics:
+  - Spaces are removed and the whole token string is uppercased before parsing (item names are effectively case-insensitive).
+  - `&&` and `||` are normalized to `&` and `|` respectively; both forms are accepted.
+  - Within an OR group, if quantities differ across alternatives, the parser uses the maximum quantity of the group. Prefer keeping quantities consistent within an OR group.
+  - Left side of `=` can be a numeric item id or a named constant recognized by the client (e.g., `LAW_RUNE`).
+  - Equipment/slot tokens: some rows use named slot tokens (for example `HEADSLOT`, `CAPESLOT`, `CAPESLOT`) found in `ItemVariations` to check equipment slots rather than inventory items. These appear as `HEADSLOT=0` to require an empty head slot, and can be combined with `&` to require multiple slot states (e.g., `HEADSLOT=0&CAPESLOT=0`).
+  - Unlock tokens: `UNLOCK_<NAME>=1` references an account privilege, resolved against the `Unlock` enum rather than `ItemVariations`. An unlock branch never contributes items and is satisfied by detected account state (for example `UNLOCK_KARAMJA_ELITE=1`) or the matching config toggle for player-declared unlocks.
+    - In an OR group the unlock is a relief alternative, e.g. `AXE=1|UNLOCK_CANOE_AXE=1` accepts a carried axe or an axe stored at a canoe station.
+    - As an ANDed requirement it is a gate, e.g. `13393=1&UNLOCK_XERICS_HONOUR=1` requires carrying Xeric's talisman *and* having earned Xeric's Honour; the gate applies even when item evaluation is skipped (teleportation-item modes).
+    - Names are case-insensitive (the cell is uppercased before parsing), but unlike unknown item names, an unknown `UNLOCK_*` name is a loud parse error that fails the row — it never silently drops the requirement. `=0` quantities are malformed: unlock tokens must be written `=1`.
+    - Current names: `UNLOCK_CANOE_AXE` (axe stored at a canoe station), `UNLOCK_DRAGONTOOTH` (Dragontooth Island free passage), `UNLOCK_XERICS_HONOUR` (Xeric's Honour), `UNLOCK_KARAMJA_ELITE` (free hardwood grove entry from Karamja elite diary completion), `UNLOCK_MOR_UL_REK` (permanent inner-city access after showing a fire cape), `UNLOCK_BALLOON_LOG_BASKET` (logs stored in the shared balloon-station basket — relief for the destination log, e.g. `1511=1|UNLOCK_BALLOON_LOG_BASKET=1`, not a standalone gate).
+- `teleportation_items.tsv` only: every numeric item id feeds `teleport_restrictions.tsv`, the generated family map behind the config panel's restriction checklist. After adding or removing an id, run `python3 scripts/generate_teleport_restrictions.py` and commit the regenerated file — `TransportDataLintTest` fails the build when the two drift apart.
+
+### Quests
+
+- Format: one or more quest names separated by `;` (e.g., `Plague City;Song of the Elves`).
+- Notes: quest names must match the client’s `Quest` enum names exactly. Avoid leading/trailing spaces around names.
+
+You can find the quest names in RuneLite’s `Quest` enum in [Quest.java](https://github.com/runelite/runelite/blob/master/runelite-api/src/main/java/net/runelite/api/Quest.java) on the RuneLite GitHub repo.
+
+### Duration
+
+- Format: integer (commonly small: `1`, `4`, `23`, `5`).
+- Meaning: UI/animation duration or travel time in game ticks (treated as an opaque integer by the pathfinder).
+- Special: teleports are forced to have a minimum duration of `1` even if left `0` or empty, so their cost isn’t computed by walking distance.
+
+### Display info
+
+- Format: free text label used by the UI (e.g., `Varrock Teleport`, `Burthorpe Games Room Minigame Teleport`, `ZANARIS`).
+- Meaning: human-readable description or selection label.
+
+Notes: display labels sometimes include an index or letter prefix used by in-game menus (for example `1: Emir's Arena` or `A: Warriors' Guild`). These prefixes are the shortcut keys used in the in-game teleport menu and may not be shown as actual UI text.
+
+### Consumable (flag)
+
+- Format: `T` or `F` (empty is treated as `F`).
+- Meaning: indicates whether using the transport consumes an item/charge.
+- Notes: rows must be written `T` or `F` — `check_tsv.py` rejects anything else. The parser additionally tolerates `yes` (case-insensitive) as true, but that is a parser leniency, not an authoring option.
+
+### Wilderness level
+
+- Format: integer (often `0` or `20`).
+- Meaning: wilderness restriction or indicator. Kept as an integer; semantics are enforced at runtime.
+
+### Varbits
+
+- Format: semicolon-separated varbit expressions. Examples:
+  - equality: `4070=0`
+  - greater-than: `10032>0`
+  - bitmask: `4560&2`
+  - with at-sign: `892@30`. This varbit represents a real-time countdown in minutes (wall-clock minutes, not in-game minutes) (e.g., the Lumbridge Home Teleport timer).
+- Meaning: conditions read from client state. Each clause is parsed against supported operators and must be of the form `ID<op>VALUE` with numeric `ID` and `VALUE`.
+
+### VarPlayers
+
+- Format: semicolon-separated expressions (same operators as [Varbits](#varbits)), e.g., `888@20;4560&2`.
+- Meaning: additional player/state conditions. Each clause must be `ID<op>VALUE` with numeric `ID` and `VALUE`.
+
+Notes: VarPlayers are used across many transport files (not just spells) — for example in quetzals, minigames, and teleportation files — to encode additional player-specific state conditions.
+
+## Permutation generation
+
+Instead of needing to list every possible origin-destination pair for certain transport types (e.g., fairy rings, spirit trees, teleportation spells), the parser supports a permutation-style format using empty Origin or Destination fields.
+
+Use rows with a concrete `Origin` and empty `Destination` to declare “all of the following destinations are reachable from this origin” (e.g., the spirit trees or fairy rings).
+
+```csv
+# Origin	Destination	menuOption menuTarget objectID	Skills	Quests	Varbits	Duration	Display info
+2412 4434 0		Configure Fairy ring 29560				5
+2996 3114 0		Configure Fairy ring 29495				5
+	2571 2956 0					5	A K S
+	2503 3636 0					5	A L P
+	3597 3495 0					5	A L Q
+```
+
+Use rows with empty `Origin` and a concrete `Destination` to declare that “this transport can be used from any origin” (e.g., teleportation spells).
+
+```csv
+# Destination	Items	Skills	Quests	Duration	Display info	Wilderness level	Varbits	VarPlayers
+3221 3218 0				23	Lumbridge Home Teleport	20	4070=0	4560=0;892@30
+```
+
+The parser pairs every such origin row with every destination row in the same file type to produce edges, skipping pairs whose origin and destination are equal or closer than a small per-type radius threshold. Current thresholds (tiles) by type: Fairy rings: 6; Gnome gliders: 6; Hot air balloons: 7; Magic mushtrees: 5; Quetzals: 5; Spirit trees: 5; others default to 0.
+
+## Seasonal transports (Demonic Pacts League)
+
+`seasonal_transports.tsv` is parsed by the same TSV parser as every other
+transport file, but its rows are only honoured on seasonal worlds (see
+`shortestpath.leagues.LeagueModeState`).
+
+- **Numeric IDs are inlined.** Item / varbit IDs come from the OSRS cache
+  (the `leagueIdProbe` Gradle task in `shortest-path-tooling` prints them)
+  and are written directly into the TSV. There is intentionally no
+  placeholder layer: a fresh checkout should be parseable with no extra
+  resolution step. Only IDs verified against the live cache are included;
+  unverified IDs (e.g. the relic varbit) are left out rather than guessed.
+- **Region gating belongs in code, not in the TSV.** Origin and destination
+  coordinates are mapped to a `LeagueRegion` at runtime via
+  `shortestpath.leagues.LeagueRegionChecker`; the file should only carry
+  per-row varbit / item conditions that are independent of which region
+  the player has unlocked.
+- **Section headers are stable contracts.** The empty `# Evil Eye`,
+  `# Map of Alacrity`, `# Clue Contract`, `# Fairy Mushroom` headers at
+  the bottom of `seasonal_transports.tsv` exist so a parallel branch can
+  paste rows under them without merge conflicts on the surrounding
+  banker's-briefcase data.
+- **Region map.** The runtime `regionId -> LeagueRegion` table lives at
+  `src/main/resources/leagues/regions.tsv`. It is auto-generated by the
+  `leagueRegionDump` Gradle task in `shortest-path-tooling`, sourced
+  from `shortest-path-tooling/src/test/resources/leagues_regions.tsv`
+  (curated bounding boxes per league region).
+
+## Maintenance notes
+
+- Keep header column names exactly as listed; casing and spacing matter.
+- Header names should match the parser's expected text (casing and spacing matter). Leading `#` on the header is optional and column order does not matter because the parser maps by header text.
+- When adding new rows, keep fields in the canonical order above even if many are left empty.
+- Use `||`/`|` for item alternatives and `&&`/`&` for item/rune conjunctions; both are supported by the parser.
+- Preserve varbit and varplayer token syntax; runtime code interprets operators and values.

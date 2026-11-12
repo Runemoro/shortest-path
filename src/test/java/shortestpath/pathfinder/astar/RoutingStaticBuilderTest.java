@@ -1,0 +1,590 @@
+package shortestpath.pathfinder.astar;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.junit.Test;
+import shortestpath.WorldPointUtil;
+import shortestpath.pathfinder.SplitFlagMap;
+import shortestpath.pathfinder.TransportAvailability;
+import shortestpath.pathfinder.TransportAvailabilityFixture;
+import shortestpath.transport.Transport;
+import shortestpath.transport.TransportType;
+
+/**
+ * Synthetic-world unit tests for {@link RoutingStaticBuilder}, covering rules a whole-map test
+ * can't isolate: cut validity, non-separating cuts, transport-only reachability,
+ * seasonal reachability and pruning, the empty-cut-list case, and determinism.
+ */
+public class RoutingStaticBuilderTest
+{
+	private static int tile(int x, int y)
+	{
+		return WorldPointUtil.packWorldPoint(x, y, 0);
+	}
+
+	private static Transport transport(int origin, int destination, TransportType type)
+	{
+		return new Transport.TransportBuilder().origin(origin).destination(destination).type(type).duration(1).build();
+	}
+
+	private static Map<Integer, Set<Transport>> transports(Transport... transports)
+	{
+		Map<Integer, Set<Transport>> map = new HashMap<>();
+		for (Transport transport : transports)
+		{
+			map.computeIfAbsent(transport.getOrigin(), k -> new HashSet<>()).add(transport);
+		}
+		return map;
+	}
+
+	private static int[] cuts(int[]... pairs)
+	{
+		int[] result = new int[pairs.length * 2];
+		for (int i = 0; i < pairs.length; i++)
+		{
+			result[2 * i] = pairs[i][0];
+			result[2 * i + 1] = pairs[i][1];
+		}
+		return result;
+	}
+
+	private static int[] pair(int a, int b)
+	{
+		return new int[] {a, b};
+	}
+
+	// ---- A three-tile chain A-B-C, used by several cut-handling tests ----
+
+	private static final int A = tile(10, 10);
+	private static final int B = tile(11, 10);
+	private static final int C = tile(12, 10);
+
+	private static SyntheticCollisionMap chainWorld()
+	{
+		Set<Integer> walkable = Set.of(A, B, C);
+		Map<Integer, int[]> adjacency =
+			SyntheticCollisionMap.symmetricAdjacency(new int[][] {{A, B}, {B, C}});
+		return new SyntheticCollisionMap(walkable, adjacency, 1);
+	}
+
+	@Test
+	public void tileLookupHandlesCollisionsZeroAndUpperPlanes()
+	{
+		// The ground tiles share a group but leave gaps between their positions.
+		Set<Integer> tiles = Set.of(tile(0, 0), tile(15, 0), tile(49, 0), tile(63, 0), tile(31, 1), tile(13, 2),
+			tile(47, 2), WorldPointUtil.packWorldPoint(1, 1, 2), WorldPointUtil.packWorldPoint(1, 1, 3));
+		RoutingStaticBuilder.WalkingGraph graph = RoutingStaticBuilder.walkingGraph(
+			new SyntheticCollisionMap(tiles, Map.of(), 4), Map.of(), tile(0, 0));
+
+		assertEquals(tiles.size(), graph.tileCount());
+		for (int index = 0; index < graph.tileCount(); index++)
+		{
+			assertTrue(tiles.contains(graph.tile(index)));
+			assertEquals(index, graph.indexOf(graph.tile(index)));
+		}
+		assertEquals(-1, graph.indexOf(tile(29, 3)));
+		assertEquals(-1, graph.indexOf(tile(14, 0)));
+		assertEquals(-1, graph.indexOf(WorldPointUtil.packWorldPoint(2, 1, 3)));
+	}
+
+	@Test
+	public void noCutsProducesOneNaturalAndOneRoutingComponent() throws Exception
+	{
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(chainWorld(), Map.of(), Set.of(), new int[0], A);
+
+		assertEquals(1, result.diagnostics.naturalComponentCount);
+		assertEquals(1, result.diagnostics.routingComponentCount);
+		assertEquals(0, result.diagnostics.crossingCount);
+		assertEquals(3, result.routingStatic.searchTileCount());
+		// With zero cuts, routing ids must exactly track natural ids (same flood fill, no blocking).
+		assertEquals(result.diagnostics.naturalComponentCount, result.diagnostics.routingComponentCount);
+	}
+
+	@Test
+	public void tileEnumerationStaysSortedAcrossRegionsAndPlanes() throws Exception
+	{
+		int upper = WorldPointUtil.packWorldPoint(1, 1, 3);
+		int[] expected = {tile(63, 0), tile(64, 0), tile(0, 1), tile(1, 64),
+			WorldPointUtil.packWorldPoint(1, 1, 1), upper};
+		Set<Integer> tiles = new HashSet<>();
+		for (int tile : expected) tiles.add(tile);
+		SyntheticCollisionMap world = new SyntheticCollisionMap(tiles,
+			SyntheticCollisionMap.withStubEdges(tiles,
+				SyntheticCollisionMap.symmetricAdjacency(new int[][] {{expected[0], expected[1]}}), 0, 1), 4)
+		{
+			@Override
+			public SplitFlagMap.RegionExtent regionExtent()
+			{
+				return new SplitFlagMap.RegionExtent(0, 0, 1, 1);
+			}
+
+			@Override
+			public byte getRegionPlaneCounts(int regionIndex)
+			{
+				return (byte) (regionIndex >= 0 && regionIndex < 4 ? 4 : 0);
+			}
+		};
+		RoutingStaticBuilder.WalkingGraph graph = RoutingStaticBuilder.walkingGraph(world, Map.of(), expected[0]);
+
+		assertEquals(expected.length, graph.tileCount());
+		for (int index = 0; index < expected.length; index++)
+		{
+			assertEquals(expected[index], graph.tile(index));
+			assertEquals(index, graph.indexOf(expected[index]));
+		}
+		assertEquals(1, graph.neighbours(0).length);
+		assertEquals(1, graph.neighbours(0)[0]);
+		assertEquals(0, graph.neighbours(expected.length - 1).length);
+		Transport[] globals = new Transport[expected.length];
+		for (int i = 0; i < expected.length; i++)
+			globals[i] = transport(WorldPointUtil.UNDEFINED, expected[i], TransportType.SEASONAL_TRANSPORTS);
+		RoutingStatic selected = RoutingStaticBuilder.build(world, transports(globals), Set.of(),
+			new int[0], expected[0]).routingStatic;
+		assertEquals(expected.length, selected.searchTileCount());
+		for (int i = 0; i < expected.length; i++) assertEquals(expected[i], selected.searchTile(i));
+	}
+
+	@Test
+	public void fullAndCandidateEnumerationAgreeWithNonzeroRegionOrigin() throws Exception
+	{
+		int a = tile(191, 256), b = tile(192, 256);
+		int upper = WorldPointUtil.packWorldPoint(128, 320, 3);
+		Set<Integer> tiles = Set.of(a, b, upper);
+		SyntheticCollisionMap world = new SyntheticCollisionMap(tiles,
+			SyntheticCollisionMap.withStubEdges(tiles, SyntheticCollisionMap.symmetricAdjacency(new int[][] {{a, b}}),
+				0, 1), 4)
+		{
+			@Override
+			public SplitFlagMap.RegionExtent regionExtent()
+			{
+				return new SplitFlagMap.RegionExtent(2, 4, 3, 5);
+			}
+
+			@Override
+			public byte getRegionPlaneCounts(int regionIndex)
+			{
+				return 4;
+			}
+		};
+		Map<Integer, Set<Transport>> transports =
+			transports(transport(WorldPointUtil.UNDEFINED, upper, TransportType.SEASONAL_TRANSPORTS));
+		RoutingStaticBuilder.WalkingGraph full = RoutingStaticBuilder.walkingGraph(world, transports, a);
+		RoutingStatic candidate = RoutingStaticBuilder.build(world, transports, Set.of(), new int[0], a).routingStatic;
+
+		assertEquals(3, full.tileCount());
+		assertEquals(full.tileCount(), candidate.searchTileCount());
+		for (int i = 0; i < full.tileCount(); i++)
+		{
+			assertEquals(full.tile(i), candidate.searchTile(i));
+			assertEquals(i, full.indexOf(candidate.searchTile(i)));
+			assertEquals(Byte.toUnsignedInt(world.ordinaryWalkingMask(full.tile(i))), candidate.walkingMask(i));
+		}
+	}
+
+	@Test
+	public void verticalNeighboursDoNotWrapBetweenPlanes() throws Exception
+	{
+		int top = WorldPointUtil.packWorldPoint(10, 32767, 0);
+		int bottom = WorldPointUtil.packWorldPoint(10, 0, 1);
+		Set<Integer> tiles = Set.of(top, bottom);
+		SyntheticCollisionMap world = new SyntheticCollisionMap(tiles,
+			SyntheticCollisionMap.withStubEdges(tiles, Map.of(), 1, 0), 2)
+		{
+			@Override
+			public SplitFlagMap.RegionExtent regionExtent()
+			{
+				return new SplitFlagMap.RegionExtent(0, 0, 0, 511);
+			}
+
+			@Override
+			public byte getRegionPlaneCounts(int regionIndex)
+			{
+				return 2;
+			}
+		};
+		RoutingStatic stat = RoutingStaticBuilder.build(world,
+			transports(transport(WorldPointUtil.UNDEFINED, bottom, TransportType.SEASONAL_TRANSPORTS)),
+			Set.of(), new int[0], top).routingStatic;
+
+		assertEquals(-1, stat.northNode(stat.searchIndex(top)));
+		assertEquals(-1, stat.southNode(stat.searchIndex(bottom)));
+	}
+
+	@Test
+	public void floodFillKeepsEveryDirectionAndRespectsDiagonalCuts() throws Exception
+	{
+		for (int plane : new int[] {0, 3})
+		{
+			int center = WorldPointUtil.packWorldPoint(10, 10, plane);
+			int northwest = WorldPointUtil.packWorldPoint(9, 11, plane);
+			Set<Integer> walkable = new HashSet<>();
+			walkable.add(center);
+			int[][] edges = new int[8][];
+			int count = 0;
+			for (int x = 9; x <= 11; x++)
+			{
+				for (int y = 9; y <= 11; y++)
+				{
+					int neighbor = WorldPointUtil.packWorldPoint(x, y, plane);
+					if (neighbor == center) continue;
+					walkable.add(neighbor);
+					edges[count++] = pair(center, neighbor);
+				}
+			}
+			SyntheticCollisionMap world = new SyntheticCollisionMap(walkable,
+				SyntheticCollisionMap.symmetricAdjacency(edges), plane + 1);
+			RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(world, Map.of(), Set.of(),
+				cuts(pair(center, northwest)), center);
+
+			assertEquals(1, result.diagnostics.naturalComponentCount);
+			assertEquals(2, result.diagnostics.routingComponentCount);
+			assertEquals(1, result.diagnostics.crossingCount);
+			assertEquals(9, result.routingStatic.searchTileCount());
+			int centerComponent = result.routingStatic.routingComponent(result.routingStatic.searchIndex(center));
+			for (int tile : walkable)
+			{
+				int component = result.routingStatic.routingComponent(result.routingStatic.searchIndex(tile));
+				assertEquals(tile != northwest, component == centerComponent);
+			}
+		}
+	}
+
+	@Test
+	public void validSeparatingCutSplitsIntoTwoRoutingComponentsAndOneCrossing() throws Exception
+	{
+		// A duplicate, reversed copy of the same cut must collapse (deduplicated, not double-counted).
+		int[] cuts = cuts(pair(B, C), pair(C, B));
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(chainWorld(), Map.of(), Set.of(), cuts, A);
+
+		assertEquals(1, result.diagnostics.naturalComponentCount);
+		assertEquals(2, result.diagnostics.routingComponentCount);
+		assertEquals(1, result.diagnostics.duplicateCutCount);
+		assertEquals(0, result.diagnostics.invalidCutCount);
+		assertEquals(0, result.diagnostics.nonSeparatingCutCount);
+		assertEquals(1, result.diagnostics.crossingCount);
+		// Reachability is by NATURAL id, so the cut subdivides but never excludes: all 3 tiles remain.
+		assertEquals(3, result.routingStatic.searchTileCount());
+
+		RoutingStatic mine = result.routingStatic;
+		assertEquals(1, mine.crossingCount());
+		int from = mine.siteTile(mine.crossingFromSite(0));
+		int to = mine.siteTile(mine.crossingToSite(0));
+		assertEquals(B, from);
+		assertEquals(C, to);
+		assertEquals(1, mine.crossingCost(0));
+	}
+
+	@Test
+	public void cutThatIsNotAWalkingEdgeIsIgnored() throws Exception
+	{
+		// A and C are not declared neighbours of each other (only A-B and B-C are).
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(chainWorld(), Map.of(), Set.of(), cuts(pair(A, C)), A);
+
+		assertEquals(1, result.diagnostics.invalidCutCount);
+		assertEquals(0, result.diagnostics.crossingCount);
+		assertEquals(1, result.diagnostics.routingComponentCount);
+		assertEquals(3, result.routingStatic.searchTileCount());
+	}
+
+	@Test
+	public void cutThatNoLongerSeparatesIsDroppedAsNonSeparating() throws Exception
+	{
+		// A 2x2 square walked as a 4-cycle: cutting one edge leaves every tile connected via the
+		// other three.
+		int e = tile(11, 11);
+		int d = tile(10, 11);
+		Set<Integer> walkable = Set.of(A, B, e, d);
+		Map<Integer, int[]> adjacency =
+			SyntheticCollisionMap.symmetricAdjacency(new int[][] {{A, B}, {B, e}, {e, d}, {d, A}});
+		SyntheticCollisionMap world = new SyntheticCollisionMap(walkable, adjacency, 1);
+
+		RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(world, Map.of(), Set.of(), cuts(pair(A, B)), A);
+
+		assertEquals(0, result.diagnostics.invalidCutCount);
+		assertEquals(1, result.diagnostics.nonSeparatingCutCount);
+		assertEquals(0, result.diagnostics.crossingCount);
+		assertEquals(1, result.diagnostics.naturalComponentCount);
+		assertEquals(1, result.diagnostics.routingComponentCount);
+	}
+
+	@Test
+	public void transportOnlyReachableComponentBecomesReachable() throws Exception
+	{
+		int x1 = tile(30, 10);
+		int y1 = tile(40, 10);
+		Set<Integer> walkable = Set.of(x1, y1);
+		SyntheticCollisionMap world = new SyntheticCollisionMap(walkable,
+			SyntheticCollisionMap.withStubEdges(walkable, Map.of(), 0, 1), 1);
+		Map<Integer, Set<Transport>> transports = transports(transport(x1, y1, TransportType.TRANSPORT));
+
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(world, transports, Set.of(y1), new int[0], x1);
+
+		assertEquals(2, result.diagnostics.naturalComponentCount);
+		assertEquals(2, result.diagnostics.reachableNaturalComponentCount);
+		assertEquals(2, result.routingStatic.searchTileCount());
+		assertEquals(2, result.routingStatic.siteCount());
+		assertEquals(1, result.routingStatic.reachableBankCount());
+		assertEquals(y1, result.routingStatic.reachableBankTile(0));
+	}
+
+	// ---- Seasonal reachability: A1-A2 holds the seed, B1-B2-B3 is reached only by a seasonal
+	// transport from A2, and C1-C2 is reached by nothing. ----
+
+	private static final int A1 = tile(30, 20), A2 = tile(31, 20);
+	private static final int B1 = tile(40, 20), B2 = tile(41, 20), B3 = tile(42, 20);
+	private static final int C1 = tile(50, 20), C2 = tile(51, 20);
+	private static final Transport SEASONAL = transport(A2, B1, TransportType.SEASONAL_TRANSPORTS);
+
+	private static SyntheticCollisionMap seasonalWorld()
+	{
+		return new SyntheticCollisionMap(Set.of(A1, A2, B1, B2, B3, C1, C2),
+			SyntheticCollisionMap.symmetricAdjacency(new int[][] {{A1, A2}, {B1, B2}, {B2, B3}, {C1, C2}}), 1);
+	}
+
+	private static RoutingStatic seasonalStatic() throws Exception
+	{
+		return RoutingStaticBuilder.build(seasonalWorld(), transports(SEASONAL), Set.of(), new int[0], A1)
+			.routingStatic;
+	}
+
+	@Test
+	public void seasonalTransportKeepsItsDestinationComponent() throws Exception
+	{
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(seasonalWorld(), transports(SEASONAL), Set.of(), new int[0], A1);
+
+		assertEquals(3, result.diagnostics.naturalComponentCount);
+		assertEquals(7, result.diagnostics.walkableTileCount);
+		assertEquals(2, result.diagnostics.reachableNaturalComponentCount);
+		for (int tile : new int[] {A1, A2, B1, B2, B3})
+			assertTrue(result.routingStatic.searchIndex(tile) >= 0);
+	}
+
+	@Test
+	public void componentNothingReachesIsStillPruned() throws Exception
+	{
+		RoutingStatic mine = seasonalStatic();
+
+		assertEquals(5, mine.searchTileCount());
+		assertEquals(-1, mine.searchIndex(C1));
+		assertEquals(-1, mine.searchIndex(C2));
+	}
+
+	@Test
+	public void keptSeasonalComponentIsOnlyReachableWhenTheAccountHasTheTransport() throws Exception
+	{
+		RoutingStatic mine = seasonalStatic();
+
+		AStarForwardSearch.Result without = search(mine, TransportAvailabilityFixture.of(), B3);
+		AStarForwardSearch.Result with = search(mine, TransportAvailabilityFixture.of(SEASONAL), B3);
+
+		assertFalse(without.reached());
+		assertTrue(with.reached());
+		// Walk to A2, take the transport, then walk on through B2 to B3.
+		assertEquals(4, with.cost());
+		assertEquals(java.util.List.of(A1, A2, B1, B2, B3), with.path().stream()
+			.map(shortestpath.pathfinder.PathStep::getPackedPosition).collect(java.util.stream.Collectors.toList()));
+	}
+
+	private static AStarForwardSearch.Result search(RoutingStatic stat, TransportAvailability availability, int target)
+	{
+		PreparedRoutingAccount account = PreparedRoutingAccount.compile(availability, TransportAvailabilityFixture.of(),
+			false, Set.of(), 0, true, ignored -> 0);
+		TargetOverlay overlay = new TargetOverlay(new SiteGraph(stat, account), seasonalWorld(), target);
+		return AStarForwardSearch.search(overlay, PreparedHeuristic.prepare(overlay, ReverseLabelsOracle.compute(overlay)), A1);
+	}
+
+	@Test
+	public void emptyCutListProducesNaturalComponentsAndValidates() throws Exception
+	{
+		RoutingStaticBuilder.Result result =
+			RoutingStaticBuilder.build(chainWorld(), Map.of(), Set.of(), new int[0], A);
+
+		// RoutingStatic.takeOwnership() already ran full validation inside build(); reaching here means it
+		// passed. Cross-check the natural/routing equivalence explicitly too.
+		assertEquals(result.diagnostics.naturalComponentCount, result.diagnostics.routingComponentCount);
+		assertEquals(0, result.diagnostics.crossingCount);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void missingStructuralReachabilitySeedIsAHardError() throws Exception
+	{
+		int unattachedSeed = tile(999, 999);
+		RoutingStaticBuilder.build(chainWorld(), Map.of(), Set.of(), new int[0], unattachedSeed);
+	}
+
+	@Test
+	public void derivationIsDeterministicAcrossTwoBuilds() throws Exception
+	{
+		int x1 = tile(30, 10);
+		int y1 = tile(40, 10);
+		Set<Integer> walkable = Set.of(A, B, C, x1, y1);
+		Map<Integer, int[]> adjacency =
+			SyntheticCollisionMap.symmetricAdjacency(new int[][] {{A, B}, {B, C}});
+
+		Map<Integer, Set<Transport>> transports = transports(transport(x1, y1, TransportType.TRANSPORT));
+		int[] cuts = cuts(pair(B, C));
+
+		RoutingStaticBuilder.Result first = RoutingStaticBuilder.build(
+			new SyntheticCollisionMap(walkable, adjacency, 1), transports, Set.of(y1), cuts, A);
+		RoutingStaticBuilder.Result second = RoutingStaticBuilder.build(
+			new SyntheticCollisionMap(walkable, adjacency, 1), transports, Set.of(y1), cuts, A);
+
+		assertRoutingStaticEquals(first.routingStatic, second.routingStatic);
+	}
+
+	private static void assertRoutingStaticEquals(RoutingStatic left, RoutingStatic right)
+	{
+		assertEquals(left.searchTileCount(), right.searchTileCount());
+		for (int i = 0; i < left.searchTileCount(); i++)
+		{
+			assertEquals(left.searchTile(i), right.searchTile(i));
+			assertEquals(left.routingComponent(i), right.routingComponent(i));
+			assertEquals(left.walkingMask(i), right.walkingMask(i));
+			assertEquals(left.northNode(i), right.northNode(i));
+			assertEquals(left.southNode(i), right.southNode(i));
+		}
+		assertEquals(left.siteCount(), right.siteCount());
+		for (int i = 0; i < left.siteCount(); i++)
+		{
+			assertEquals(left.siteTile(i), right.siteTile(i));
+			org.junit.Assert.assertArrayEquals(left.siteComponents(i), right.siteComponents(i));
+		}
+		assertEquals(left.routingComponentCount(), right.routingComponentCount());
+		for (int c = 0; c < left.routingComponentCount(); c++)
+		{
+			org.junit.Assert.assertArrayEquals(left.componentSites(c), right.componentSites(c));
+		}
+		assertEquals(left.reachableBankCount(), right.reachableBankCount());
+		for (int i = 0; i < left.reachableBankCount(); i++)
+		{
+			assertEquals(left.reachableBankTile(i), right.reachableBankTile(i));
+		}
+		assertEquals(left.crossingCount(), right.crossingCount());
+		for (int i = 0; i < left.crossingCount(); i++)
+		{
+			assertEquals(left.crossingFromSite(i), right.crossingFromSite(i));
+			assertEquals(left.crossingToSite(i), right.crossingToSite(i));
+			assertEquals(left.crossingCost(i), right.crossingCost(i));
+		}
+		assertEquals(left.sparseVertexCount(), right.sparseVertexCount());
+		assertEquals(left.sparseOriginalCount(), right.sparseOriginalCount());
+		assertEquals(left.sparseSteinerCount(), right.sparseSteinerCount());
+		assertEquals(left.sparseAdjacencyCount(), right.sparseAdjacencyCount());
+		for (int i = 0; i < left.sparseAdjacencyCount(); i++)
+		{
+			assertEquals(left.sparseDestination(i), right.sparseDestination(i));
+			assertEquals(left.sparseWeight(i), right.sparseWeight(i));
+		}
+	}
+
+	@Test
+	public void unreachableIslandsStayOutOfTheSearchTiles() throws Exception
+	{
+		RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(seasonalWorld(), Map.of(),
+			Set.of(C1), new int[0], A1);
+
+		assertEquals(7, result.diagnostics.walkableTileCount);
+		assertEquals(3, result.diagnostics.naturalComponentCount);
+		assertEquals(2, result.routingStatic.searchTileCount());
+		assertEquals(0, result.routingStatic.reachableBankCount());
+		assertEquals(-1, result.routingStatic.searchIndex(B1));
+		assertEquals(-1, result.routingStatic.searchIndex(C1));
+	}
+
+	@Test
+	public void blockedEndpointsAndGlobalTeleportsAttachTheirIslands() throws Exception
+	{
+		int blocked = tile(39, 20);
+		Map<Integer, int[]> adjacency = SyntheticCollisionMap.symmetricAdjacency(
+			new int[][] {{A1, A2}, {B1, B2}, {B2, B3}, {C1, C2}});
+		// A blocked endpoint attaches to two separate islands.
+		adjacency.put(blocked, new int[] {B1, C1});
+		SyntheticCollisionMap world = new SyntheticCollisionMap(Set.of(A1, A2, B1, B2, B3, C1, C2), adjacency, 1);
+		RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(world,
+			transports(transport(WorldPointUtil.UNDEFINED, blocked, TransportType.SEASONAL_TRANSPORTS)),
+			Set.of(C2), new int[0], A1);
+
+		assertEquals(7, result.diagnostics.walkableTileCount);
+		assertEquals(3, result.diagnostics.reachableNaturalComponentCount);
+		assertEquals(7, result.routingStatic.searchTileCount());
+		assertEquals(1, result.routingStatic.reachableBankCount());
+	}
+
+	@Test
+	public void unreachableOriginsKeepTheirIdsButStayUnreachable() throws Exception
+	{
+		RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(seasonalWorld(),
+			transports(transport(B1, C1, TransportType.SEASONAL_TRANSPORTS)), Set.of(), new int[0], A1);
+
+		assertEquals(7, result.diagnostics.walkableTileCount);
+		assertEquals(3, result.diagnostics.naturalComponentCount);
+		assertEquals(1, result.diagnostics.reachableNaturalComponentCount);
+		assertEquals(2, result.routingStatic.searchTileCount());
+		assertEquals(-1, result.routingStatic.searchIndex(B1));
+		assertEquals(-1, result.routingStatic.searchIndex(C1));
+	}
+
+	@Test
+	public void cutsOnUnreachableLandKeepTheirCrossing() throws Exception
+	{
+		RoutingStaticBuilder.Result result = RoutingStaticBuilder.build(seasonalWorld(), Map.of(), Set.of(),
+			cuts(pair(C1, C2)), A1);
+
+		assertEquals(7, result.diagnostics.walkableTileCount);
+		assertEquals(1, result.diagnostics.crossingCount);
+		assertEquals(2, result.routingStatic.searchTileCount());
+		assertEquals(-1, result.routingStatic.searchIndex(C1));
+	}
+
+	@Test
+	public void walkingGraphExposesNaturalComponentsAndReachability()
+	{
+		int island = tile(20, 20);
+		Set<Integer> walkable = Set.of(A, B, C, island);
+		Map<Integer, int[]> adjacency = SyntheticCollisionMap.symmetricAdjacency(new int[][] {{A, B}, {B, C}});
+		RoutingStaticBuilder.WalkingGraph graph =
+			RoutingStaticBuilder.walkingGraph(new SyntheticCollisionMap(walkable, adjacency, 1), Map.of(), A);
+
+		assertEquals(4, graph.tileCount());
+		assertEquals(2, graph.naturalComponentCount());
+		int a = graph.indexOf(A), b = graph.indexOf(B), c = graph.indexOf(C), i = graph.indexOf(island);
+		assertEquals(-1, graph.indexOf(tile(30, 30)));
+		assertEquals(graph.naturalComponent(a), graph.naturalComponent(c));
+		assertTrue(graph.naturalComponent(a) != graph.naturalComponent(i));
+		assertTrue(graph.isStructurallyReachable(graph.naturalComponent(a)));
+		assertTrue(!graph.isStructurallyReachable(graph.naturalComponent(i)));
+		int[] neighbours = graph.neighbours(b);
+		java.util.Arrays.sort(neighbours);
+		int[] expected = {a, c};
+		java.util.Arrays.sort(expected);
+		org.junit.Assert.assertArrayEquals(expected, neighbours);
+		assertEquals(0, graph.neighbours(i).length);
+	}
+
+	@Test
+	public void buildPathReusesSharedPrimitiveCollections()
+	{
+		// TileIndex and LongOpenHashSet were private open-addressed duplicates of the
+		// shared primitive structures; the build path must use the in-tree
+		// implementations instead of carrying its own.
+		Set<String> nested = new HashSet<>();
+		for (Class<?> declared : RoutingStaticBuilder.class.getDeclaredClasses())
+		{
+			nested.add(declared.getSimpleName());
+		}
+		assertFalse("private TileIndex duplicates the shared tile lookup", nested.contains("TileIndex"));
+		assertFalse("private LongOpenHashSet duplicates the shared blocked-edge set",
+			nested.contains("LongOpenHashSet"));
+	}
+}

@@ -1,0 +1,536 @@
+package shortestpath.pathfinder;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.*;
+import shortestpath.leagues.LeagueModeState;
+import shortestpath.pathfinder.astar.*;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+/** ActiveSearch adapter for the A* core. */
+@Slf4j
+public final class AStarPathfinder implements ActiveSearch
+{
+	private final PathfinderStats stats = new PathfinderStats();
+	@Getter private final int start;
+	@Getter private final Targets targets;
+	// The states the search terminates on: the targets plus the fallback tiles of each one the
+	// search cannot end on (issue #640), each in the bank layers where the player holds that
+	// target's items. With collision-aware blocked targets on they follow a ReachableGoalRule over
+	// the routing static's search tiles, and otherwise the collision rule. Resolved in run(), where
+	// the routing static is loaded, from the inputs taken when the search is created. {@code null}
+	// until then, and for a search that failed to start.
+	private GoalStates goals;
+	private final GoalRule collisionRule;
+	private final IntPredicate transportDestination;
+	private final HeldItems heldItems;
+	private final int unreachableTargetDistance;
+	private final boolean collisionAwareBlockedTargets;
+	private final Runnable completionCallback;
+	private final CollisionMap collision;
+	private final Supplier<RoutingStatic> routingStatic;
+	private final AStarRoutingSession session;
+	private final PreparedRoutingAccount account;
+	private final SearchRestrictions restrictions;
+	private final long cutoffMillis;
+	private final double heuristicWeight;
+	@Getter private final long accountPrepareNanos;
+	private volatile long routingStaticNanos;
+	private volatile long graphPrepareNanos;
+	private final String failure;
+	private volatile boolean cancelled;
+	private volatile boolean done;
+	private volatile List<PathStep> path;
+	private volatile List<PathStep> provisionalPath;
+	private volatile PathfinderResult result;
+	private volatile AStarForwardSearch.Counters aStarStats;
+	private volatile long reverseSearchNanos;
+	private volatile long heuristicPrepareNanos;
+	private volatile long forwardSearchNanos;
+	private volatile long walkNanos;
+	private volatile List<Integer> clickPoints = List.of();
+	private volatile List<Integer> keptStepIndices = List.of();
+	private volatile boolean graphReused;
+	private volatile boolean targetReused;
+
+	public AStarPathfinder(PathfinderConfig config, RoutingStatic routingStatic, int start, Set<Integer> targets,
+		Runnable completionCallback)
+	{
+		this(config, constant(routingStatic), start, targets, completionCallback);
+	}
+
+	public AStarPathfinder(PathfinderConfig config, RoutingStatic routingStatic, int start, Set<Integer> targets,
+		Runnable completionCallback, double heuristicWeight)
+	{
+		this(config, constant(routingStatic), start, targets, completionCallback, heuristicWeight);
+	}
+
+	/**
+	 * Creates a search whose static routing data is obtained from {@code routingStatic} when the
+	 * search runs, so a first-use build happens on the pathfinding thread rather than here.
+	 */
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic, int start,
+		Set<Integer> targets, Runnable completionCallback)
+	{
+		this(config, routingStatic, start, targets, completionCallback,
+			config == null ? 1 : config.getAStarHeuristicWeight());
+	}
+
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic, int start,
+		Set<Integer> targets, Runnable completionCallback, double heuristicWeight)
+	{
+		this(config, routingStatic, null, start, targets, completionCallback, heuristicWeight);
+	}
+
+	/**
+	 * Creates a search that reuses the account graph and prepared targets held by {@code session}
+	 * across queries; {@code null} prepares everything for this search alone.
+	 */
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic,
+		AStarRoutingSession session, int start, Set<Integer> targets, Runnable completionCallback)
+	{
+		this(config, routingStatic, session, start, targets, completionCallback,
+			config == null ? 1 : config.getAStarHeuristicWeight());
+	}
+
+	public AStarPathfinder(PathfinderConfig config, RoutingStatic routingStatic, AStarRoutingSession session,
+		int start, Set<Integer> targets, Runnable completionCallback, double heuristicWeight)
+	{
+		this(config, constant(routingStatic), session, start, targets, completionCallback, heuristicWeight);
+	}
+
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic,
+		AStarRoutingSession session, int start, Set<Integer> targets, Runnable completionCallback,
+		double heuristicWeight)
+	{
+		this(config, routingStatic, session, start, Targets.at(targets), completionCallback,
+			heuristicWeight);
+	}
+
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic,
+		AStarRoutingSession session, int start, Targets targets, Runnable completionCallback)
+	{
+		this(config, routingStatic, session, start, targets, completionCallback,
+			config == null ? 1 : config.getAStarHeuristicWeight());
+	}
+
+	/**
+	 * A search that ends at whichever of {@code targets} is cheapest to reach holding that target's
+	 * items; see {@link GoalStates}.
+	 */
+	public AStarPathfinder(PathfinderConfig config, Supplier<RoutingStatic> routingStatic,
+		AStarRoutingSession session, int start, Targets targets, Runnable completionCallback,
+		double heuristicWeight)
+	{
+		if (config == null || routingStatic == null || targets == null) throw new NullPointerException();
+		if (!(heuristicWeight > 0) || !Double.isFinite(heuristicWeight))
+			throw new IllegalArgumentException("heuristic weight must be positive and finite");
+		this.start = start;
+		this.targets = targets;
+		this.completionCallback = completionCallback;
+		this.collision = config.getMap();
+		this.routingStatic = routingStatic;
+		this.session = session == null ? new AStarRoutingSession() : session;
+		this.collisionRule = TargetGoals.collisionRule(config, start);
+		this.transportDestination = config::isTransportDestination;
+		this.heldItems = config.getHeldItems();
+		this.unreachableTargetDistance = config.getUnreachableTargetDistance();
+		this.collisionAwareBlockedTargets = config.isCollisionAwareBlockedTargets();
+		long phaseStarted = System.nanoTime();
+		this.account = config.prepareAStarRoutingAccount(true, GoalStates.needsBank(targets, heldItems));
+		this.accountPrepareNanos = System.nanoTime() - phaseStarted;
+		this.restrictions = restrictions(config, targets.points());
+		this.cutoffMillis = config.getCalculationCutoffMillis();
+		this.heuristicWeight = heuristicWeight;
+		this.failure = null;
+		this.path = List.of(new PathStep(start, BankVisitState.CARRIED));
+	}
+
+	private static Supplier<RoutingStatic> constant(RoutingStatic routingStatic)
+	{
+		if (routingStatic == null) throw new NullPointerException();
+		return () -> routingStatic;
+	}
+
+	/**
+	 * The same positional gates legacy checks per edge: {@code avoidWilderness} and the league's
+	 * always-blocked region, each lifted when a target lies inside the gated area (the user asked
+	 * for that tile, so the route must be allowed to reach it).
+	 */
+	private static SearchRestrictions restrictions(PathfinderConfig config, Set<Integer> targets)
+	{
+		boolean avoidWilderness = config.isAvoidWilderness() && !WildernessChecker.isInWilderness(targets);
+		LeagueModeState league = config.getLeagueModeState();
+		IntPredicate blockedRegion = null;
+		if (league != null && league.isSeasonal())
+		{
+			boolean targetInBlockedRegion = false;
+			for (int target : targets)
+			{
+				targetInBlockedRegion |= league.isInBlockedRegion(target);
+			}
+			if (!targetInBlockedRegion)
+			{
+				blockedRegion = league::isInBlockedRegion;
+			}
+		}
+		return SearchRestrictions.of(avoidWilderness, blockedRegion);
+	}
+
+	private AStarPathfinder(int start, Targets targets, Runnable completionCallback, String failure)
+	{
+		this.start = start;
+		this.targets = targets;
+		this.completionCallback = completionCallback;
+		this.collision = null;
+		this.routingStatic = null;
+		this.session = null;
+		this.account = null;
+		this.restrictions = SearchRestrictions.none();
+		this.goals = null;
+		this.collisionRule = null;
+		this.transportDestination = null;
+		this.heldItems = null;
+		this.unreachableTargetDistance = 0;
+		this.collisionAwareBlockedTargets = false;
+		this.cutoffMillis = 0;
+		this.heuristicWeight = 1;
+		this.accountPrepareNanos = 0;
+		this.failure = failure;
+		this.path = List.of(new PathStep(start, BankVisitState.CARRIED));
+	}
+
+	public static AStarPathfinder failed(int start, Targets targets, Runnable completionCallback, Throwable error)
+	{
+		String detail = error.getMessage();
+		return new AStarPathfinder(start, targets, completionCallback,
+			"A* backend unavailable: " + (detail == null ? error.getClass().getSimpleName() : detail));
+	}
+
+	@Override
+	public void cancel()
+	{
+		cancelled = true;
+	}
+
+
+
+
+
+	@Override
+	public List<PathStep> getPath()
+	{
+		List<PathStep> shown = provisionalPath;
+		return shown != null ? shown : path;
+	}
+
+	/**
+	 * Shows {@code previous} as this search's path until the search completes, so recalculating a
+	 * route keeps the old one on screen instead of collapsing it to the start tile. Call before
+	 * running the search; a cancelled search keeps showing it.
+	 */
+	public void showUntilDone(List<PathStep> previous)
+	{
+		provisionalPath = previous == null || previous.size() < 2 ? null : List.copyOf(previous);
+	}
+
+	/** Whether {@link #getPath()} is still the previous route passed to {@link #showUntilDone}. */
+	@Override
+	public boolean isShowingProvisionalPath()
+	{
+		return provisionalPath != null;
+	}
+
+	@Override
+	public boolean isDone()
+	{ return done;
+	}
+
+	@Override
+	public String backendName()
+	{
+		return "A*";
+	}
+
+	/**
+	 * Always {@code false}: sailing dispatch bypasses the backend choice and
+	 * builds a {@link shortestpath.pathfinder.sailing.SailingPathfinder}
+	 * directly, so an A* search is never a sailing search.
+	 */
+	@Override
+	public boolean isSailing()
+	{
+		return false;
+	}
+
+	@Override
+	public PathfinderResult getResult()
+	{
+		return stats.started && stats.ended ? result : null;
+	}
+
+	@Override
+	public PathfinderStats getStats()
+	{
+		return stats.started && stats.ended ? stats : null;
+	}
+
+	/** Completed A* search counters, or {@code null} while the search is running. */
+	public AStarForwardSearch.Counters getAStarStats()
+	{
+		return stats.started && stats.ended ? aStarStats : null;
+	}
+
+
+
+	public long getRoutingStaticNanos()
+	{ return routingStaticNanos;
+	}
+
+	public long getGraphPrepareNanos()
+	{ return graphPrepareNanos;
+	}
+
+	public long getReverseSearchNanos()
+	{ return reverseSearchNanos;
+	}
+
+	public long getHeuristicPrepareNanos()
+	{ return heuristicPrepareNanos;
+	}
+
+	public long getForwardSearchNanos()
+	{ return forwardSearchNanos;
+	}
+
+	/** Time spent rewriting the walking legs into the game's own walking paths. */
+	public long getWalkNanos()
+	{ return walkNanos;
+	}
+
+	/**
+	 * Ascending indices into the route's steps of the tiles the player clicks to walk it in game;
+	 * empty until a route is found.
+	 */
+	@Override
+	public List<Integer> getClickPoints()
+	{ return clickPoints;
+	}
+
+	/**
+	 * Ascending indices into the route's steps of the walking steps that kept the canonical step
+	 * because no in-game click realises them; empty until a route is found.
+	 */
+	public List<Integer> getKeptStepIndices()
+	{ return keptStepIndices;
+	}
+
+	/** Whether the account graph came from the session rather than being built for this search. */
+	public boolean isGraphReused()
+	{ return graphReused;
+	}
+
+	/** Whether this search's target set was already prepared in the session. */
+	// Static data is built once; only the search that built it spends measurable time on it.
+	private static final long STATIC_BUILD_THRESHOLD_NANOS = 1_000_000;
+
+	@Override
+	public Map<String, String> debugStats()
+	{
+		Map<String, String> entries = new LinkedHashMap<>();
+		entries.put("Forward search", PathfinderStats.millis(getForwardSearchNanos()));
+		int keptSteps = getKeptStepIndices().size();
+		entries.put("Walk rewrite", PathfinderStats.millis(getWalkNanos())
+			+ (keptSteps > 0 ? ", " + keptSteps + " kept" : ""));
+		entries.put("Target prep", isTargetReused() ? "reused"
+			: PathfinderStats.millis(getReverseSearchNanos() + getHeuristicPrepareNanos()));
+		entries.put("Graph prep", isGraphReused() ? "reused"
+			: PathfinderStats.millis(getGraphPrepareNanos()));
+		entries.put("Account prep", PathfinderStats.millis(getAccountPrepareNanos()));
+		if (getRoutingStaticNanos() >= STATIC_BUILD_THRESHOLD_NANOS)
+		{
+			entries.put("Static data", PathfinderStats.millis(getRoutingStaticNanos()));
+		}
+		return entries;
+	}
+
+	public boolean isTargetReused()
+	{ return targetReused;
+	}
+
+	@Override
+	public void run()
+	{
+		stats.start();
+		long started = System.nanoTime();
+		try
+		{
+			if (failure != null)
+			{
+				aStarStats = AStarForwardSearch.Counters.empty();
+				result = new PathfinderResult(start, firstTarget(), false, path, start, PathfinderResult.NO_PATH_COST,
+					0, 0, System.nanoTime() - started, PathTerminationReason.BACKEND_FAILURE, failure);
+				return;
+			}
+			long phaseStarted = System.nanoTime();
+			RoutingStatic staticData = routingStatic.get();
+			routingStaticNanos = System.nanoTime() - phaseStarted;
+			GoalRule rule = collisionAwareBlockedTargets
+				? new ReachableGoalRule(collision, transportDestination, packed -> staticData.searchIndex(packed) >= 0,
+					start, unreachableTargetDistance)
+				: collisionRule;
+			goals = GoalStates.resolve(TargetGoals.resolve(targets.points(), transportDestination, rule), targets,
+				heldItems);
+			phaseStarted = System.nanoTime();
+			AStarRoutingSession.Lookup<SiteGraph> graph = session.graph(staticData, account);
+			graphPrepareNanos = System.nanoTime() - phaseStarted;
+			graphReused = graph.reused();
+			AtomicBoolean timedOut = new AtomicBoolean();
+			// The cutoff counts time without progress — and a zero cutoff expires at the
+			// first clock read, exactly like the legacy backend's unconditional deadline.
+			SearchDeadline deadline = new SearchDeadline(cutoffMillis);
+			// Blocked targets attach to neighbouring components in the relaxed graph, but only
+			// transport landings can actually end a route on them. Keep their snapped goals instead.
+			int[] packedTargets = goals.tiles().stream()
+				.filter(tile -> !TargetGoals.isBlocked(collision, tile) || transportDestination.test(tile))
+				.mapToInt(Integer::intValue).toArray();
+			int[] targetLayers = java.util.Arrays.stream(packedTargets).map(goals::acceptedLayers).toArray();
+			AStarForwardSearch.Result best = null;
+			int bestTarget = firstTarget();
+			int partialCost = PathfinderResult.NO_PATH_COST;
+			aStarStats = AStarForwardSearch.Counters.empty();
+			// When every target is a blocked tile that no transport lands on and
+			// no walkable tile exists within the unreachable distance, no state can
+			// satisfy the goal set — skip the search like the legacy backend does.
+			if (!cancelled && goals.hasViableGoal() && packedTargets.length != 0)
+			{
+				// One search towards every target at once; it ends at the cheapest one to reach.
+				phaseStarted = System.nanoTime();
+				AStarRoutingSession.Lookup<PreparedTarget> prepared = session.target(graph.value(), collision,
+					packedTargets, targetLayers);
+				targetReused = prepared.reused();
+				if (targetReused)
+				{
+					heuristicPrepareNanos = System.nanoTime() - phaseStarted;
+				}
+				else
+				{
+					reverseSearchNanos = prepared.value().reverseSearchNanos();
+					heuristicPrepareNanos = prepared.value().heuristicPrepareNanos();
+				}
+				phaseStarted = System.nanoTime();
+				AStarForwardSearch.Result current = prepared.value().search(start,
+					() ->
+					{
+						if (cancelled) return true;
+						if (deadline.expired())
+						{
+							timedOut.set(true);
+							return true;
+						}
+						return false;
+					}, heuristicWeight, restrictions, deadline::progressed,
+					goals::accepts);
+				forwardSearchNanos = System.nanoTime() - phaseStarted;
+				stats.nodesChecked += current.counters().statesPopped();
+				stats.transportsChecked += current.counters().transportCandidates();
+				aStarStats = current.counters();
+				AStarRoute found = null;
+				if (current.reached())
+				{
+					best = current;
+					found = current.route();
+				}
+				else if (timedOut.get() && !cancelled)
+				{
+					// Like legacy: a cut-off search still routes to the tile it got closest to.
+					found = current.closestRoute();
+					partialCost = current.closestCost();
+				}
+				if (found != null)
+				{
+					// Publish only the final path, so the render thread never shows the raw one: turn each
+					// walking leg into the clicks along it and the paths the game's own walking takes between them.
+					phaseStarted = System.nanoTime();
+					// The rewrite changes no cost and no non-walking step, so if it fails the search's own
+					// route is still a valid answer: keep it rather than report the search as failed.
+					List<PathStep> finalPath;
+					List<Integer> finalClicks = List.of();
+					List<Integer> finalKept = List.of();
+					try
+					{
+						AStarWalkCanonicalizer.Result walked = new AStarWalkCanonicalizer(collision, account,
+							restrictions).canonicalize(found);
+						finalPath = walked.path();
+						finalClicks = walked.clickPoints();
+						finalKept = walked.keptStepIndices();
+					}
+					catch (RuntimeException e)
+					{
+						log.warn("Walk canonicalization failed; keeping the search's own route", e);
+						finalPath = found.steps();
+					}
+					walkNanos = System.nanoTime() - phaseStarted;
+					clickPoints = finalClicks;
+					keptStepIndices = finalKept;
+					path = finalPath;
+					if (best != null) bestTarget = last(path);
+				}
+			}
+
+			if (cancelled)
+				result = new PathfinderResult(start, firstTarget(), false, List.of(new PathStep(start, BankVisitState.CARRIED)), start,
+					PathfinderResult.NO_PATH_COST, stats.nodesChecked, stats.transportsChecked, System.nanoTime() - started,
+					PathTerminationReason.CANCELLED);
+			else if (timedOut.get())
+				result = new PathfinderResult(start, bestTarget, best != null, path,
+					last(path), best == null ? partialCost : best.cost(), stats.nodesChecked,
+					stats.transportsChecked, System.nanoTime() - started, PathTerminationReason.CUTOFF_REACHED, null,
+					best == null ? null : arrival(path));
+			else if (best != null)
+				result = new PathfinderResult(start, bestTarget, true, path, last(path), best.cost(), stats.nodesChecked,
+					stats.transportsChecked, System.nanoTime() - started, PathTerminationReason.TARGET_REACHED, null,
+					arrival(path));
+			else
+				result = new PathfinderResult(start, firstTarget(), false, path, last(path), PathfinderResult.NO_PATH_COST,
+					stats.nodesChecked, stats.transportsChecked, System.nanoTime() - started,
+					PathTerminationReason.SEARCH_EXHAUSTED);
+		}
+		// Errors too: the static build allocates the large search arrays, where OOM is the most
+		// plausible fatal failure; an uncaught Error would leave result null and display as
+		// "unreachable" rather than a backend failure. Matches runQuery's catch.
+		catch (RuntimeException | Error error)
+		{
+			aStarStats = aStarStats == null ? AStarForwardSearch.Counters.empty() : aStarStats;
+			result = new PathfinderResult(start, firstTarget(), false, path, last(path), PathfinderResult.NO_PATH_COST,
+				stats.nodesChecked, stats.transportsChecked, System.nanoTime() - started,
+				PathTerminationReason.BACKEND_FAILURE,
+				"A* backend failed: " + (error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage()));
+		}
+		finally
+		{
+			if (!cancelled) provisionalPath = null;
+			done = !cancelled;
+			stats.end();
+			if (completionCallback != null) completionCallback.run();
+		}
+	}
+
+	/** The arrival of a route that reached a goal, read from where and in which layer it ends. */
+	private Arrival arrival(List<PathStep> route)
+	{
+		PathStep end = route.get(route.size() - 1);
+		return goals.arrival(end.getPackedPosition(), end.getBankVisitState());
+	}
+
+	private int firstTarget()
+	{
+		return targets.points().stream().min(Integer::compareUnsigned).orElse(Integer.MIN_VALUE);
+	}
+
+	private static int last(List<PathStep> steps)
+	{
+		return steps.isEmpty() ? Integer.MIN_VALUE : steps.get(steps.size() - 1).getPackedPosition();
+	}
+}

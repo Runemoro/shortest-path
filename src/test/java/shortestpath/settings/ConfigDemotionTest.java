@@ -1,0 +1,343 @@
+package shortestpath.settings;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+
+import org.junit.Test;
+
+import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Range;
+import shortestpath.ShortestPathConfig;
+import shortestpath.TestShortestPathConfig;
+
+/**
+ * Demotion-boundary gate for the settings split: the sidebar panel owns every
+ * route-affecting key, so those {@code @ConfigItem}s are declared
+ * {@code hidden = true} and the RuneLite Settings panel only shows pointer
+ * stubs for them. Every key retained on the Settings surface must NOT be
+ * hidden.
+ *
+ * <p>The hidden keyName set is pinned exactly. A panel-owned key losing
+ * {@code hidden} renders it in Settings as a duplicate surface that desyncs
+ * from the sidebar; a retained Settings key gaining {@code hidden} silently
+ * strips a user-facing option. Both directions fail this test. The pinned set
+ * also includes the internal state keys ({@code unreachableText},
+ * {@code builtTeleportation*}, {@code blockedTeleportItems}) which have never
+ * had a Settings surface.
+ */
+public class ConfigDemotionTest
+{
+	/**
+	 * The exact set of keyNames that may exist only as keyed registry rows —
+	 * the panel-owned route options plus the internal state keys. 61 names;
+	 * the write-pair keys
+	 * ({@code builtTeleportationBoxes}/{@code builtTeleportationPortalsPoh})
+	 * appear once even though each is declared on both a getter and a
+	 * {@code void set*} method.
+	 */
+	private static final Set<String> PANEL_OWNED_KEYS = new TreeSet<>(Arrays.asList(
+		"balloonLogBasketRoutes",
+		"blockedTeleportItems",
+		"builtTeleportationBoxes",
+		"builtTeleportationPortalsPoh",
+		"costAgilityShortcuts",
+		"costBoats",
+		"costCanoes",
+		"costCharterShips",
+		"costConsumableTeleportationItems",
+		"costFairyRings",
+		"costGnomeGliders",
+		"costGrappleShortcuts",
+		"costHotAirBalloons",
+		"costMagicCarpets",
+		"costMagicMushtrees",
+		"costMinecarts",
+		"costNonConsumableTeleportationItems",
+		"costQuetzalWhistle",
+		"costQuetzals",
+		"costSeasonalTransports",
+		"costShips",
+		"costSpiritTrees",
+		"costTeleportationBoxes",
+		"costTeleportationLevers",
+		"costTeleportationMinigames",
+		"costTeleportationPortals",
+		"costTeleportationSpells",
+		"costTeleportationSpellsHome",
+		"costWildernessObelisks",
+		"pohJewelleryBoxTier",
+		"pohMountedItems",
+		"pohNexusPortals",
+		"unlockBalloonLogBasket",
+		"unreachableText",
+		"useAgilityShortcuts",
+		"useBoats",
+		"useCanoes",
+		"useCharterShips",
+		"useFairyRings",
+		"useGnomeGliders",
+		"useGrappleShortcuts",
+		"useHotAirBalloons",
+		"useMagicCarpets",
+		"useMagicMushtrees",
+		"useMinecarts",
+		"usePoh",
+		"usePohFairyRing",
+		"usePohMountedItems",
+		"usePohObelisk",
+		"usePohSpiritTree",
+		"useQuetzals",
+		"useSeasonalTransports",
+		"useShips",
+		"useSpiritTrees",
+		"useTeleportationLevers",
+		"useTeleportationMinigames",
+		"useTeleportationPortals",
+		"useTeleportationPortalsPoh",
+		"useTeleportationSpells",
+		"useTeleportationSpellsHome",
+		"useWildernessObelisks"
+	));
+
+	/**
+	 * The keyed rows that are <i>also</i> declared as {@code @ConfigItem}s so
+	 * the stock config panel can reach them — their sidebar read/write path is
+	 * unchanged (raw {@code ConfigManager} keyed reads), and they keep their
+	 * bundled {@code config-items.tsv} metadata because {@code Settings.item}
+	 * resolves the TSV on every seam, including the descriptor-less wrap seam
+	 * the panel tests run on. 26 names.
+	 */
+	private static final Set<String> DECLARED_KEYED_KEYS = new TreeSet<>(Arrays.asList(
+		"aStarHeuristicWeight",
+		"avoidWilderness",
+		"calculationCutoff",
+		"cancelInstead",
+		"collisionAwareBlockedTargets",
+		"costBankVisit",
+		"currencyThreshold",
+		"finishDistance",
+		"highlightBankPickupItems",
+		"highlightInventoryItems",
+		"highlightSpellbookSpells",
+		"includeBankPath",
+		"recalculateDistance",
+		"respawnPrifddinas",
+		"showBankPickupInfo",
+		"showTileCounter",
+		"showTransportInfo",
+		"showUnreachableText",
+		"tileCounterStep",
+		"unlockCanoeAxe",
+		"unlockDragontoothPassage",
+		"unlockMorUlRek",
+		"unlockXericsHonour",
+		"unreachableTargetDistanceThreshold",
+		"useSailingMoves",
+		"useTeleportationItems"
+	));
+
+	/**
+	 * Scans every {@code @ConfigItem} on {@link ShortestPathConfig}: the
+	 * {@code hidden} flag must agree with pinned membership on every method —
+	 * including the getter/setter write pairs — and the collected hidden set
+	 * must equal the pinned set exactly.
+	 */
+	@Test
+	public void exactlyThePanelOwnedKeysAreHidden()
+	{
+		assertEquals("the pinned boundary is 61 keyNames", 61, PANEL_OWNED_KEYS.size());
+
+		// The hidden-key surface lives in the keyed registry, not on the
+		// interface: no @ConfigItem may carry hidden=true any more, and every
+		// panel-owned key resolves to a keyed registry row with metadata.
+		Set<String> annotatedKeys = new TreeSet<>();
+		List<String> boundaryViolations = new ArrayList<>();
+		for (Method method : ShortestPathConfig.class.getMethods())
+		{
+			ConfigItem item = method.getAnnotation(ConfigItem.class);
+			if (item == null)
+			{
+				continue;
+			}
+			annotatedKeys.add(item.keyName());
+			if (item.hidden())
+			{
+				boundaryViolations.add(method.getName() + " (keyName=" + item.keyName() + ")");
+			}
+		}
+		assertTrue("@ConfigItems still carrying hidden=true: " + boundaryViolations,
+			boundaryViolations.isEmpty());
+
+		Set<String> missing = new TreeSet<>(PANEL_OWNED_KEYS);
+		missing.removeIf(key ->
+		{
+			ConfigKey row = ConfigKey.forKey(key);
+			return row != null && !annotatedKeys.contains(key)
+				&& ConfigItems.of(key) != null;
+		});
+		assertTrue("panel-owned keys missing a keyed row or metadata: " + missing,
+			missing.isEmpty());
+	}
+
+	/**
+	 * Every declared keyed row must keep all three halves of its contract:
+	 * a keyed {@link ConfigKey} row (the read/write path the sidebar and the
+	 * keyed seam share), a declared {@code @ConfigItem} getter (the stock
+	 * panel surface), and a bundled {@code config-items.tsv} row (the
+	 * metadata source {@code Settings.item} resolves first on every seam).
+	 * Losing any one strands the key on one of the two surfaces.
+	 */
+	@Test
+	public void declaredKeyedRowsStayKeyedAnnotatedAndMetadataComplete()
+	{
+		assertEquals("the declared keyed set is 26 keyNames", 26, DECLARED_KEYED_KEYS.size());
+
+		Set<String> annotated = new TreeSet<>();
+		for (Method method : ShortestPathConfig.class.getMethods())
+		{
+			ConfigItem item = method.getAnnotation(ConfigItem.class);
+			if (item != null && method.getParameterCount() == 0
+				&& method.getReturnType() != void.class)
+			{
+				annotated.add(item.keyName());
+			}
+		}
+
+		List<String> violations = new ArrayList<>();
+		for (String key : DECLARED_KEYED_KEYS)
+		{
+			ConfigKey row = ConfigKey.forKey(key);
+			if (row == null)
+			{
+				violations.add(key + " lost its keyed ConfigKey row");
+			}
+			if (!annotated.contains(key))
+			{
+				violations.add(key + " lost its @ConfigItem declaration");
+			}
+			if (ConfigItems.of(key) == null)
+			{
+				violations.add(key + " lost its config-items.tsv metadata row");
+			}
+		}
+		assertTrue("declared keyed rows with a broken leg: " + violations,
+			violations.isEmpty());
+	}
+
+	/**
+	 * For a declared keyed key the TSV row and the {@code @ConfigItem}
+	 * annotation describe the same setting twice — the TSV feeds
+	 * {@code Settings.item} (sidebar + every descriptor-less seam) while the
+	 * annotation feeds the stock panel — so name, description and range
+	 * bounds must agree verbatim, or the two surfaces drift.
+	 */
+	@Test
+	public void declaredKeyedMetadataMatchesTheAnnotation()
+	{
+		List<String> mismatches = new ArrayList<>();
+		for (Method method : ShortestPathConfig.class.getMethods())
+		{
+			ConfigItem item = method.getAnnotation(ConfigItem.class);
+			if (item == null || !DECLARED_KEYED_KEYS.contains(item.keyName()))
+			{
+				continue;
+			}
+			ConfigItems.Meta meta = ConfigItems.of(item.keyName());
+			if (meta == null)
+			{
+				mismatches.add(item.keyName() + " has no tsv row");
+				continue;
+			}
+			if (!item.name().equals(meta.name()))
+			{
+				mismatches.add(item.keyName() + " name: tsv='" + meta.name()
+					+ "' annotation='" + item.name() + "'");
+			}
+			if (!item.description().equals(meta.description()))
+			{
+				mismatches.add(item.keyName() + " description: tsv='" + meta.description()
+					+ "' annotation='" + item.description() + "'");
+			}
+			Range range = method.getAnnotation(Range.class);
+			Integer min = range == null ? null : range.min();
+			Integer max = range == null ? null : range.max();
+			if (!java.util.Objects.equals(min, meta.min()) || !java.util.Objects.equals(max, meta.max()))
+			{
+				mismatches.add(item.keyName() + " range: tsv=[" + meta.min() + "," + meta.max()
+					+ "] annotation=[" + min + "," + max + "]");
+			}
+		}
+		assertTrue("declared keyed rows with drifting metadata: " + mismatches,
+			mismatches.isEmpty());
+	}
+
+	/**
+	 * The settings panel keeps exactly its five real sections — Settings,
+	 * Display, Colours, Hotkeys and Debug Options. The two "(Moved To
+	 * Sidebar)" pointer sections rendered as empty collapsible headers
+	 * once their items went hidden, so they are deleted outright: a
+	 * hidden item needs no section to stay hidden. Pinning the set
+	 * catches both a re-appearing stub section and an accidentally
+	 * dropped real one.
+	 */
+	@Test
+	public void onlyTheRealSettingsSectionsRemain()
+	{
+		Set<String> sectionNames = new TreeSet<>();
+		for (Field field : ShortestPathConfig.class.getDeclaredFields())
+		{
+			ConfigSection section = field.getAnnotation(ConfigSection.class);
+			if (section != null)
+			{
+				sectionNames.add(section.name());
+			}
+		}
+		assertEquals("the settings surface keeps exactly its five sections",
+			new TreeSet<>(Arrays.asList(
+				"Settings", "Display", "Colours", "Hotkeys", "Debug Options")),
+			sectionNames);
+	}
+
+	/**
+	 * The sidebar-visibility toggle is a Settings-surface item, not a
+	 * panel-owned key: it must exist, stay {@code hidden = false} (so it is
+	 * never absorbed into {@link #PANEL_OWNED_KEYS}), live in the Settings
+	 * section and default on — the sidebar icon is the panel's only entry
+	 * point, so hiding it must be a deliberate opt-out.
+	 */
+	@Test
+	public void sidebarToggleIsAVisibleSettingsItem()
+	{
+		ConfigItem item = null;
+		Method getter = null;
+		for (Method method : ShortestPathConfig.class.getMethods())
+		{
+			ConfigItem found = method.getAnnotation(ConfigItem.class);
+			if (found != null && "showSidebarPanel".equals(found.keyName())
+				&& method.getParameterCount() == 0 && method.getReturnType() != void.class)
+			{
+				item = found;
+				getter = method;
+			}
+		}
+		assertNotNull("a showSidebarPanel @ConfigItem exists", item);
+		assertFalse("the sidebar toggle is not a panel-owned hidden key", item.hidden());
+		assertEquals("the toggle lives in the Settings section",
+			"sectionSettings", item.section());
+		assertEquals("the toggle is a boolean read",
+			boolean.class, getter.getReturnType());
+		assertTrue("the sidebar icon shows by default — hiding is opt-out",
+			new TestShortestPathConfig().showSidebarPanel());
+	}
+}

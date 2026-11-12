@@ -1,0 +1,175 @@
+package shortestpath.overlay;
+
+import shortestpath.settings.ConfigKey;
+import com.google.inject.Inject;
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+import net.runelite.api.Client;
+import net.runelite.api.Point;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.client.ui.*;
+import net.runelite.client.ui.overlay.*;
+import shortestpath.WorldPointUtil;
+import shortestpath.pathfinder.*;
+import shortestpath.presentation.PathAnnotator;
+import shortestpath.scheduler.PathScheduler;
+import shortestpath.settings.Settings;
+import shortestpath.transport.Transport;
+import shortestpath.widgets.WidgetGeometry;
+
+public class PathMapTooltipOverlay extends Overlay
+{
+	private static final int TOOLTIP_OFFSET_HEIGHT = 25;
+	private static final int TOOLTIP_OFFSET_WIDTH = 15;
+	private static final int TOOLTIP_PADDING_HEIGHT = 1;
+	private static final int TOOLTIP_PADDING_WIDTH = 2;
+	private static final int TOOLTIP_TEXT_OFFSET_HEIGHT = -2;
+
+	private final Client client;
+	private final Settings settings;
+	private final PathScheduler scheduler;
+	private final WidgetGeometry geometry;
+	private final PathAnnotator annotator;
+
+	@Inject
+	private PathMapTooltipOverlay(Client client, Settings settings, PathScheduler scheduler,
+		WidgetGeometry geometry, PathAnnotator annotator)
+	{
+		this.client = client;
+		this.settings = settings;
+		this.scheduler = scheduler;
+		this.geometry = geometry;
+		this.annotator = annotator;
+		setPosition(OverlayPosition.DYNAMIC);
+		setPriority(Overlay.PRIORITY_HIGHEST);
+		setLayer(OverlayLayer.MANUAL);
+		drawAfterInterface(InterfaceID.WORLDMAP);
+	}
+
+	@Override
+	public Dimension render(Graphics2D graphics)
+	{
+		if (!settings.bool(ConfigKey.DRAW_MAP) || !geometry.worldMapOpen())
+		{
+			return null;
+		}
+
+		ActiveSearch search = scheduler.getActiveSearch();
+		if (search != null)
+		{
+			List<PathStep> path = search.getPath();
+			Point cursorPos = client.getMouseCanvasPosition();
+			for (int i = 0; i < path.size(); i++)
+			{
+				int nextPoint = WorldPointUtil.UNDEFINED;
+				if (path.size() > i + 1)
+				{
+					nextPoint = path.get(i + 1).getPackedPosition();
+				}
+				if (drawTooltip(graphics, cursorPos, path.get(i).getPackedPosition(), nextPoint, i + 1, path, i))
+				{
+					return null;
+				}
+			}
+			OverlayDrawing.forEachUnreachedTarget(search, path, target ->
+				drawTooltip(graphics, cursorPos, target, WorldPointUtil.UNDEFINED, -1, path, -1));
+		}
+
+		return null;
+	}
+
+	private boolean drawTooltip(Graphics2D graphics, Point cursorPos, int point, int nextPoint, int n,
+		List<PathStep> path, int pathIndex)
+	{
+		int offsetPoint = WorldPointUtil.dxdy(point, 1, -1);
+		Point start = geometry.mapWorldPointToGraphicsPoint(point);
+		Point end = geometry.mapWorldPointToGraphicsPoint(offsetPoint);
+
+		if (start == null || end == null)
+		{
+			return false;
+		}
+
+		int startX = start.getX();
+		int startY = start.getY();
+		int endX = end.getX();
+		int endY = end.getY();
+
+		int width = endX - startX;
+
+		if (cursorPos.getX() < (startX - width / 2) || cursorPos.getX() > (endX - width / 2) ||
+			cursorPos.getY() < (startY - width / 2) || cursorPos.getY() > (endY - width / 2))
+		{
+			return false;
+		}
+
+		List<String> rows = new ArrayList<>(Arrays.asList("Shortest path:",
+			n < 0 ? "Unused target" : ("Step " + n + " of " + path.size())));
+		if (nextPoint != WorldPointUtil.UNDEFINED)
+		{
+			PathStep currentStep = path.get(pathIndex);
+			PathStep nextStep = annotator.nextPathStep(path, pathIndex);
+			for (Transport transport : annotator.transportsForEdge(currentStep, nextStep))
+			{
+				String displayInfo = annotator.formatTransportDisplay(transport);
+				if (displayInfo != null && !displayInfo.isEmpty())
+				{
+					// Check if this transport goes to POH - if so, look ahead to find the exit
+					// transport
+					String pohExitSuffix = OverlayDrawing.pohExitSuffix(annotator, nextPoint, path, pathIndex);
+					if (pohExitSuffix != null)
+					{
+						displayInfo = displayInfo + pohExitSuffix;
+					}
+					rows.add(displayInfo);
+					break;
+				}
+			}
+		}
+
+		graphics.setFont(FontManager.getRunescapeFont());
+		FontMetrics fm = graphics.getFontMetrics();
+		int tooltipHeight = fm.getHeight();
+		int tooltipWidth = 0;
+		if (rows.stream().map(fm::stringWidth).max(Integer::compare).isPresent())
+		{
+			tooltipWidth = rows.stream().map(fm::stringWidth).max(Integer::compareTo).get();
+		}
+		int clippedHeight = tooltipHeight * rows.size() + TOOLTIP_PADDING_HEIGHT * 2;
+		int clippedWidth = tooltipWidth + TOOLTIP_PADDING_WIDTH * 2;
+
+		Rectangle worldMapBounds = Objects.requireNonNull(client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER)).getBounds();
+		int worldMapRightBoundary = worldMapBounds.width + worldMapBounds.x;
+		int worldMapBottomBoundary = worldMapBounds.height + worldMapBounds.y;
+
+		int drawPointX = startX + TOOLTIP_OFFSET_WIDTH;
+		int drawPointY = startY;
+		if (drawPointX + clippedWidth > worldMapRightBoundary)
+		{
+			drawPointX = worldMapRightBoundary - clippedWidth;
+		}
+		if (drawPointY + clippedHeight > worldMapBottomBoundary)
+		{
+			drawPointY = startY - clippedHeight;
+		}
+		drawPointY += TOOLTIP_OFFSET_HEIGHT;
+
+		int tooltipRectX = drawPointX - TOOLTIP_PADDING_WIDTH;
+		int tooltipRectY = drawPointY - TOOLTIP_PADDING_HEIGHT;
+
+		graphics.setColor(JagexColors.TOOLTIP_BACKGROUND);
+		graphics.fillRect(tooltipRectX, tooltipRectY, clippedWidth, clippedHeight);
+
+		graphics.setColor(JagexColors.TOOLTIP_BORDER);
+		graphics.drawRect(tooltipRectX, tooltipRectY, clippedWidth, clippedHeight);
+
+		graphics.setColor(JagexColors.TOOLTIP_TEXT);
+		for (int i = 0; i < rows.size(); i++)
+		{
+			graphics.drawString(rows.get(i), drawPointX, drawPointY + TOOLTIP_TEXT_OFFSET_HEIGHT + (i + 1) * tooltipHeight);
+		}
+
+		return true;
+	}
+}

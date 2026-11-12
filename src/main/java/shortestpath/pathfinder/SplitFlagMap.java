@@ -1,80 +1,205 @@
 package shortestpath.pathfinder;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.Weigher;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.io.*;
+import java.util.*;
+import java.util.zip.*;
+
+import lombok.*;
+
+import static net.runelite.api.Constants.REGION_SIZE;
+
 import shortestpath.Util;
+import shortestpath.transport.ResourceLoader;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.zip.GZIPInputStream;
+public class SplitFlagMap
+{
+	// Per-tile flag layout matching the collision-map dump format: flags 0/1
+	// record whether the north/south and east/west edges are open for
+	// movement; flags 2/3 mark those edges as structural boundaries written
+	// by walls and doors rather than object footprints or tile-level blocks.
+	public static final int FLAG_NORTH = 0;
+	public static final int FLAG_EAST = 1;
+	public static final int FLAG_WALL_NORTH = 2;
+	public static final int FLAG_WALL_EAST = 3;
+	private static final int FLAG_COUNT = 4;
+	private static final int BITS_PER_PLANE = REGION_SIZE * REGION_SIZE * FLAG_COUNT;
+	private static final int WORDS_PER_PLANE = BITS_PER_PLANE / Long.SIZE;
+	private static final int REGION_MASK = REGION_SIZE - 1;
 
-public abstract class SplitFlagMap {
-    private static final int MAXIMUM_SIZE = 20 * 1024 * 1024;
-    private final int regionSize;
-    private final LoadingCache<Position, FlagMap> regionMaps;
-    private final int flagCount;
+	@Getter
+	private static RegionExtent regionExtents;
 
-    public SplitFlagMap(int regionSize, Map<Position, byte[]> compressedRegions, int flagCount) {
-        this.regionSize = regionSize;
-        this.flagCount = flagCount;
-        regionMaps = CacheBuilder
-                .newBuilder()
-                .weigher((Weigher<Position, FlagMap>) (k, v) -> v.flags.size() / 8)
-                .maximumWeight(MAXIMUM_SIZE)
-                .build(CacheLoader.from(position -> {
-                    byte[] compressedRegion = compressedRegions.get(position);
+	private final byte[] regionMapPlaneCounts;
+	// Every region's collision bits are packed into one shared word array instead of a separate
+	// FlagMap + BitSet + long[] per region. regionWordOffset gives each region's start word, or -1
+	// when the region has no collision data (issue #491).
+	private final long[] flags;
+	private final int[] regionWordOffset;
+	private final int widthInclusive;
 
-                    if (compressedRegion == null) {
-                        return new FlagMap(position.x * regionSize, position.y * regionSize, (position.x + 1) * regionSize - 1, (position.y + 1) * regionSize - 1, this.flagCount);
-                    }
+	public SplitFlagMap(Map<Integer, byte[]> compressedRegions)
+	{
+		widthInclusive = regionExtents.getWidth() + 1;
+		final int heightInclusive = regionExtents.getHeight() + 1;
+		final int regionCount = widthInclusive * heightInclusive;
+		regionMapPlaneCounts = new byte[regionCount];
+		regionWordOffset = new int[regionCount];
+		Arrays.fill(regionWordOffset, -1);
 
-                    try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(compressedRegion))) {
-                        return new FlagMap(Util.readAllBytes(in), this.flagCount);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                }));
-    }
+		// First pass: decode each region and reserve it a slice of the shared word array.
+		final Map<Integer, long[]> regionWords = new HashMap<>(compressedRegions.size());
+		int totalWords = 0;
+		for (Map.Entry<Integer, byte[]> entry : compressedRegions.entrySet())
+		{
+			final int pos = entry.getKey();
+			final int index = getIndex(unpackX(pos), unpackY(pos));
+			final BitSet bits = BitSet.valueOf(entry.getValue());
+			// Same plane-count derivation the old FlagMap used.
+			final int planeCount = (bits.size() + BITS_PER_PLANE - 1) / BITS_PER_PLANE;
+			regionMapPlaneCounts[index] = (byte) planeCount;
+			regionWordOffset[index] = totalWords;
+			regionWords.put(index, bits.toLongArray());
+			totalWords += planeCount * WORDS_PER_PLANE;
+		}
 
-    public boolean get(int x, int y, int z, int flag) {
-        try {
-            return regionMaps.get(new Position(x / regionSize, y / regionSize)).get(x, y, z, flag);
-        } catch (ExecutionException e) {
-            throw new UncheckedExecutionException(e);
-        }
-    }
+		// Second pass: copy each region's words into its reserved slice (trailing zero words from
+		// BitSet.toLongArray are left as the zero-filled remainder of the slice).
+		flags = new long[totalWords];
+		for (Map.Entry<Integer, long[]> entry : regionWords.entrySet())
+		{
+			final long[] words = entry.getValue();
+			System.arraycopy(words, 0, flags, regionWordOffset[entry.getKey()], words.length);
+		}
+	}
 
-    public static class Position {
-        public final int x;
-        public final int y;
+	public static int unpackX(int position)
+	{
+		return position & 0xFFFF;
+	}
 
-        public Position(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
+	public static int unpackY(int position)
+	{
+		return (position >> 16) & 0xFFFF;
+	}
 
-        @Override
-        public boolean equals(Object o) {
-            return o instanceof Position &&
-                    ((Position) o).x == x &&
-                    ((Position) o).y == y;
-        }
+	public static int packPosition(int x, int y)
+	{
+		return (x & 0xFFFF) | ((y & 0xFFFF) << 16);
+	}
 
-        @Override
-        public int hashCode() {
-            return x * 31 + y;
-        }
+	public static SplitFlagMap fromResources()
+	{
+		Map<Integer, byte[]> compressedRegions = new HashMap<>();
+		try (ZipInputStream in = new ZipInputStream(ResourceLoader.collisionMap()))
+		{
+			int minX = Integer.MAX_VALUE;
+			int minY = Integer.MAX_VALUE;
+			int maxX = 0;
+			int maxY = 0;
 
-        @Override
-        public String toString() {
-            return "(" + x + ", " + y + ")";
-        }
-    }
+			ZipEntry entry;
+			while ((entry = in.getNextEntry()) != null)
+			{
+				String[] n = entry.getName().split("_");
+				final int x = Integer.parseInt(n[0]);
+				final int y = Integer.parseInt(n[1]);
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+
+				compressedRegions.put(SplitFlagMap.packPosition(x, y), Util.readAllBytes(in));
+			}
+
+			regionExtents = new RegionExtent(minX, minY, maxX, maxY);
+		}
+		catch (IOException e)
+		{
+			throw new UncheckedIOException(e);
+		}
+
+		return new SplitFlagMap(compressedRegions);
+	}
+
+	public byte getRegionPlaneCounts(int index)
+	{
+		return regionMapPlaneCounts[index];
+	}
+
+	/**
+	 * A 64-bit digest of the collision data: the region grid width, then, for every region that has
+	 * data in ascending region order, its index, plane count and flag words. It does not depend on
+	 * how the regions are laid out in the shared word array, so two maps decoded from the same
+	 * regions agree. It is a change detector for derived data such as the routing component layer,
+	 * not a cryptographic hash.
+	 */
+	public long fingerprint()
+	{
+		long hash = mix(0x243f6a8885a308d3L, widthInclusive);
+		for (int index = 0; index < regionWordOffset.length; index++)
+		{
+			final int wordOffset = regionWordOffset[index];
+			if (wordOffset < 0)
+			{
+				continue;
+			}
+			final int words = regionMapPlaneCounts[index] * WORDS_PER_PLANE;
+			hash = mix(mix(hash, index), words);
+			for (int word = 0; word < words; word++)
+			{
+				hash = mix(hash, flags[wordOffset + word]);
+			}
+		}
+		return hash;
+	}
+
+	private static long mix(long hash, long value)
+	{
+		hash = (hash ^ value) * 0x9e3779b97f4a7c15L;
+		return hash ^ (hash >>> 29);
+	}
+
+	public boolean get(int x, int y, int z, int flag)
+	{
+		final int index = getIndex(x / REGION_SIZE, y / REGION_SIZE);
+		if (index < 0 || index >= regionWordOffset.length)
+		{
+			return false;
+		}
+
+		final int wordOffset = regionWordOffset[index];
+		if (wordOffset < 0 || z < 0 || z >= regionMapPlaneCounts[index])
+		{
+			return false;
+		}
+
+		// SplitFlagMap routes (x, y) to the region that contains it, so the in-region coordinates
+		// are simply the low REGION_SIZE bits; this matches the old FlagMap.index arithmetic.
+		final int localBit = (z * REGION_SIZE * REGION_SIZE
+			+ (y & REGION_MASK) * REGION_SIZE
+			+ (x & REGION_MASK)) * FLAG_COUNT + flag;
+		return (flags[wordOffset + (localBit >> 6)] >>> (localBit & 63) & 1L) != 0L;
+	}
+
+	private int getIndex(int regionX, int regionY)
+	{
+		return (regionX - regionExtents.getMinX()) + (regionY - regionExtents.getMinY()) * widthInclusive;
+	}
+
+	@RequiredArgsConstructor
+	@Getter
+	public static class RegionExtent
+	{
+		public final int minX, minY, maxX, maxY;
+
+		public int getWidth()
+		{
+			return maxX - minX;
+		}
+
+		public int getHeight()
+		{
+			return maxY - minY;
+		}
+	}
 }

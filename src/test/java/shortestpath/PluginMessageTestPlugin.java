@@ -1,0 +1,452 @@
+package shortestpath;
+
+import java.awt.Color;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.inject.Inject;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.KeyCode;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Point;
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.MenuOpened;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.Widget;
+import net.runelite.api.worldmap.WorldMap;
+import net.runelite.client.eventbus.EventBus;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.PluginMessage;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.JagexColors;
+import net.runelite.client.util.ColorUtil;
+
+@PluginDescriptor(name = "Shortest Path Test", description = "Test the Shortest Path Plugin Message events")
+public class PluginMessageTestPlugin extends Plugin
+{
+	private static final String PLUGIN_MESSAGE_NAME = "shortestpath";
+	private static final String PLUGIN_MESSAGE_PATH = "path";
+	private static final String PLUGIN_MESSAGE_CLEAR = "clear";
+	private static final String PLUGIN_MESSAGE_START = "start";
+	private static final String PLUGIN_MESSAGE_TARGET = "target";
+	private static final String PLUGIN_MESSAGE_CONFIG_OVERRIDE = "config";
+	private static final String PLUGIN_MESSAGE_QUERY = "query";
+	private static final String PLUGIN_MESSAGE_RESULT = "result";
+	private static final String PLUGIN_MESSAGE_GET_TARGET = "getTarget";
+	private static final String PLUGIN_MESSAGE_CURRENT_TARGET = "currentTarget";
+	private static final String CLEAR = "Clear";
+	private static final String PATH = ColorUtil.wrapWithColorTag("Path (PluginMessage)", JagexColors.MENU_TARGET);
+	private static final String SET = "Set";
+	private static final String START_INT = ColorUtil.wrapWithColorTag("Start Integer (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String START_WP = ColorUtil.wrapWithColorTag("Start WorldPoint (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String TARGET_INT = ColorUtil.wrapWithColorTag("Target Integer(s) (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String TARGET_WP = ColorUtil.wrapWithColorTag("Target WorldPoint(s) (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String QUERY = "Query";
+	private static final String QUERY_TARGET = ColorUtil.wrapWithColorTag("Path to here (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String TARGET_REQ = ColorUtil.wrapWithColorTag("Target + require item(s) (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String QUERY_TARGET_REQ = ColorUtil.wrapWithColorTag("Path to here + require item(s) (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String CONFIG_COLOUR_PATH = ColorUtil.wrapWithColorTag("Yellow path colour (PluginMessage)",
+		JagexColors.MENU_TARGET);
+	private static final String GET_TARGET = "Get";
+	private static final String CURRENT_TARGET = ColorUtil.wrapWithColorTag("Current target (PluginMessage)",
+		JagexColors.MENU_TARGET);
+
+	private final Set<WorldPoint> targets = new HashSet<>(10);
+	private Point lastMenuOpenedPoint;
+	private int getTargetId;
+	// The requirement the "require item(s)" menu entries put on their target, set by "::req".
+	private Object requiredItems;
+
+	@Inject
+	private Client client;
+
+	@Inject
+	private EventBus eventBus;
+
+	private static int packWorldPoint(WorldPoint wp)
+	{
+		if (wp == null)
+		{
+			return -1;
+		}
+		return (wp.getX() & 0x7FFF) | ((wp.getY() & 0x7FFF) << 15) | ((wp.getPlane() & 0x3) << 30);
+	}
+
+	@Subscribe
+	public void onMenuOpened(MenuOpened event)
+	{
+		lastMenuOpenedPoint = client.getMouseCanvasPosition();
+
+		if (!client.isKeyPressed(KeyCode.KC_SHIFT))
+		{
+			return;
+		}
+
+		for (MenuEntry menuEntry : event.getMenuEntries())
+		{
+			if (MenuAction.WALK.equals(menuEntry.getType()))
+			{
+				addMenuEntry(SET, TARGET_INT, 1);
+				addMenuEntry(SET, TARGET_WP, 1);
+				addMenuEntry(SET, CONFIG_COLOUR_PATH, 1);
+				addMenuEntry(QUERY, QUERY_TARGET, 1);
+				if (requiredItems != null)
+				{
+					addMenuEntry(SET, TARGET_REQ, 1);
+					addMenuEntry(QUERY, QUERY_TARGET_REQ, 1);
+				}
+				addMenuEntry(GET_TARGET, CURRENT_TARGET, 1);
+				if (!targets.isEmpty())
+				{
+					addMenuEntry(SET, START_INT, 1);
+					addMenuEntry(SET, START_WP, 1);
+				}
+				addMenuEntry(CLEAR, PATH, 1);
+				break;
+			}
+		}
+
+		final Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
+
+		if (map != null
+			&& map.getBounds().contains(
+			client.getMouseCanvasPosition().getX(),
+			client.getMouseCanvasPosition().getY()))
+		{
+			addMenuEntry(SET, TARGET_INT, 0);
+			addMenuEntry(SET, TARGET_WP, 0);
+			addMenuEntry(SET, CONFIG_COLOUR_PATH, 0);
+			addMenuEntry(QUERY, QUERY_TARGET, 0);
+			if (requiredItems != null)
+			{
+				addMenuEntry(SET, TARGET_REQ, 0);
+				addMenuEntry(QUERY, QUERY_TARGET_REQ, 0);
+			}
+			addMenuEntry(GET_TARGET, CURRENT_TARGET, 0);
+			if (!targets.isEmpty())
+			{
+				addMenuEntry(SET, START_INT, 0);
+				addMenuEntry(SET, START_WP, 0);
+				addMenuEntry(CLEAR, PATH, 0);
+			}
+		}
+	}
+
+	private void addMenuEntry(String option, String target, int position)
+	{
+		client.getMenu().createMenuEntry(position)
+			.setOption(option)
+			.setTarget(target)
+			.setType(MenuAction.RUNELITE)
+			.onClick(this::onMenuOptionClicked);
+	}
+
+	private void onMenuOptionClicked(MenuEntry entry)
+	{
+		boolean isMessageInt = false;
+		boolean overrideColourPath = false;
+		WorldPoint start = null;
+		WorldPoint target = null;
+
+		if (entry.getOption().equals(SET) && entry.getTarget().equals(TARGET_INT))
+		{
+			isMessageInt = true;
+			target = getSelectedWorldPoint();
+		}
+		else if (entry.getOption().equals(SET) && entry.getTarget().equals(TARGET_WP))
+		{
+			target = getSelectedWorldPoint();
+		}
+		else if (entry.getOption().equals(SET) && entry.getTarget().equals(START_INT))
+		{
+			isMessageInt = true;
+			start = getSelectedWorldPoint();
+		}
+		else if (entry.getOption().equals(SET) && entry.getTarget().equals(START_WP))
+		{
+			start = getSelectedWorldPoint();
+		}
+		else if (entry.getOption().equals(SET) && entry.getTarget().equals(CONFIG_COLOUR_PATH))
+		{
+			overrideColourPath = true;
+		}
+		else if (entry.getOption().equals(QUERY) && entry.getTarget().equals(QUERY_TARGET))
+		{
+			Map<String, Object> data = new HashMap<>();
+			data.put("id", "test-query");
+			data.put(PLUGIN_MESSAGE_TARGET, getSelectedWorldPoint());
+			eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_QUERY, data));
+			return;
+		}
+		else if (entry.getOption().equals(SET) && entry.getTarget().equals(TARGET_REQ))
+		{
+			Map<String, Object> data = new HashMap<>();
+			data.put(PLUGIN_MESSAGE_TARGET, targetWithRequirement(getSelectedWorldPoint()));
+			eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_PATH, data));
+			return;
+		}
+		else if (entry.getOption().equals(QUERY) && entry.getTarget().equals(QUERY_TARGET_REQ))
+		{
+			Map<String, Object> data = new HashMap<>();
+			data.put("id", "test-query-req");
+			data.put(PLUGIN_MESSAGE_TARGET, targetWithRequirement(getSelectedWorldPoint()));
+			eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_QUERY, data));
+			return;
+		}
+		else if (entry.getOption().equals(GET_TARGET) && entry.getTarget().equals(CURRENT_TARGET))
+		{
+			sendGetTarget();
+			return;
+		}
+		else if (entry.getOption().equals(CLEAR) && entry.getTarget().equals(PATH))
+		{
+			targets.clear();
+			eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_CLEAR));
+			return;
+		}
+
+		if (target != null)
+		{
+			targets.add(target);
+		}
+
+		Set<Integer> convertedTargets = new HashSet<>();
+		if (isMessageInt)
+		{
+			for (WorldPoint t : targets)
+			{
+				convertedTargets.add(packWorldPoint(t));
+			}
+		}
+
+		Map<String, Object> data = new HashMap<>();
+
+		if (start != null)
+		{
+			data.put(PLUGIN_MESSAGE_START, isMessageInt ? packWorldPoint(start) : start);
+		}
+
+		if (!targets.isEmpty())
+		{
+			data.put(PLUGIN_MESSAGE_TARGET,
+				targets.size() != 1 ? (isMessageInt ? convertedTargets : targets)
+					: (isMessageInt ? convertedTargets.iterator().next() : targets.iterator().next()));
+		}
+
+		if (overrideColourPath)
+		{
+			Map<String, Object> configOverride = new HashMap<>();
+			configOverride.put("colourPath", new Color(255, 255, 0));
+			data.put(PLUGIN_MESSAGE_CONFIG_OVERRIDE, configOverride);
+		}
+
+		eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_PATH, data));
+	}
+
+	/** The clicked point plus every plain target, as a target map carrying the pending requirement. */
+	private Object targetWithRequirement(WorldPoint point)
+	{
+		Map<String, Object> requiring = new HashMap<>();
+		requiring.put("point", point);
+		requiring.put("requirements", requiredItems);
+		if (targets.isEmpty())
+		{
+			return requiring;
+		}
+		List<Object> all = new ArrayList<>(targets);
+		all.add(requiring);
+		return all;
+	}
+
+	/**
+	 * "::req <spec>" sets the items the require-item(s) entries put on their target; "::req" clears
+	 * them. A spec is item ids joined by "+", meaning all of them; inside a group, "," means any one
+	 * and ":" means a quantity. "::req 952" a spade, "::req 952+954:2" a spade and two ropes.
+	 */
+	@Subscribe
+	public void onCommandExecuted(CommandExecuted event)
+	{
+		if (!"req".equals(event.getCommand()))
+		{
+			return;
+		}
+		String[] args = event.getArguments();
+		requiredItems = args.length < 1 ? null : parseRequirement(String.join("", args));
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+			requiredItems == null
+				? "Target requirement cleared; the \"require item(s)\" entries are hidden"
+				: "Targets set through \"require item(s)\" now need " + requiredItems, null);
+	}
+
+	private static Object parseRequirement(String spec)
+	{
+		List<Object> groups = new ArrayList<>();
+		for (String group : spec.split("\\+"))
+		{
+			if (group.contains(","))
+			{
+				Set<Integer> anyOf = new HashSet<>();
+				for (String id : group.split(","))
+				{
+					anyOf.add(Integer.parseInt(id));
+				}
+				groups.add(anyOf);
+			}
+			else if (group.contains(":"))
+			{
+				String[] idAndQty = group.split(":");
+				groups.add(Map.of(Integer.parseInt(idAndQty[0]), Integer.parseInt(idAndQty[1])));
+			}
+			else
+			{
+				groups.add(Integer.parseInt(group));
+			}
+		}
+		return groups.size() == 1 ? groups.get(0) : groups;
+	}
+
+	private void sendGetTarget()
+	{
+		Map<String, Object> data = new HashMap<>();
+		data.put("id", "test-get-target-" + (getTargetId++));
+		eventBus.post(new PluginMessage(PLUGIN_MESSAGE_NAME, PLUGIN_MESSAGE_GET_TARGET, data));
+	}
+
+	/** Query and getTarget answers leave the displayed path alone, so they are only reported in chat. */
+	@Subscribe
+	public void onPluginMessage(PluginMessage event)
+	{
+		if (!PLUGIN_MESSAGE_NAME.equals(event.getNamespace()))
+		{
+			return;
+		}
+		Map<String, Object> data = event.getData();
+		if (PLUGIN_MESSAGE_RESULT.equals(event.getName()))
+		{
+			List<?> path = (List<?>) data.get("path");
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+				"Query " + data.get("id") + ": reached=" + data.get("reached")
+					+ ", reason=" + data.get("reason")
+					+ ", " + path.size() + " steps, transports " + data.get("transports")
+					+ ", bankVisited=" + data.get("bankVisited")
+					+ ", targetStatus=" + data.get("targetStatus")
+					+ ", missingItems=" + data.get("missingItems"), null);
+		}
+		else if (PLUGIN_MESSAGE_CURRENT_TARGET.equals(event.getName()))
+		{
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+				"GetTarget " + data.get("id") + ": set=" + data.get("set")
+					+ ", start=" + data.get("start")
+					+ ", target=" + data.get("target")
+					+ ", config=" + data.get("config"), null);
+		}
+	}
+
+	private WorldPoint getSelectedWorldPoint()
+	{
+		if (client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER) == null)
+		{
+			if (client.getTopLevelWorldView().getSelectedSceneTile() != null)
+			{
+				return WorldPoint.fromLocalInstance(client, client.getTopLevelWorldView().getSelectedSceneTile().getLocalLocation());
+			}
+		}
+		else
+		{
+			return client.isMenuOpen()
+				? calculateMapPoint(lastMenuOpenedPoint.getX(), lastMenuOpenedPoint.getY())
+				: calculateMapPoint(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY());
+		}
+		return null;
+	}
+
+	private WorldPoint calculateMapPoint(int pointX, int pointY)
+	{
+		WorldMap worldMap = client.getWorldMap();
+		float zoom = worldMap.getWorldMapZoom();
+		WorldPoint mapPoint = new WorldPoint(worldMap.getWorldMapPosition().getX(), worldMap.getWorldMapPosition().getY(),
+			0);
+		int middleX = mapWorldPointToGraphicsPointX(mapPoint);
+		int middleY = mapWorldPointToGraphicsPointY(mapPoint);
+
+		if (pointX == Integer.MIN_VALUE || pointY == Integer.MIN_VALUE ||
+			middleX == Integer.MIN_VALUE || middleY == Integer.MIN_VALUE)
+		{
+			return null;
+		}
+
+		final int dx = (int) ((pointX - middleX) / zoom);
+		final int dy = (int) ((-(pointY - middleY)) / zoom);
+
+		return mapPoint.dx(dx).dy(dy);
+	}
+
+	public int mapWorldPointToGraphicsPointX(WorldPoint worldPoint)
+	{
+		WorldMap worldMap = client.getWorldMap();
+
+		float pixelsPerTile = worldMap.getWorldMapZoom();
+
+		Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
+		if (map != null)
+		{
+			Rectangle worldMapRect = map.getBounds();
+
+			int widthInTiles = (int) Math.ceil(worldMapRect.getWidth() / pixelsPerTile);
+
+			Point worldMapPosition = worldMap.getWorldMapPosition();
+
+			int xTileOffset = worldPoint.getX() + widthInTiles / 2 - worldMapPosition.getX();
+
+			int xGraphDiff = ((int) (xTileOffset * pixelsPerTile));
+			xGraphDiff += (int) (pixelsPerTile - Math.ceil(pixelsPerTile / 2));
+			xGraphDiff += (int) worldMapRect.getX();
+
+			return xGraphDiff;
+		}
+		return Integer.MIN_VALUE;
+	}
+
+	public int mapWorldPointToGraphicsPointY(WorldPoint worldPoint)
+	{
+		WorldMap worldMap = client.getWorldMap();
+
+		float pixelsPerTile = worldMap.getWorldMapZoom();
+
+		Widget map = client.getWidget(InterfaceID.Worldmap.MAP_CONTAINER);
+		if (map != null)
+		{
+			Rectangle worldMapRect = map.getBounds();
+
+			int heightInTiles = (int) Math.ceil(worldMapRect.getHeight() / pixelsPerTile);
+
+			Point worldMapPosition = worldMap.getWorldMapPosition();
+
+			int yTileMax = worldMapPosition.getY() - heightInTiles / 2;
+			int yTileOffset = (yTileMax - worldPoint.getY() - 1) * -1;
+
+			int yGraphDiff = (int) (yTileOffset * pixelsPerTile);
+			yGraphDiff -= (int) (pixelsPerTile - Math.ceil(pixelsPerTile / 2));
+			yGraphDiff = worldMapRect.height - yGraphDiff;
+			yGraphDiff += (int) worldMapRect.getY();
+
+			return yGraphDiff;
+		}
+		return Integer.MIN_VALUE;
+	}
+}

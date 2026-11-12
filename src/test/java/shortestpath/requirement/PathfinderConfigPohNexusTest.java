@@ -1,0 +1,69 @@
+package shortestpath.requirement;
+
+import java.util.Set;
+import org.junit.Test;
+import shortestpath.poh.PohNexusPortal;
+import shortestpath.poh.PohService;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class PathfinderConfigPohNexusTest
+{
+	@Test
+	public void testSimplePortalFiltering()
+	{
+		Set<PohNexusPortal> selected = Set.of(PohNexusPortal.ANNAKARL);
+
+		assertTrue(PohService.isNexusPortalEnabled(selected, "Annakarl Portal"));
+		assertFalse(PohService.isNexusPortalEnabled(selected, "Ardougne Portal"));
+	}
+
+	@Test
+	public void testGroupedPortalFiltering()
+	{
+		Set<PohNexusPortal> selected = Set.of(PohNexusPortal.CAMELOT);
+
+		assertTrue(PohService.isNexusPortalEnabled(selected, "Camelot Portal"));
+		assertTrue(PohService.isNexusPortalEnabled(selected, "Seers' Village Portal"));
+
+		selected = Set.<PohNexusPortal>of();
+		assertFalse(PohService.isNexusPortalEnabled(selected, "Camelot Portal"));
+		assertFalse(PohService.isNexusPortalEnabled(selected, "Seers' Village Portal"));
+	}
+
+	@Test
+	public void testRespawnPortalFiltering()
+	{
+		// RESPAWN declares 8 respawn-point aliases — keep in step with the
+		// enum's displayInfo varargs.
+		String[] respawnAliases = {
+			"Respawn Portal (Lumbridge)",
+			"Respawn Portal (Falador)",
+			"Respawn Portal (Camelot)",
+			"Respawn Portal (Edgeville)",
+			"Respawn Portal (Prifddinas)",
+			"Respawn Portal (Ferox Enclave)",
+			"Respawn Portal (Kourend Castle)",
+			"Respawn Portal (Civitas illa Fortis)"};
+
+		Set<PohNexusPortal> selected = Set.of(PohNexusPortal.RESPAWN);
+		for (String displayInfo : respawnAliases)
+		{
+			assertTrue(PohService.isNexusPortalEnabled(selected, displayInfo));
+		}
+
+		selected = Set.<PohNexusPortal>of();
+		for (String displayInfo : respawnAliases)
+		{
+			assertFalse(PohService.isNexusPortalEnabled(selected, displayInfo));
+		}
+	}
+
+	@Test
+	public void testUnknownPortalRemainsEnabled()
+	{
+		assertTrue(PohService.isNexusPortalEnabled(
+			Set.<PohNexusPortal>of(), "Boat Portal"));
+	}
+}

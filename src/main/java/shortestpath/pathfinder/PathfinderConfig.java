@@ -1,0 +1,1029 @@
+package shortestpath.pathfinder;
+
+import java.util.*;
+
+import lombok.Getter;
+import net.runelite.api.*;
+import net.runelite.api.gameval.VarbitID;
+import shortestpath.requirement.model.*;
+import shortestpath.poh.*;
+import shortestpath.*;
+import shortestpath.spirittree.SpiritTreeService;
+import shortestpath.settings.*;
+import shortestpath.items.ItemStateService;
+import shortestpath.leagues.LeagueModeState;
+import shortestpath.pathfinder.astar.PreparedRoutingAccount;
+import shortestpath.pathfinder.sailing.SailingMoves;
+import shortestpath.requirement.*;
+import shortestpath.transport.*;
+import shortestpath.sailing.*;
+
+@SuppressWarnings("SameParameterValue")
+public class PathfinderConfig
+{
+	private final SplitFlagMap mapData;
+	private final ThreadLocal<CollisionMap> map;
+	/**
+	 * All transports by origin. The WorldPointUtil.UNDEFINED key is used for transports centered on the player.
+	 */
+	// Flat list of every loaded transport. refreshTransports only ever iterates these (the origin
+	// is re-derived from each transport), so the per-origin Set/HashMap/Integer-key map the loader
+	// produces is flattened here and not retained (issue #491).
+	private final Transport[] allTransports;
+	/**
+	 * Every tile any loaded transport lands on. Transports can place the player onto
+	 * collision-blocked tiles (e.g. fairy rings), so a blocked target is still
+	 * potentially reachable when it is a transport destination.
+	 */
+	private final Set<Integer> transportDestinations;
+	/**
+	 * Display view of every loaded transport, grouped by origin tile with POH origins
+	 * collapsed into the landing tile (same layout as the available-transport display
+	 * view). Used by overlays to render unavailable transports alongside available ones.
+	 */
+	@Getter
+	private final PrimitiveIntHashMap<Transport[]> allDisplayTransports;
+	private final Map<String, Set<Integer>> allDestinations;
+	private final Map<String, Set<Integer>> filteredDestinations;
+	/**
+	 * Per packed tile; only bank.tsv rows with Skills/Quests/Varbits/VarPlayers.
+	 */
+	private final Map<Integer, DestinationRequirements> bankRequirements;
+	// Targets filterLocations set aside, with their required items, until they become valid again.
+	private final Map<Integer, Target> filteredTargets = new LinkedHashMap<>(4);
+	private final Client client;
+	private final Settings settings;
+	/** Transport types the settings and quest state allow, set each refresh. */
+	private final Set<TransportType> enabledTypes = EnumSet.noneOf(TransportType.class);
+	/** Each transport type's cost setting by ordinal, read each refresh. */
+	private final int[] typeCosts = new int[TransportType.values().length];
+	private TeleportationItem teleportationItemSetting = TeleportationItem.NONE;
+	private Map<Integer, Integer> varbitValues = new HashMap<>();
+	private Map<Integer, Integer> varPlayerValues = new HashMap<>();
+	/**
+	 * The single reader of client player state for the capture path. Every
+	 * getter throws off the client thread, so a caller that skips the thread
+	 * fails loudly instead of silently skipping the refresh.
+	 */
+	private final PlayerStateSource playerStateSource;
+	@Getter
+	private final LeagueModeState leagueModeState = new LeagueModeState();
+	/**
+	 * What the player held at the last {@link #refresh()}, collected on the client thread and read
+	 * by searches when they are created.
+	 */
+	@Getter
+	private HeldItems heldItems = HeldItems.NONE;
+	// The spirit-tree seam: owns detection, persistence and the published
+	// travelable-tree set that each refresh's RequirementContext snapshots.
+	// The plugin wires the injected singleton in production; harnesses and
+	// tests keep the default detached instance, whose refresh arm merges a
+	// live in-region sample into the published set without persistence.
+	// null collaborators mean detached
+	@Getter private SpiritTreeService spiritTrees = new SpiritTreeService(null, null, null, null);
+
+	public void setSpiritTreeService(SpiritTreeService spiritTrees)
+	{
+		this.spiritTrees = spiritTrees;
+	}
+
+
+
+	/**
+	 * The item-state seam: owns the live open-bank container that feeds the
+	 * eligibility capture below. The plugin wires the injected singleton in
+	 * production; harnesses and tests keep the default detached instance.
+	 */
+	private ItemStateService itemState = new ItemStateService(null, null);
+
+	public void setItemStateService(ItemStateService itemState)
+	{
+		this.itemState = itemState;
+	}
+
+	private final BankPickupProjection bankPickupProjection = new BankPickupProjection();
+
+	/**
+	 * The sailing seam: owns the boat-state reads the derived sailing inputs
+	 * below draw from. The plugin wires the injected singleton in production;
+	 * harnesses and tests keep the default detached instance.
+	 */
+	private SailingService sailing = new SailingService(null, null);
+
+	public void setSailingService(SailingService sailing)
+	{
+		this.sailing = sailing;
+	}
+
+	/**
+	 * The bank-pickup projection for the active path — which items the route's
+	 * target needs picked up at a bank step. {@code search} supplies the
+	 * result the target-item pickup list is derived from.
+	 */
+	public BankPickupAnalysis getBankPickup(List<PathStep> path, int pathIndex, ActiveSearch search)
+	{
+		return bankPickupProjection.get(itemState, this, path, pathIndex, search);
+	}
+	/**
+	 * Bank tiles the player may use for path banking state (requirements satisfied). Rebuilt in {@link #refresh()}.
+	 */
+	// Refresh-written state below is read by the pathfinder executor thread;
+	// volatile keeps the cross-thread contract explicit. The two availability
+	// maps additionally travel together in
+	// one volatile holder so a search never mixes sides of different refreshes.
+	private volatile Set<Integer> accessibleBankTiles = Set.of();
+	/**
+	 * The banked/unbanked availability views of one refresh, published as a
+	 * single volatile reference so a running search can never read one side
+	 * from refresh N and the other from refresh N+1.
+	 */
+	private static final class TransportAvailabilities
+	{
+		private final TransportAvailability withoutBank;
+		private final TransportAvailability withBank;
+
+		private TransportAvailabilities(TransportAvailability withoutBank, TransportAvailability withBank)
+		{
+			this.withoutBank = withoutBank;
+			this.withBank = withBank;
+		}
+	}
+
+	private volatile TransportAvailabilities transportAvailabilities;
+	/**
+	 * Client-state snapshot answering transport item-requirement questions for both
+	 * pathfinding ({@link TransportEligibility#usable}) and the bank-pickup display.
+	 * Rebuilt by {@link #refreshTransports} and lazily by {@link #getEligibility()} after
+	 * {@link #invalidateEligibility()}.
+	 */
+	private TransportEligibility eligibility;
+	private boolean eligibilityStale = true;
+	/**
+	 * The per-refresh gate chain, bound to the latest {@link RequirementContext}.
+	 * {@link #rebuildAccessibleBankTiles} runs after {@link #refreshTransports}
+	 * and evaluates bank destinations through this same chain, so both sides of
+	 * a refresh share one snapshot and one definition of requirement
+	 * satisfaction. {@code null} until the first successful transport refresh.
+	 */
+	private Requirements requirements;
+	/**
+	 * The seam the gate chain reads the protected override hooks through.
+	 * {@link ConfigHooks} delegates to {@link #getQuestState},
+	 * {@link #varbitChecks} and {@link #varPlayerChecks} so subclass overrides
+	 * stay live for transport and bank-destination verdicts alike.
+	 */
+	private final RequirementHooks requirementHooks = new ConfigHooks();
+	/**
+	 * Reference that points to either allDestinations or filteredDestinations
+	 */
+	private volatile Map<String, Set<Integer>> destinations;
+	@Getter
+	private volatile long calculationCutoffMillis;
+	@Getter
+	private volatile int unreachableTargetDistance;
+	@Getter
+	private volatile boolean collisionAwareBlockedTargets;
+	@Getter
+	private volatile double aStarHeuristicWeight = 1;
+	@Getter
+	private volatile boolean avoidWilderness;
+	// POH-specific settings (not tied to a single TransportType)
+	private volatile boolean usePohFairyRing,
+		usePohSpiritTree,
+		usePoh,
+		usePohObelisk,
+		includeBankPath,
+		respawnPrifddinas;
+	private volatile Set<PohNexusPortal> enabledPohNexusPortals = Set.of();
+	private volatile Set<PohMountedItem> enabledPohMountedItems = Set.of();
+	@Getter
+	private volatile Set<Unlock> unlocks = Set.of();
+	/**
+	 * Packed destinations of the balloon routes whose log basket the player
+	 * declared stocked via {@code balloonLogBasketRoutes}. The eligibility
+	 * snapshot grants {@link Unlock#BALLOON_LOG_BASKET} only to a balloon
+	 * transport landing on one of these tiles — the legacy
+	 * {@code unlockBalloonLogBasket} flag no longer adds the unlock globally;
+	 * it only derives the route set's unwritten-key default.
+	 */
+	private volatile Set<Integer> balloonLogBasketDestinations = Set.of();
+	/**
+	 * Item ids the player excluded from routing via the hidden
+	 * {@code blockedTeleportItems} CSV ({@code id} records), and per-item
+	 * tiles-saved threshold overrides from {@code id:N} records. Reparsed on
+	 * every {@link #refresh()}; the blocked set gates the candidate set in
+	 * {@link shortestpath.requirement.Requirements} while the overrides feed
+	 * {@link #getAdditionalTransportCost}.
+	 */
+	private volatile Set<Integer> blockedItemIds = Set.of();
+	private volatile Map<Integer, Integer> itemThresholdOverrides = Map.of();
+	private volatile Map<Integer, Set<Integer>> blockedOptionDests = Map.of();
+	private volatile JewelleryBoxTier pohJewelleryBoxTier;
+	private volatile int costConsumableTeleportationItems;
+	@Getter
+	private volatile int bankVisitCost;
+	private volatile int currencyThreshold;
+	/**
+	 * Whether the player is aboard a boat, read from the sailing service's
+	 * published snapshot — the volatile publication lives there now, so
+	 * render-thread readers see the same value the refresh captured.
+	 * Retained as a source-compatible accessor; plugin internals read the
+	 * flag through {@link shortestpath.scheduler.PathRenderState#isOnSailingBoat()}.
+	 */
+	public boolean isOnSailingBoat()
+	{
+		return sailing.getState().isAboard();
+	}
+	/**
+	 * On a boat with the option on, search with sailing moves (see {@link SailingMoves}) instead of walking.
+	 */
+	@Getter
+	private volatile boolean sailingMoves;
+	/**
+	 * Speed sailing moves are built for: the boat's base speed in tiles per tick, or an estimate when it
+	 * can't be read. Speed boosts are random and temporary, so they are left out.
+	 */
+	@Getter
+	private volatile double sailingSpeed = SailingMoves.ESTIMATED_SPEED;
+
+	public PathfinderConfig(Client client, ShortestPathConfig config)
+	{
+		this(client, config, Settings.wrap(config));
+	}
+
+	public PathfinderConfig(Client client, ShortestPathConfig config, Settings settings)
+	{
+		this.client = client;
+		this.settings = settings;
+		this.playerStateSource = new ClientPlayerStateSource(client);
+		this.mapData = SplitFlagMap.fromResources();
+		this.map = ThreadLocal.withInitial(() -> new CollisionMap(mapData));
+		Map<Integer, Set<Transport>> loadedTransports = ResourceLoader.transports();
+		PohService.remapPohDestinations(loadedTransports);
+		this.allTransports = flatten(loadedTransports);
+		this.transportDestinations = collectTransportDestinations(this.allTransports);
+		this.allDisplayTransports = buildAllDisplayTransports(this.allTransports);
+		this.transportAvailabilities = new TransportAvailabilities(
+			new TransportAvailability.Builder(allTransports.length).build(),
+			new TransportAvailability.Builder(allTransports.length).build());
+		this.allDestinations = ResourceLoader.destinations();
+		this.filteredDestinations = filterDestinations(allDestinations);
+		this.destinations = allDestinations;
+		this.bankRequirements = ResourceLoader.bankRequirements();
+	}
+
+	protected PathfinderConfig(Client client, ShortestPathConfig config,
+		SplitFlagMap mapData, Map<Integer, Set<Transport>> allTransports,
+		Map<String, Set<Integer>> allDestinations, Map<String, Set<Integer>> filteredDestinations,
+		Map<Integer, DestinationRequirements> bankRequirements)
+	{
+		this.client = client;
+		this.settings = Settings.wrap(config);
+		this.playerStateSource = new ClientPlayerStateSource(client);
+		this.mapData = mapData;
+		this.map = ThreadLocal.withInitial(() -> new CollisionMap(this.mapData));
+		this.allTransports = flatten(allTransports);
+		this.transportDestinations = collectTransportDestinations(this.allTransports);
+		this.allDisplayTransports = buildAllDisplayTransports(this.allTransports);
+		this.transportAvailabilities = new TransportAvailabilities(
+			new TransportAvailability.Builder(this.allTransports.length).build(),
+			new TransportAvailability.Builder(this.allTransports.length).build());
+		this.allDestinations = allDestinations;
+		this.filteredDestinations = filteredDestinations;
+		this.destinations = allDestinations;
+		this.bankRequirements = bankRequirements;
+	}
+
+	/**
+	 * Pure combat-level formula, extracted for testability; the canonical
+	 * implementation lives on {@link PlayerStateSource} so the capture path
+	 * and this shim always agree.
+	 */
+	static int computeCombatLevel(int attack, int strength, int defence, int hitpoints, int magic, int ranged, int prayer)
+	{
+		return PlayerStateSource.computeCombatLevel(attack, strength, defence, hitpoints, magic, ranged, prayer);
+	}
+
+	public CollisionMap getMap()
+	{
+		return map.get();
+	}
+
+	/**
+	 * WARNING: This method collapses the banked/unbanked transport distinction into a single view.
+	 * <p>
+	 * It exists only for legacy display-oriented callers such as overlays which want a coarse
+	 * "currently relevant" set of transports to render. It must not be used for path-state-sensitive
+	 * logic, because transport availability now depends on whether a path has visited a bank.
+	 * <p>
+	 * Use {@link #getTransportAvailability(BankVisitState)}, {@link #getTransportsPacked(BankVisitState)}, or
+	 * {@link #getUsableTeleports(BankVisitState)} for pathfinding and path analysis code.
+	 */
+	public PrimitiveIntHashMap<Transport[]> getTransports()
+	{
+		return getTransportAvailability(includeBankPath ? BankVisitState.BANKED : BankVisitState.CARRIED)
+			.getDisplayTransports();
+	}
+
+	public PrimitiveIntHashMap<Transport[]> getTransportsPacked(BankVisitState bankVisitState)
+	{
+		return getTransportAvailability(bankVisitState).getTransportsPacked();
+	}
+
+	public Transport[] getUsableTeleports(BankVisitState bankVisitState)
+	{
+		return getTransportAvailability(bankVisitState).getUsableTeleports();
+	}
+
+	public TransportAvailability getTransportAvailability(BankVisitState bankVisitState)
+	{
+		return bankVisitState == BankVisitState.BANKED
+			? transportAvailabilities.withBank : transportAvailabilities.withoutBank;
+	}
+
+	public boolean isBankPathEnabled()
+	{
+		return includeBankPath;
+	}
+
+	/** Snapshot the already-evaluated account/config state for the A* graph. */
+	public PreparedRoutingAccount prepareAStarRoutingAccount(boolean allowTransports)
+	{
+		return prepareAStarRoutingAccount(allowTransports, false);
+	}
+
+	/**
+	 * As {@link #prepareAStarRoutingAccount(boolean)}; {@code targetsNeedBank} lets the route visit
+	 * a bank even when {@code includeBankPath} is off, for a target whose items are in the bank.
+	 * The banked layer's transports still follow the settings, so that alone unlocks no teleports.
+	 */
+	public PreparedRoutingAccount prepareAStarRoutingAccount(boolean allowTransports, boolean targetsNeedBank)
+	{
+		return PreparedRoutingAccount.compile(
+			getTransportAvailability(BankVisitState.CARRIED), getTransportAvailability(BankVisitState.BANKED), includeBankPath || targetsNeedBank,
+			accessibleBankTiles, bankVisitCost, allowTransports, this::getAdditionalTransportCost);
+	}
+
+	public boolean hasDestination(String destinationType)
+	{
+		return destinations.containsKey(destinationType);
+	}
+
+	public Set<Integer> getDestinations(String destinationType)
+	{
+		return destinations.get(destinationType);
+	}
+
+	/**
+	 * Whether standing on this tile may flip the path into {@link BankVisitState#BANKED} (inventory-from-bank) state.
+	 */
+	public boolean bankAccessible(int packedPosition)
+	{
+		return accessibleBankTiles.contains(packedPosition);
+	}
+
+	private void refreshTransportTypes()
+	{
+		teleportationItemSetting = settings.get(ConfigKey.USE_TELEPORTATION_ITEMS);
+		enabledTypes.clear();
+		for (TransportType type : TransportType.values())
+		{
+			boolean enabled;
+			if (type == TransportType.TELEPORTATION_ITEM || type == TransportType.TELEPORTATION_BOX)
+			{
+				// Controlled by the teleportation item mode rather than an on/off key
+				enabled = teleportationItemSetting != TeleportationItem.NONE;
+			}
+			else if (type == TransportType.TELEPORTATION_PORTAL_POH)
+			{
+				enabled = !settings.<Set<?>>get(ConfigKey.POH_NEXUS_PORTALS).isEmpty();
+			}
+			else
+			{
+				enabled = !type.hasEnabledKey() || settings.bool(ConfigKey.forKey(type.getEnabledKey()));
+			}
+			if (enabled)
+			{
+				enabledTypes.add(type);
+			}
+			typeCosts[type.ordinal()] = type.hasCostKey() ? settings.num(ConfigKey.forKey(type.getCostKey())) : 0;
+		}
+	}
+
+	private void disableUnless(TransportType type, boolean condition)
+	{
+		if (!condition)
+		{
+			enabledTypes.remove(type);
+		}
+	}
+
+	public void refresh()
+	{
+		long evaluationTimeMinutes = currentTimeMinutes();
+		calculationCutoffMillis = (long) settings.num(ConfigKey.CALCULATION_CUTOFF) * Constants.GAME_TICK_LENGTH;
+		unreachableTargetDistance = settings.num(ConfigKey.UNREACHABLE_TARGET_DISTANCE_THRESHOLD);
+		collisionAwareBlockedTargets = settings.bool(ConfigKey.COLLISION_AWARE_BLOCKED_TARGETS);
+		// @Range only bounds the config panel, so also clamp overrides to the same 100-300% range.
+		aStarHeuristicWeight = Math.max(100, Math.min(300,
+			settings.num(ConfigKey.A_STAR_HEURISTIC_WEIGHT))) / 100.0;
+		avoidWilderness = settings.bool(ConfigKey.AVOID_WILDERNESS);
+		usePoh = settings.bool(ConfigKey.USE_POH);
+		leagueModeState.refresh(playerStateSource);
+
+		refreshTransportTypes();
+		// POH-specific settings
+		usePohFairyRing = settings.bool(ConfigKey.USE_POH_FAIRY_RING);
+		usePohSpiritTree = settings.bool(ConfigKey.USE_POH_SPIRIT_TREE);
+		usePohObelisk = settings.bool(ConfigKey.USE_POH_OBELISK);
+		enabledPohNexusPortals = Set.copyOf(settings.<Set<PohNexusPortal>>get(ConfigKey.POH_NEXUS_PORTALS));
+		enabledPohMountedItems = Set.copyOf(settings.<Set<PohMountedItem>>get(ConfigKey.POH_MOUNTED_ITEMS));
+		pohJewelleryBoxTier = settings.get(ConfigKey.POH_JEWELLERY_BOX_TIER);
+
+		currencyThreshold = settings.num(ConfigKey.CURRENCY_THRESHOLD);
+		// Banked teleport items are only usable from the bankVisited path state, so a
+		// mode that collects bank contents must also enable bank-path traversal —
+		// otherwise the banked items are gathered but can never be offered.
+		includeBankPath = settings.bool(ConfigKey.INCLUDE_BANK_PATH)
+			|| TeleportationItemPolicy.includesBank(teleportationItemSetting);
+		respawnPrifddinas = settings.bool(ConfigKey.RESPAWN_PRIFDDINAS);
+
+		// Unlocks come from detected account state or config declarations.
+		Set<Unlock> declaredUnlocks = EnumSet.noneOf(Unlock.class);
+		if (settings.bool(ConfigKey.UNLOCK_CANOE_AXE))
+		{
+			declaredUnlocks.add(Unlock.CANOE_AXE);
+		}
+		if (settings.bool(ConfigKey.UNLOCK_XERICS_HONOUR))
+		{
+			declaredUnlocks.add(Unlock.XERICS_HONOUR);
+		}
+		if (settings.bool(ConfigKey.UNLOCK_DRAGONTOOTH_PASSAGE))
+		{
+			declaredUnlocks.add(Unlock.DRAGONTOOTH);
+		}
+		if (client.getVarbitValue(VarbitID.KARAMJA_DIARY_ELITE_COMPLETE) == 1)
+		{
+			declaredUnlocks.add(Unlock.KARAMJA_ELITE);
+		}
+		if (settings.bool(ConfigKey.UNLOCK_MOR_UL_REK))
+		{
+			declaredUnlocks.add(Unlock.MOR_UL_REK);
+		}
+		unlocks = Collections.unmodifiableSet(declaredUnlocks);
+
+		// The basket unlock is per balloon route: the configured
+		// balloonLogBasketRoutes set becomes the packed destinations the
+		// eligibility snapshot grants Unlock.BALLOON_LOG_BASKET to — never a
+		// global declared unlock. An unwritten key reads the legacy
+		// unlockBalloonLogBasket flag's default (all six or none).
+		Set<BalloonRoute> basketRoutes = settings.get(ConfigKey.BALLOON_LOG_BASKET_ROUTES);
+		Set<Integer> basketDests = new HashSet<>();
+		if (basketRoutes != null)
+		{
+			for (BalloonRoute route : basketRoutes)
+			{
+				basketDests.add(route.getPackedDestination());
+			}
+		}
+		balloonLogBasketDestinations = Set.copyOf(basketDests);
+
+		// Player-declared per-item restrictions: a bare id blocks the item from
+		// routing entirely, while id:N pins the tiles-saved threshold used to
+		// price transports that reference the id. A rep@dest record blocks the
+		// option of the family that representative id heads — the engine-facing
+		// set holds the option's whole label-group destination set, expanded
+		// here so a blocked option suppresses every tile variant it covers.
+		// The map is frozen deep so the refresh snapshot can never observe a
+		// later config edit through a shared inner set.
+		Set<Integer> blockedItems = new HashSet<>();
+		Map<Integer, Integer> thresholdOverrides = new HashMap<>();
+		Map<Integer, Set<Integer>> optionBlocks = new HashMap<>();
+		TeleportRestriction.parseBlocked(settings.get(ConfigKey.BLOCKED_TELEPORT_ITEMS), blockedItems,
+			thresholdOverrides, optionBlocks);
+		blockedItemIds = Set.copyOf(blockedItems);
+		itemThresholdOverrides = Map.copyOf(thresholdOverrides);
+		Map<Integer, Set<Integer>> frozenOptionBlocks = new HashMap<>();
+		for (Map.Entry<Integer, Set<Integer>> entry
+			: TeleportRestriction.expandOptionDests(optionBlocks).entrySet())
+		{
+			frozenOptionBlocks.put(entry.getKey(), Set.copyOf(entry.getValue()));
+		}
+		blockedOptionDests = Map.copyOf(frozenOptionBlocks);
+
+		costConsumableTeleportationItems = settings.num(ConfigKey.COST_CONSUMABLE_TELEPORTATION_ITEMS);
+		bankVisitCost = settings.num(ConfigKey.COST_BANK_VISIT);
+
+		// Reset the sailing dispatch inputs every refresh: the service owns the
+		// boat-state reads and republishes its snapshot here unconditionally, so a
+		// stale read (e.g. after logging out aboard a boat) can never keep the
+		// search sailing when there is no boat
+		sailingMoves = false;
+		sailingSpeed = SailingMoves.ESTIMATED_SPEED;
+		sailing.refresh(playerStateSource);
+		if (GameState.LOGGED_IN.equals(playerStateSource.gameState()))
+		{
+			SailingState sailingState = sailing.getState();
+			sailingMoves = sailingState.isAboard() && settings.bool(ConfigKey.USE_SAILING_MOVES);
+			// The game stores the base speed in 1/128ths of a tile per tick; a read above any real
+			// boat's speed is a stale or mis-scaled varbit rather than a fast boat — the moves it
+			// would build are so long nothing can sail them — so estimate instead
+			double speed = sailingState.getBaseSpeed() / 128.0;
+			sailingSpeed = sailingState.getBaseSpeed() > 0 && speed <= SailingMoves.MAX_SPEED
+				? speed : SailingMoves.ESTIMATED_SPEED;
+			refreshTransports(evaluationTimeMinutes);
+		}
+
+		refreshDestinations();
+		rebuildAccessibleBankTiles();
+	}
+
+	protected long currentTimeMinutes()
+	{
+		return System.currentTimeMillis() / 60_000L;
+	}
+
+	private void refreshDestinations()
+	{
+		destinations = avoidWilderness ? filteredDestinations : allDestinations;
+	}
+
+	private void rebuildAccessibleBankTiles()
+	{
+		Set<Integer> bankLocs = destinations.get("bank");
+		if (bankLocs == null)
+		{
+			accessibleBankTiles = Set.of();
+			return;
+		}
+		if (!GameState.LOGGED_IN.equals(playerStateSource.gameState()))
+		{
+			accessibleBankTiles = Set.copyOf(bankLocs);
+			return;
+		}
+		// Bank destinations are gated by the chain the transport refresh built
+		// from this refresh's snapshot; when no snapshot exists yet there is
+		// nothing to gate on, matching the logged-out answer.
+		Requirements requirements = this.requirements;
+		if (requirements == null)
+		{
+			accessibleBankTiles = Set.copyOf(bankLocs);
+			return;
+		}
+		Set<Integer> acc = new HashSet<>(bankLocs.size());
+		for (Integer p : bankLocs)
+		{
+			DestinationRequirements req = bankRequirements.getOrDefault(p, DestinationRequirements.EMPTY);
+			if (requirements.satisfied(req))
+			{
+				acc.add(p);
+			}
+		}
+		accessibleBankTiles = Collections.unmodifiableSet(acc);
+	}
+
+	/**
+	 * The targets still valid under the config, which might have invalidated some, e.g. those in the
+	 * wilderness. Targets set aside here earlier come back once valid again, required items and all.
+	 */
+	public Targets filterLocations(Targets targets, boolean canReviveFiltered)
+	{
+		Targets kept = targets;
+		boolean revive = canReviveFiltered;
+		if (avoidWilderness)
+		{
+			List<Integer> valid = new ArrayList<>(targets.size());
+			List<Target> filteredThisCall = new ArrayList<>(4);
+			for (Target target : targets)
+			{
+				if (WildernessChecker.isInWilderness(target.getPoint()))
+				{
+					filteredTargets.put(target.getPoint(), target);
+					filteredThisCall.add(target);
+				}
+				else
+				{
+					valid.add(target.getPoint());
+				}
+			}
+			kept = targets.restrictTo(valid);
+			// If we ended up with no valid locations we re-include the
+			// targets this call filtered - not targets accumulated while
+			// filtering unrelated earlier searches. An explicitly empty
+			// input has nothing to keep and revives nothing.
+			if (kept.isEmpty())
+			{
+				return kept.plus(Targets.of(filteredThisCall));
+			}
+		}
+		else if (revive)
+		{
+			// Revive only applies once the wilderness filter is off —
+			// reviving while it is on would re-add targets this same call
+			// just filtered out, making the filter a no-op.
+			kept = kept.plus(Targets.of(filteredTargets.values()));
+			filteredTargets.clear();
+		}
+		return kept;
+	}
+
+	/**
+	 * Returns the user-configured additional cost for a given transport
+	 */
+	public int getAdditionalTransportCost(Transport transport)
+	{
+		// A pinned per-item threshold is the whole additional cost for a
+		// transport referencing that item — the user declared its exact
+		// tiles-saved value, so it replaces type-level and consumable pricing
+		// rather than stacking on top of them.
+		int thresholdOverride = memberThresholdOverride(transport);
+		if (thresholdOverride > 0)
+		{
+			return thresholdOverride;
+		}
+		if (transport.isConsumable() && TransportType.TELEPORTATION_ITEM.equals(transport.getType()))
+		{
+			return costConsumableTeleportationItems;
+		}
+		if (transport.isConsumable() && TransportType.QUETZAL_WHISTLE.equals(transport.getType()))
+		{
+			return typeCosts[transport.getType().ordinal()] + costConsumableTeleportationItems;
+		}
+		return typeCosts[transport.getType().ordinal()];
+	}
+
+	/**
+	 * Returns the differential cost for a transport type that shares destinations with another type.
+	 * This cost is only applied when the transport is in delayed-visit competition with its partner,
+	 * not globally against all other transport types.
+	 */
+	public int getDifferentialCost(Transport transport)
+	{
+		if (transport.getType().differentialCostKey() != null)
+		{
+			return settings.num(ConfigKey.forKey(transport.getType().differentialCostKey()));
+		}
+		return 0;
+	}
+
+	/**
+	 * Largest {@code id:N} threshold override matching any item id the
+	 * transport's requirements reference. Member ids include the staff and
+	 * offhand substitutes of each branch — an override pinned on a substitute
+	 * (e.g. a staff standing in for a rune) applies to the transport too.
+	 * Scoped to the same item-teleport types as the restriction gate;
+	 * returns 0 when nothing matches.
+	 */
+	private int memberThresholdOverride(Transport transport)
+	{
+		if (itemThresholdOverrides.isEmpty() || !TeleportRestriction.isItemTeleportType(transport.getType()))
+		{
+			return 0;
+		}
+		TransportItems itemRequirements = transport.getItemRequirements();
+		if (itemRequirements == null)
+		{
+			return 0;
+		}
+		int max = 0;
+		for (ItemRequirement requirement : itemRequirements.getRequirements())
+		{
+			for (ItemRequirement.Branch branch : requirement.getBranches())
+			{
+				max = Math.max(max, maxOverride(branch.getItemIds()));
+				max = Math.max(max, maxOverride(branch.getStaffIds()));
+				max = Math.max(max, maxOverride(branch.getOffhandIds()));
+			}
+		}
+		return max;
+	}
+
+	private int maxOverride(int[] ids)
+	{
+		int max = 0;
+		if (ids != null)
+		{
+			for (int itemId : ids)
+			{
+				max = Math.max(max, itemThresholdOverrides.getOrDefault(itemId, 0));
+			}
+		}
+		return max;
+	}
+
+	static Map<String, Set<Integer>> filterDestinations(Map<String, Set<Integer>> allDestinations)
+	{
+		Map<String, Set<Integer>> filteredDestinations = new HashMap<>(allDestinations.size());
+		for (Map.Entry<String, Set<Integer>> entry : allDestinations.entrySet())
+		{
+			String destinationType = entry.getKey();
+			Set<Integer> usableDestinations = new HashSet<>(entry.getValue().size());
+			for (Integer destination : entry.getValue())
+			{
+				// We filter based on whether the destination is inside or outside wilderness
+				if (!WildernessChecker.isInWilderness(destination))
+				{
+					usableDestinations.add(destination);
+				}
+			}
+			// If all destinations of a destination type have been filtered away then we don't add the entry
+			if (!usableDestinations.isEmpty())
+			{
+				// If no destinations of a destination type have been filtered away then we re-use the same set reference
+				filteredDestinations.put(destinationType, usableDestinations);
+			}
+		}
+		return filteredDestinations;
+	}
+
+	private void refreshTransports(long evaluationTimeMinutes)
+	{
+		// Has to run on the client thread; every capture read below goes
+		// through the source, which throws off-thread — this explicit check
+		// makes the contract fail at the entry point rather than mid-capture.
+		playerStateSource.checkOnClientThread();
+
+		// Fairy ring staff/diary requirements are enforced by the eligibility snapshot.
+		disableUnless(TransportType.FAIRY_RING,
+			playerStateSource.varbit(VarbitID.FAIRY2_QUEENCURE_QUEST) > 39);
+		disableUnless(TransportType.GNOME_GLIDER,
+			QuestState.FINISHED.equals(getQuestState(Quest.THE_GRAND_TREE)));
+		disableUnless(TransportType.MAGIC_MUSHTREE,
+			QuestState.FINISHED.equals(getQuestState(Quest.BONE_VOYAGE)));
+		disableUnless(TransportType.SPIRIT_TREE,
+			QuestState.FINISHED.equals(getQuestState(Quest.TREE_GNOME_VILLAGE)));
+
+		spiritTrees.refreshAvailability(playerStateSource);
+
+		// The policy snapshot is taken only now — after the disableUnless
+		// derivations above — so the chain freezes the effective transport-type
+		// enablement, not the raw config view.
+		RoutingPolicy policy = new RoutingPolicy(enabledTypes, teleportationItemSetting,
+			usePoh, usePohFairyRing, usePohSpiritTree, usePohObelisk,
+			enabledPohNexusPortals, enabledPohMountedItems, pohJewelleryBoxTier,
+			currencyThreshold, includeBankPath, blockedItemIds, blockedOptionDests);
+
+		// All player state the checks below read is captured once per refresh in
+		// an immutable snapshot, so no check can observe the game mid-refresh.
+		RequirementContext context = RequirementContext.capture(playerStateSource, requirementHooks,
+			policy, evaluationTimeMinutes, Arrays.asList(allTransports), bankRequirements, itemState.getBank(),
+			unlocks, respawnPrifddinas, leagueModeState, spiritTrees.getAvailableSpiritTrees(),
+			balloonLogBasketDestinations);
+		eligibility = context.getEligibility();
+		eligibilityStale = false;
+		heldItems = eligibility.heldItems();
+		varbitValues = context.getVarbitValues();
+		varPlayerValues = context.getVarPlayerValues();
+		requirements = new Requirements(context, policy, requirementHooks);
+		TransportAvailability.Builder withoutBank = new TransportAvailability.Builder(allTransports.length);
+		TransportAvailability.Builder withBank = new TransportAvailability.Builder(allTransports.length);
+		for (Transport transport : allTransports)
+		{
+			// Fairy rings carry the staff rule as an injected item requirement
+			// when the Lumbridge Elite diary is incomplete — the same wrapped
+			// instance goes through every gate and into both availability
+			// views, so downstream consumers share one identity.
+			Transport offered = eligibility.wrapFairyRingStaff(transport);
+
+			// The named gates run first; a transport failing any of them is
+			// dropped before either item pool is consulted.
+			if (requirements.gates(offered) != RejectionReason.NONE)
+			{
+				continue;
+			}
+
+			boolean usableWithoutBank = eligibility.usable(offered, BankVisitState.CARRIED);
+			boolean usableWithBank = eligibility.usable(offered, BankVisitState.BANKED);
+			// Both pools empty for its items == the ITEM_REQUIREMENT gate
+			// the composite check() would apply — the same skip, spelled out.
+			if (!usableWithoutBank && !usableWithBank)
+			{
+				continue;
+			}
+			if (usableWithoutBank)
+			{
+				withoutBank.add(offered);
+			}
+			if (usableWithBank)
+			{
+				withBank.add(offered);
+			}
+		}
+
+		withoutBank.remapPohTransports();
+		withBank.remapPohTransports();
+		transportAvailabilities = new TransportAvailabilities(withoutBank.build(), withBank.build());
+	}
+
+	public boolean avoidWilderness(int packedPosition, int packedNeighborPosition, boolean targetInWilderness)
+	{
+		return avoidWilderness
+			&& !targetInWilderness
+			&& !WildernessChecker.isInWilderness(packedPosition)
+			&& WildernessChecker.isInWilderness(packedNeighborPosition);
+	}
+
+	/**
+	 * League-mode neighbour gate: parallels {@link #avoidWilderness} but
+	 * blocks crossing into the always-blocked Misthalin region. Always
+	 * returns {@code false} on non-seasonal worlds so vanilla pathfinding is
+	 * unaffected.
+	 */
+	public boolean avoidBlockedRegion(int packedPosition, int packedNeighborPosition, boolean targetInBlockedRegion)
+	{
+		if (!leagueModeState.isSeasonal())
+		{
+			return false;
+		}
+		return !targetInBlockedRegion
+			&& !leagueModeState.isInBlockedRegion(packedPosition)
+			&& leagueModeState.isInBlockedRegion(packedNeighborPosition);
+	}
+
+	private static Transport[] flatten(Map<Integer, Set<Transport>> transports)
+	{
+		List<Transport> all = new ArrayList<>();
+		for (Set<Transport> set : transports.values())
+		{
+			all.addAll(set);
+		}
+		return all.toArray(new Transport[0]);
+	}
+
+	private static Set<Integer> collectTransportDestinations(Transport[] transports)
+	{
+		Set<Integer> destinations = new HashSet<>(transports.length * 2);
+		for (Transport transport : transports)
+		{
+			destinations.add(transport.getDestination());
+		}
+		return destinations;
+	}
+
+	/**
+	 * Whether any loaded transport lands on the given tile, regardless of whether the
+	 * transport is currently usable by this account.
+	 */
+	public boolean isTransportDestination(int packedPosition)
+	{
+		return transportDestinations.contains(packedPosition);
+	}
+
+	private static PrimitiveIntHashMap<Transport[]> buildAllDisplayTransports(Transport[] transports)
+	{
+		TransportAvailability.Builder builder = new TransportAvailability.Builder(transports.length);
+		for (Transport transport : transports)
+		{
+			builder.add(transport);
+		}
+		builder.remapPohTransports();
+		return builder.build().getDisplayTransports();
+	}
+
+	public QuestState getQuestState(Quest quest)
+	{
+		return playerStateSource.questState(quest);
+	}
+
+	public boolean varbitChecks(Transport transport, long evaluationTimeMinutes)
+	{
+		// Iterate the unified var-requirement set: getVarbits() would
+		// materialize a filtered HashSet for every transport in the refresh.
+		return varbitChecks(transport.getVarRequirements(), evaluationTimeMinutes);
+	}
+
+	/**
+	 * Whether any varbit requirement in the collection fails against this
+	 * refresh's captured values. Returns {@code true} when a check FAILED —
+	 * the polarity the bypass overrides rely on. Bank-destination requirement
+	 * sets reach this same seam.
+	 */
+	public boolean varbitChecks(Collection<VarRequirement> requirements, long evaluationTimeMinutes)
+	{
+		return varbitChecks(requirements, varbitValues, evaluationTimeMinutes);
+	}
+
+	/**
+	 * Whether any varbit requirement in the collection fails against the
+	 * supplied values. The gate chain passes the maps captured into its own
+	 * {@link RequirementContext}, so a chain from an earlier refresh keeps
+	 * evaluating its own snapshot instead of the live fields.
+	 */
+	public boolean varbitChecks(Collection<VarRequirement> requirements,
+		Map<Integer, Integer> values, long evaluationTimeMinutes)
+	{
+		return varChecks(requirements, values, evaluationTimeMinutes, VarRequirement.VarType.VARBIT);
+	}
+
+	public boolean varPlayerChecks(Transport transport, long evaluationTimeMinutes)
+	{
+		return varPlayerChecks(transport.getVarRequirements(), evaluationTimeMinutes);
+	}
+
+	/**
+	 * Whether any varplayer requirement in the collection fails against this
+	 * refresh's captured values. Same failure polarity as
+	 * {@link #varbitChecks(Collection, long)}.
+	 */
+	public boolean varPlayerChecks(Collection<VarRequirement> requirements, long evaluationTimeMinutes)
+	{
+		return varPlayerChecks(requirements, varPlayerValues, evaluationTimeMinutes);
+	}
+
+	/**
+	 * Whether any varplayer requirement in the collection fails against the
+	 * supplied values. Same snapshot binding as
+	 * {@link #varbitChecks(Collection, Map, long)}.
+	 */
+	public boolean varPlayerChecks(Collection<VarRequirement> requirements,
+		Map<Integer, Integer> values, long evaluationTimeMinutes)
+	{
+		return varChecks(requirements, values, evaluationTimeMinutes, VarRequirement.VarType.VARPLAYER);
+	}
+
+	/**
+	 * The shared var-requirement loop behind the keyed publics: only
+	 * requirements whose {@link VarRequirement#getVarType()} equals
+	 * {@code kind} are evaluated, so a varbit dispatch never reads varplayer
+	 * requirements and vice versa.
+	 */
+	private boolean varChecks(Collection<VarRequirement> requirements,
+		Map<Integer, Integer> values, long evaluationTimeMinutes,
+		VarRequirement.VarType kind)
+	{
+		for (VarRequirement varRequirement : requirements)
+		{
+			if (varRequirement.getVarType() == kind && !varRequirement.check(values, evaluationTimeMinutes))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Routes the {@link RequirementHooks} seam the gate chain consumes to the
+	 * protected override points above. {@link RequirementHooks#varChecks}
+	 * dispatches on the {@link VarRequirement.VarType} kind to the keyed
+	 * {@link #varbitChecks}/{@link #varPlayerChecks} methods — never the
+	 * shared loop directly — so dynamic dispatch keeps test overrides live
+	 * with no test-side changes: an override of {@link #getQuestState} or any
+	 * keyed form still reaches every transport and bank-destination verdict.
+	 */
+	private final class ConfigHooks implements RequirementHooks
+	{
+		@Override
+		public QuestState getQuestState(Quest quest)
+		{
+			return PathfinderConfig.this.getQuestState(quest);
+		}
+
+		@Override
+		public boolean varChecks(Collection<VarRequirement> requirements,
+			Map<Integer, Integer> values, long evaluationTimeMinutes,
+			VarRequirement.VarType kind)
+		{
+			if (VarRequirement.VarType.VARBIT.equals(kind))
+			{
+				return PathfinderConfig.this.varbitChecks(requirements, values, evaluationTimeMinutes);
+			}
+			if (VarRequirement.VarType.VARPLAYER.equals(kind))
+			{
+				return PathfinderConfig.this.varPlayerChecks(requirements, values, evaluationTimeMinutes);
+			}
+			throw new IllegalArgumentException("unhandled VarType " + kind);
+		}
+	}
+
+	/**
+	 * The transport eligibility snapshot captured at refresh time. When it is missing or
+	 * stale (a container change called {@link #invalidateEligibility()}) it is rebuilt,
+	 * but only on the client thread — off it the existing (possibly stale or null)
+	 * snapshot is returned, so callers must null-guard. Client-thread readers only;
+	 * never call from the pathfinder thread.
+	 */
+	public TransportEligibility getEligibility()
+	{
+		if ((eligibility == null || eligibilityStale)
+			&& playerStateSource.isOnClientThread())
+		{
+			eligibility = TransportEligibility.collect(playerStateSource, itemState.getBank(),
+				teleportationItemSetting, currencyThreshold,
+				includeBankPath, unlocks, balloonLogBasketDestinations);
+			eligibilityStale = false;
+			heldItems = eligibility.heldItems();
+		}
+		return eligibility;
+	}
+
+	/**
+	 * Marks the eligibility snapshot stale; the next client-thread {@link #getEligibility()}
+	 * call rebuilds it. Called when a bank/inventory/equipment container change arrives;
+	 * refreshTransports also rebuilds it directly.
+	 */
+	public void invalidateEligibility()
+	{
+		eligibilityStale = true;
+	}
+
+}

@@ -1,3 +1,18 @@
 .gradle
 .idea
-out
+build/
+out/
+bin/
+
+.vscode/
+
+# Lock files of libre office
+.~lock.*
+
+# For the Collision Map build
+runelite/
+cache/
+output/
+cache.jar
+keys.json
+cache.zip

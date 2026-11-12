@@ -1,0 +1,80 @@
+name: Dashboard Pages
+
+on:
+  workflow_run:
+    workflows: ["CI Tests"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'master')
+    steps:
+      - name: Checkout shortest-path-tooling with submodules
+        uses: actions/checkout@v6
+        with:
+          repository: osrs-pathfinding/shortest-path-tooling
+          submodules: recursive
+
+      - name: Update shortest-path submodule to latest master
+        run: git submodule update --remote shortest-path
+        shell: bash
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # Builds every published bundle into build/reports/pathfinder-dashboard. Which bundles, their
+      # titles and their order are defined in shortest-path-tooling (pagesBundles in
+      # gradle/dashboards.gradle), so changes to the site don't need to touch this workflow.
+      - name: Build the dashboard site
+        run: ./gradlew pagesSite --stacktrace
+        shell: bash
+
+      - name: Upload dashboard bundle artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pathfinder-dashboard-site
+          path: build/reports/pathfinder-dashboard
+          if-no-files-found: error
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/reports/pathfinder-dashboard
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

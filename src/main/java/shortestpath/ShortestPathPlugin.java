@@ -1,281 +1,489 @@
 package shortestpath;
 
-import com.google.inject.Provides;
-import net.runelite.api.Point;
+import com.google.inject.*;
+import java.awt.event.KeyEvent;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.coords.WorldArea;
-import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.GameTick;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOpened;
-import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.events.*;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.eventbus.*;
+import net.runelite.client.events.*;
+import net.runelite.client.game.*;
+import net.runelite.client.input.*;
+import net.runelite.client.plugins.*;
+import net.runelite.client.ui.*;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
-import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
-import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 import net.runelite.client.util.ImageUtil;
-import net.runelite.client.util.Text;
-import shortestpath.pathfinder.CollisionMap;
-import shortestpath.pathfinder.Pathfinder;
-import shortestpath.pathfinder.SplitFlagMap;
+import shortestpath.api.*;
+import shortestpath.items.ItemStateService;
+import shortestpath.overlay.*;
+import shortestpath.pathfinder.PathfinderConfig;
+import shortestpath.poh.PohService;
+import shortestpath.presentation.PathAnnotator;
+import shortestpath.sailing.SailingService;
+import shortestpath.scheduler.*;
+import shortestpath.settings.*;
+import shortestpath.spirittree.SpiritTreeService;
+import shortestpath.widgets.*;
 
-import javax.inject.Inject;
-import java.awt.*;
-import java.awt.datatransfer.StringSelection;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+@Slf4j
+@SuppressWarnings("SameParameterValue")
+@PluginDescriptor(name = "Shortest Path", description = "Draws the shortest path to a chosen destination on the map<br>"
+	+
+	"Right click on the world map or shift right click a tile to use", tags = {"pathfinder", "map", "waypoint",
+	"navigation"})
+public class ShortestPathPlugin extends Plugin
+{
+	protected static final String CONFIG_GROUP = "shortestpath";
 
-@PluginDescriptor(name = "Shortest Path", description = "Draws the shortest path to a chosen destination on the map (right click a spot on the world map to use)")
-public class ShortestPathPlugin extends Plugin {
-    private static final WorldArea WILDERNESS_ABOVE_GROUND = new WorldArea(2944, 3523, 448, 448, 0);
-    private static final WorldArea WILDERNESS_UNDERGROUND = new WorldArea(2944, 9918, 320, 442, 0);
-    @Inject
-    public Client client;
-    @Inject
-    public ShortestPathConfig config;
-    @Inject
-    public OverlayManager overlayManager;
-    @Inject
-    public PathTileOverlay pathOverlay;
-    @Inject
-    public PathMinimapOverlay pathMinimapOverlay;
-    @Inject
-    public PathMapOverlay pathMapOverlay;
-    @Inject
-    private WorldMapPointManager worldMapPointManager;
-    @Inject
-    private WorldMapOverlay worldMapOverlay;
-    public CollisionMap map;
-    public List<WorldPoint> path = null;
-    private WorldPoint target = null;
-    private boolean running;
-    private Point lastMenuOpenedPoint;
-    public WorldMapPoint marker;
-    private static final BufferedImage MARKER_IMAGE = ImageUtil.getResourceStreamFromClass(ShortestPathPlugin.class, "/marker.png");
-    public boolean pathUpdateScheduled = false;
-    public final Map<WorldPoint, List<WorldPoint>> transports = new HashMap<>();
-    public Pathfinder pathfinder;
-    private WorldPoint transportStart;
-    private MenuOptionClicked lastClick;
+	@Inject
+	private Client client;
+	@Inject
+	private ClientThread clientThread;
+	@Inject
+	private ShortestPathConfig config;
+	@Inject
+	private ConfigManager configManager;
+	private long activeConfigProfileId;
+	@Inject
+	private OverlayManager overlayManager;
+	@Inject
+	private PathTileOverlay pathOverlay;
+	@Inject
+	private PathMinimapOverlay pathMinimapOverlay;
+	@Inject
+	private PathMapOverlay pathMapOverlay;
+	@Inject
+	private PathMapTooltipOverlay pathMapTooltipOverlay;
+	@Inject
+	private BankItemHighlightOverlay bankItemHighlightOverlay;
+	@Inject
+	private SpellbookHighlightOverlay spellbookHighlightOverlay;
+	@Inject
+	private InventoryHighlightOverlay inventoryHighlightOverlay;
+	@Inject
+	private ScrollBookHighlightOverlay scrollBookHighlightOverlay;
+	@Inject
+	private DebugOverlayPanel debugOverlayPanel;
+	@Inject
+	private KeyManager keyManager;
+	@Inject
+	private PohService pohService;
+	@Inject
+	private SpiritTreeService spiritTrees;
+	@Inject
+	private ItemStateService itemState;
+	@Inject
+	private SailingService sailing;
+	@Inject
+	private Settings settings;
+	@Inject
+	private PathScheduler scheduler;
+	@Inject
+	private RefreshCoordinator coordinator;
+	@Inject
+	private WidgetGeometry geometry;
 
-    @Override
-    protected void startUp() {
-        Map<SplitFlagMap.Position, byte[]> compressedRegions = new HashMap<>();
+	@Inject
+	private GameWidgets gameWidgets;
+	@Inject
+	private PathAnnotator annotator;
+	@Inject
+	private PluginMessageHandler apiHandler;
+	@Inject
+	private MenuVerbs menuVerbs;
+	@Inject
+	private ClientToolbar clientToolbar;
+	@Inject
+	private ItemManager itemManager;
+	@Inject
+	private SpriteManager spriteManager;
+	@Inject
+	private EventBus eventBus;
+	private ShortestPathPanel panel;
+	private NavigationButton navButton;
+	private PathfinderConfig pathfinderConfig;
+	// Built in startUp — the overlay references it bundles are @Inject
+	// fields, so the composite cannot exist before injection completes.
+	private PluginOverlays pluginOverlays;
+	private final KeyListener clearPathKeylistener = new KeyListener()
+	{
+		@Override
+		public void keyTyped(KeyEvent e)
+		{
+		}
 
-        try (ZipInputStream in = new ZipInputStream(ShortestPathPlugin.class.getResourceAsStream("/collision-map.zip"))) {
-            ZipEntry entry;
-            while ((entry = in.getNextEntry()) != null) {
-                String[] n = entry.getName().split("_");
+		@Override
+		public void keyPressed(KeyEvent e)
+		{
+			if (config.clearPathHotkey().matches(e))
+			{
+				scheduler.setTarget(WorldPointUtil.UNDEFINED);
+			}
+		}
 
-                compressedRegions.put(
-                        new SplitFlagMap.Position(Integer.parseInt(n[0]), Integer.parseInt(n[1])),
-                        Util.readAllBytes(in)
-                );
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+		@Override
+		public void keyReleased(KeyEvent e)
+		{
+		}
+	};
 
-        map = new CollisionMap(64, compressedRegions);
+	@Provides
+	public ShortestPathConfig provideConfig(ConfigManager configManager)
+	{
+		return configManager.getConfig(ShortestPathConfig.class);
+	}
 
-        try {
-            String s = new String(Util.readAllBytes(ShortestPathPlugin.class.getResourceAsStream("/transports.txt")), StandardCharsets.UTF_8);
-            Scanner scanner = new Scanner(s);
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
+	@Override
+	protected void startUp()
+	{
+		activeConfigProfileId = configManager.getProfile().getId();
 
-                if (line.startsWith("#") || line.isEmpty()) {
-                    continue;
-                }
+		pathfinderConfig = new PathfinderConfig(client, config, settings);
+		pathfinderConfig.setSpiritTreeService(spiritTrees);
+		pathfinderConfig.setItemStateService(itemState);
+		pathfinderConfig.setSailingService(sailing);
+		scheduler.attach(pathfinderConfig, sailing, apiHandler);
+		annotator.attach(pathfinderConfig);
+		// The statics build reads only classpath resources, so it is safe to
+		// warm on enable too — relying on the login transition alone left a
+		// cold start for enables while already logged in.
+		scheduler.prepareBackend();
+		if (GameState.LOGGED_IN.equals(client.getGameState()))
+		{
+			// The profile load touches the same HashMaps the
+			// queued refresh() iterates, so it must run on the client thread
+			// too — doing it here on the EDT would race that refresh.
+			clientThread.invokeLater(() ->
+			{
+				spiritTrees.loadFromProfile();
+				pathfinderConfig.refresh();
+			});
+		}
+		else
+		{
+			// No refresh is queued when logged out, so loading here is safe;
+			// RuneScapeProfileChanged reloads once a profile is active anyway.
+			spiritTrees.loadFromProfile();
+		}
 
-                String[] l = line.split(" ");
-                WorldPoint a = new WorldPoint(Integer.parseInt(l[0]), Integer.parseInt(l[1]), Integer.parseInt(l[2]));
-                WorldPoint b = new WorldPoint(Integer.parseInt(l[3]), Integer.parseInt(l[4]), Integer.parseInt(l[5]));
-                transports.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+		pluginOverlays = new PluginOverlays(pathOverlay, pathMinimapOverlay,
+			pathMapOverlay, pathMapTooltipOverlay, bankItemHighlightOverlay,
+			spellbookHighlightOverlay, inventoryHighlightOverlay, scrollBookHighlightOverlay, debugOverlayPanel);
+		pluginOverlays.register(overlayManager, settings.bool(ConfigKey.DRAW_DEBUG_PANEL));
 
-        running = true;
+		keyManager.registerKeyListener(clearPathKeylistener);
+		pohService.loadFromProfile();
+		itemState.loadFromProfile();
 
-        new Thread(() -> {
-            while (running) {
-                if (pathUpdateScheduled) {
-                    if (target == null) {
-                        path = null;
-                    } else {
-                        pathfinder = new Pathfinder(map, transports, client.getLocalPlayer().getWorldLocation(), target, config.avoidWilderness() && !isInWilderness(target));
-                        path = pathfinder.find();
-                        pathUpdateScheduled = false;
-                    }
-                }
+		panel = new ShortestPathPanel(settings, client, clientThread, itemManager,
+			spriteManager, itemState, eventBus, this);
+		navButton = NavigationButton.builder()
+			.tooltip("Shortest Path")
+			.icon(ImageUtil.loadImageResource(ShortestPathPlugin.class, "/shortestpath/panel_icon.png"))
+			.priority(5)
+			.panel(panel)
+			.build();
+		if (config.showSidebarPanel())
+		{
+			clientToolbar.addNavigation(navButton);
+		}
+	}
 
-                Util.sleep(10);
-            }
-        }).start();
+	@Override
+	protected void shutDown()
+	{
+		// The composite is built in startUp — a shutDown reached after a
+		// failed startUp has nothing to unregister.
+		if (pluginOverlays != null)
+		{
+			pluginOverlays.unregister(overlayManager);
+		}
 
-        overlayManager.add(pathOverlay);
-        overlayManager.add(pathMinimapOverlay);
-        overlayManager.add(pathMapOverlay);
-    }
+		scheduler.shutdown();
 
-    @Override
-    protected void shutDown() {
-        map = null;
-        running = false;
-        overlayManager.remove(pathOverlay);
-        overlayManager.remove(pathMinimapOverlay);
-        overlayManager.add(pathMapOverlay);
-    }
+		keyManager.unregisterKeyListener(clearPathKeylistener);
 
-    public static boolean isInWilderness(WorldPoint p) {
-        return WILDERNESS_ABOVE_GROUND.distanceTo(p) == 0 ||
-                WILDERNESS_UNDERGROUND.distanceTo(p) == 0;
-    }
+		if (navButton != null)
+		{
+			clientToolbar.removeNavigation(navButton);
+			navButton = null;
+		}
 
-    @Subscribe
-    public void onMenuOpened(MenuOpened event) {
-        lastMenuOpenedPoint = client.getMouseCanvasPosition();
-    }
+		if (panel != null)
+		{
+			// The settings service is a singleton — release this panel's
+			// listener registrations or they accumulate across enable cycles.
+			panel.dispose();
+			panel = null;
+		}
 
-    @Subscribe
-    public void onGameTick(GameTick tick) {
-        if (path != null) {
-            if (!isNearPath()) {
-                if (config.cancelInstead()) {
-                    target = null;
-                }
+		// Flush pending observations so the last tick's sample is not lost.
+		spiritTrees.persistIfDirty();
 
-                pathUpdateScheduled = true;
-            }
+		// The singleton survives restarts; drop the live bank ref so session
+		// state cannot leak into the next enable.
+		itemState.reset();
+		// Same lifetime for the sailing snapshot — a stale aboard flag must
+		// not greet the next session before its first refresh publishes.
+		sailing.reset();
+	}
 
-            if (client.getLocalPlayer().getWorldLocation().distanceTo(target) < config.reachedDistance()) {
-                target = null;
-                pathUpdateScheduled = true;
-            }
-        }
-    }
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		ConfigChange change = settings.onConfigChanged(event);
+		if (change == null)
+		{
+			return;
+		}
 
-    private boolean isNearPath() {
-        for (WorldPoint point : path) {
-            if (client.getLocalPlayer().getWorldLocation().distanceTo(point) < config.recalculateDistance()) {
-                return true;
-            }
-        }
-        return false;
-    }
+		if (configManager.getProfile().getId() != activeConfigProfileId)
+		{
+			return;
+		}
 
-    @Subscribe
-    public void onMenuEntryAdded(MenuEntryAdded event) {
-        if (config.drawTransports()) {
-            addMenuEntry(event, "Start");
-            addMenuEntry(event, "End");
-//            addMenuEntry(event, "Copy Position");
-        }
+		Set<Effect> effects = change.getEffects();
 
-        final Widget map = client.getWidget(WidgetInfo.WORLD_MAP_VIEW);
+		if (effects.contains(Effect.SIDE_EFFECT_DEBUG_OVERLAY))
+		{
+			syncDebugPanelVisibility();
+		}
 
-        if (map == null) {
-            return;
-        }
+		if ("showSidebarPanel".equals(change.getKey()))
+		{
+			syncSidebarButton();
+		}
 
-        if (map.getBounds().contains(client.getMouseCanvasPosition().getX(), client.getMouseCanvasPosition().getY())) {
-            addMenuEntry(event, "Set Target");
-            addMenuEntry(event, "Clear Target");
-        }
-    }
+		coordinator.configChanged(change);
+	}
 
-    @Subscribe
-    public void onMenuOptionClicked(MenuOptionClicked event) {
-        if (event.getMenuOption().equals("Start")) {
-            transportStart = client.getLocalPlayer().getWorldLocation();
-        }
+	/**
+	 * Adds or removes the sidebar navigation button to match the
+	 * {@code showSidebarPanel} setting — the same live-toggle contract the
+	 * other plugins' show-icon options follow.
+	 */
+	private void syncSidebarButton()
+	{
+		if (navButton == null)
+		{
+			return;
+		}
+		if (config.showSidebarPanel())
+		{
+			clientToolbar.addNavigation(navButton);
+		}
+		else
+		{
+			clientToolbar.removeNavigation(navButton);
+		}
+	}
 
-        if (event.getMenuOption().equals("End")) {
-            WorldPoint transportEnd = client.getLocalPlayer().getWorldLocation();
-            System.out.println(transportStart.getX() + " " + transportStart.getY() + " " + transportStart.getPlane() + " " +
-                    transportEnd.getX() + " " + transportEnd.getY() + " " + transportEnd.getPlane() + " " +
-                    lastClick.getMenuOption() + " " + Text.removeTags(lastClick.getMenuTarget()) + " " + lastClick.getId()
-            );
-            transports.computeIfAbsent(transportStart, k -> new ArrayList<>()).add(transportEnd);
-        }
+	@Subscribe
+	public void onProfileChanged(ProfileChanged event)
+	{
+		long profileId = configManager.getProfile().getId();
+		if (profileId == activeConfigProfileId)
+		{
+			return;
+		}
 
-        if (event.getMenuOption().equals("Copy Position")) {
-            WorldPoint pos = client.getLocalPlayer().getWorldLocation();
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection("(" + pos.getX() + ", " + pos.getY() + ", " + pos.getPlane() + ")"), null);
-        }
-        if (event.getMenuOption().equals("Set Target")) {
-            setTarget(calculateMapPoint(client.isMenuOpen() ? lastMenuOpenedPoint : client.getMouseCanvasPosition()));
-        }
+		activeConfigProfileId = profileId;
+		syncDebugPanelVisibility();
+		// The new profile may carry a different sidebar-visibility value —
+		// re-resolve the nav button just like the debug overlay above.
+		syncSidebarButton();
+		if (pathfinderConfig == null)
+		{
+			return;
+		}
 
-        if (event.getMenuOption().equals("Clear Target")) {
-            setTarget(null);
-        }
+		if (!coordinator.profileChanged())
+		{
+			clientThread.invokeLater(pathfinderConfig::refresh);
+		}
+	}
 
-        if (event.getMenuAction() != MenuAction.WALK) {
-            lastClick = event;
-        }
-    }
+	private void syncDebugPanelVisibility()
+	{
+		pluginOverlays.syncDebug(overlayManager, settings.bool(ConfigKey.DRAW_DEBUG_PANEL));
+	}
 
-    private void setTarget(WorldPoint target) {
-        this.target = target;
-        pathUpdateScheduled = true;
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		coordinator.gameStateChanged(event.getGameState(), client.getTickCount());
+	}
 
-        if (target == null) {
-            worldMapPointManager.remove(marker);
-            marker = null;
-        } else {
-            worldMapPointManager.removeIf(x -> x == marker);
-            marker = new WorldMapPoint(target, MARKER_IMAGE);
-            marker.setTarget(marker.getWorldPoint());
-            marker.setJumpOnClick(true);
-            worldMapPointManager.add(marker);
-        }
-    }
+	/**
+	 * Refresh the pathfinder when the player hops worlds. The new world's type
+	 * (e.g. seasonal) is what drives league-mode auto-detection in
+	 * {@link shortestpath.leagues.LeagueModeState}, so we need a fresh
+	 * {@code PathfinderConfig.refresh()} pass after every hop.
+	 */
+	@Subscribe
+	public void onWorldChanged(WorldChanged event)
+	{
+		if (pathfinderConfig == null)
+		{
+			return;
+		}
+		coordinator.worldChanged(client.getTickCount());
+	}
 
-    private WorldPoint calculateMapPoint(Point point) {
-        float zoom = client.getRenderOverview().getWorldMapZoom();
-        RenderOverview renderOverview = client.getRenderOverview();
-        final WorldPoint mapPoint = new WorldPoint(renderOverview.getWorldMapPosition().getX(), renderOverview.getWorldMapPosition().getY(), 0);
-        final Point middle = worldMapOverlay.mapWorldPointToGraphicsPoint(mapPoint);
+	@Subscribe
+	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
+	{
+		pohService.loadFromProfile();
+		// The new profile may carry different persisted trees, so an in-flight
+		// path computed against the old account's set must be redone — the
+		// load declares that route-invalidating effect unconditionally.
+		spiritTrees.loadFromProfile();
+		// The last-seen bank snapshot is scoped per account — the new
+		// profile's record replaces the previous account's.
+		itemState.loadFromProfile();
+	}
 
-        final int dx = (int) ((point.getX() - middle.getX()) / zoom);
-        final int dy = (int) ((-(point.getY() - middle.getY())) / zoom);
+	@Subscribe
+	public void onPluginMessage(PluginMessage event)
+	{
+		apiHandler.onPluginMessage(event);
+	}
 
-        return mapPoint.dx(dx).dy(dy);
-    }
+	@Subscribe
+	public void onMenuOpened(MenuOpened event)
+	{
+		geometry.menuOpened(client.getMouseCanvasPosition());
+	}
 
-    @Provides
-    public ShortestPathConfig provideConfig(ConfigManager configManager) {
-        return configManager.getConfig(ShortestPathConfig.class);
-    }
+	@Subscribe
+	public void onGameTick(GameTick tick)
+	{
+		pohService.refreshFromDialog();
+		pohService.persistIfDirty();
 
-    private void addMenuEntry(MenuEntryAdded event, String option) {
-        List<MenuEntry> entries = new LinkedList<>(Arrays.asList(client.getMenuEntries()));
+		coordinator.gameTick(client.getTickCount());
 
-        if (entries.stream().anyMatch(e -> e.getOption().equals(option))) {
-            return;
-        }
+		Player localPlayer = client.getLocalPlayer();
 
-        MenuEntry entry = new MenuEntry();
-        entry.setOption(option);
-        entry.setTarget(event.getTarget());
-        entry.setType(MenuAction.RUNELITE.getId());
-        entries.add(0, entry);
+		// The service notes the player's region, samples the in-region patch
+		// varbit once the region has settled, and flushes persistence; a
+		// resolved change is declared to the coordinator, which owns the
+		// restart decision.
+		spiritTrees.onGameTick();
 
-        client.setMenuEntries(entries.toArray(new MenuEntry[0]));
-    }
+		if (localPlayer == null || scheduler.getActiveSearch() == null)
+		{
+			return;
+		}
+
+		LocalPoint boatPoint = WorldPointUtil.boatLocation(client, localPlayer);
+		WorldEntity boatEntity = WorldPointUtil.boat(client, localPlayer);
+		coordinator.offRouteTick(client.getTickCount(),
+			WorldPointUtil.fromLocalInstance(client, localPlayer),
+			boatPoint == null ? WorldPointUtil.UNDEFINED : WorldPointUtil.fromLocalInstance(client, boatPoint),
+			boatEntity == null ? WorldPointUtil.UNDEFINED
+				: Math.floorMod((boatEntity.getTargetOrientation() + 64) / 128, 16));
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event)
+	{
+		menuVerbs.onMenuEntryAdded(event);
+	}
+
+	@Subscribe
+	public void onItemContainerChanged(ItemContainerChanged event)
+	{
+		int id = event.getContainerId();
+		itemState.onContainerChanged(id, event.getItemContainer());
+		if (id == InventoryID.BANK)
+		{
+			// The bank-open verdict is a widget read — client-thread only —
+			// so it happens inside the invoke where the interface has
+			// settled; the post-close event arrives with an emptied
+			// container but a closed bank widget, which the service treats
+			// as drain and ignores. Queued ahead of the panel refresh below
+			// so the owned-filter union reads the updated snapshot.
+			clientThread.invoke(() -> itemState.noteLastSeenBank(
+				event.getItemContainer(),
+				gameWidgets.isWidgetOpen(InterfaceID.Bankmain.UNIVERSE)));
+		}
+		if (panel != null && (id == InventoryID.BANK || id == InventoryID.INV || id == InventoryID.WORN))
+		{
+			panel.onItemContainersChanged();
+		}
+	}
+
+	@Subscribe
+	public void onVarbitChanged(VarbitChanged event)
+	{
+		// Rune pouch contents and the Lumbridge Elite diary feed the eligibility
+		// snapshot but change without firing a container event.
+		itemState.onVarbitChanged(event.getVarbitId());
+		// The boat varbits feed the sailing snapshot and may declare a
+		// route-invalidating change through the service.
+		sailing.onVarbitChanged(event.getVarbitId());
+	}
+
+	@Subscribe
+	public void onScriptPostFired(ScriptPostFired event)
+	{
+		if (event.getScriptId() != PohService.TELENEXUS_CREATE_TELELINE)
+		{
+			return;
+		}
+		Widget widget = client.getScriptActiveWidget();
+		if (widget != null)
+		{
+			pohService.putFromDialogLine(widget.getText());
+		}
+	}
+
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event)
+	{
+		annotator.widgetLoaded(event.getGroupId(), scheduler.getActiveSearch());
+
+		if (event.getGroupId() == InterfaceID.TELENEXUS_TELEPORT)
+		{
+			pohService.dialogOpened();
+		}
+		if (event.getGroupId() == InterfaceID.TELENEXUS_TELEPORT
+			|| event.getGroupId() == InterfaceID.TELENEXUS)
+		{
+			pohService.nexusDialogOpened(clientThread);
+		}
+
+		// Refresh the spirit tree cache on every menu open: the menu is
+		// authoritative for the planted patches it lists, and other detection
+		// sources (in-region varbits, persisted profile state) fill in the rest.
+		switch (event.getGroupId())
+		{
+			case InterfaceID.MENU:
+				clientThread.invokeLater(() -> spiritTrees.onMenuOpened(false));
+				break;
+			case InterfaceID.MENU_NEW:
+				clientThread.invokeLater(() -> spiritTrees.onMenuOpened(true));
+				break;
+		}
+	}
+
+	@Subscribe
+	public void onWidgetClosed(WidgetClosed event)
+	{
+		annotator.widgetClosed(event.getGroupId());
+	}
+
+	@Subscribe
+	public void onPostClientTick(PostClientTick event)
+	{
+		annotator.postClientTick(scheduler.getActiveSearch());
+	}
 }

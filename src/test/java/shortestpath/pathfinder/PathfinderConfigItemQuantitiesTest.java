@@ -1,0 +1,162 @@
+package shortestpath.pathfinder;
+
+import java.util.Arrays;
+import java.util.List;
+import net.runelite.api.Client;
+import net.runelite.api.EnumComposition;
+import net.runelite.api.EnumID;
+import net.runelite.api.GameState;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
+import net.runelite.api.QuestState;
+import net.runelite.api.Skill;
+import net.runelite.api.gameval.DBTableID;
+import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.gameval.ItemID;
+import net.runelite.api.gameval.VarbitID;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import shortestpath.TestShortestPathConfig;
+import shortestpath.settings.TeleportationItem;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
+
+/**
+ * Quantities of an item held in several places are summed when checking
+ * teleport requirements. Uses Varrock Teleport (3 air, 1 fire, 1 law rune).
+ */
+@RunWith(MockitoJUnitRunner.class)
+public class PathfinderConfigItemQuantitiesTest
+{
+	private static final String VARROCK_TELEPORT = "Varrock Teleport";
+	private static final int POUCH_AIR = 1;
+
+	@Mock
+	private Client client;
+		private TestShortestPathConfig config = new TestShortestPathConfig();
+	@Mock
+	private ItemContainer inventory;
+	@Mock
+	private ItemContainer bank;
+	@Mock
+	private EnumComposition runePouchEnum;
+
+	private PathfinderConfig pathfinderConfig;
+	private final shortestpath.items.ItemStateService itemState = shortestpath.items.ItemStateTestServices.forTesting();
+
+	@Test
+	public void runePouchRunesAddToLooseRunes()
+	{
+		// 1 loose air rune plus 2 in the pouch makes the 3 air runes Varrock Teleport needs
+		setupInventory(new Item(ItemID.AIRRUNE, 1), new Item(ItemID.FIRERUNE, 1), new Item(ItemID.LAWRUNE, 1),
+			new Item(ItemID.BH_RUNE_POUCH, 1));
+		when(client.getEnum(EnumID.RUNEPOUCH_RUNE)).thenReturn(runePouchEnum);
+		when(runePouchEnum.getIntValue(POUCH_AIR)).thenReturn(ItemID.AIRRUNE);
+		when(client.getVarbitValue(VarbitID.RUNE_POUCH_TYPE_1)).thenReturn(POUCH_AIR);
+		when(client.getVarbitValue(VarbitID.RUNE_POUCH_QUANTITY_1)).thenReturn(2);
+		when(bank.getItems()).thenReturn(new Item[0]);
+
+		refresh(false, TeleportationItem.NONE);
+
+		assertTrue(varrockTeleportUsable(BankVisitState.CARRIED));
+	}
+
+	@Test
+	public void bankedRunesAddToCarriedRunes()
+	{
+		// 2 carried air runes plus 1 in the bank makes 3 on the bank path, not 1
+		setupInventory(new Item(ItemID.AIRRUNE, 2), new Item(ItemID.FIRERUNE, 1), new Item(ItemID.LAWRUNE, 1));
+		when(bank.getItems()).thenReturn(new Item[]{new Item(ItemID.AIRRUNE, 1)});
+
+		refresh(true, TeleportationItem.INVENTORY_AND_BANK);
+
+		assertFalse(varrockTeleportUsable(BankVisitState.CARRIED));
+		assertTrue(varrockTeleportUsable(BankVisitState.BANKED));
+	}
+
+	@Test
+	public void bankedRunePouchRunesAddToLooseBankedRunes()
+	{
+		// A banked pouch with 2 air plus 1 loose banked air makes 3 on the bank path
+		setupInventory(new Item(ItemID.FIRERUNE, 1), new Item(ItemID.LAWRUNE, 1));
+		when(bank.getItems()).thenReturn(new Item[]{new Item(ItemID.BH_RUNE_POUCH, 1), new Item(ItemID.AIRRUNE, 1)});
+		when(client.getEnum(EnumID.RUNEPOUCH_RUNE)).thenReturn(runePouchEnum);
+		when(runePouchEnum.getIntValue(POUCH_AIR)).thenReturn(ItemID.AIRRUNE);
+		when(client.getVarbitValue(VarbitID.RUNE_POUCH_TYPE_1)).thenReturn(POUCH_AIR);
+		when(client.getVarbitValue(VarbitID.RUNE_POUCH_QUANTITY_1)).thenReturn(2);
+
+		refresh(true, TeleportationItem.INVENTORY_AND_BANK);
+
+		assertFalse(varrockTeleportUsable(BankVisitState.CARRIED));
+		assertTrue(varrockTeleportUsable(BankVisitState.BANKED));
+	}
+
+	/**
+	 * includeBankPath is forced on only by the two modes that gather banked
+	 * items; every other mode leaves the configured value alone.
+	 */
+	@Test
+	public void bankCapableModesForceBankPath()
+	{
+		setupInventory();
+		when(bank.getItems()).thenReturn(new Item[0]);
+
+		for (TeleportationItem mode : TeleportationItem.values())
+		{
+			boolean bankCapable = mode == TeleportationItem.INVENTORY_AND_BANK
+				|| mode == TeleportationItem.INVENTORY_AND_BANK_NON_CONSUMABLE;
+
+			refresh(false, mode);
+
+			assertEquals("includeBankPath for " + mode,
+				bankCapable, pathfinderConfig.isBankPathEnabled());
+		}
+	}
+
+	@Test
+	public void configuredBankPathStaysOnRegardlessOfMode()
+	{
+		setupInventory();
+		when(bank.getItems()).thenReturn(new Item[0]);
+
+		refresh(true, TeleportationItem.NONE);
+
+		assertTrue(pathfinderConfig.isBankPathEnabled());
+	}
+
+	private void setupInventory(Item... items)
+	{
+		doReturn(inventory).when(client).getItemContainer(InventoryID.INV);
+		when(inventory.getItems()).thenReturn(items);
+	}
+
+	private void refresh(boolean includeBankPath, TeleportationItem useTeleportationItems)
+	{
+		pathfinderConfig = new TestPathfinderConfig(client, config, QuestState.FINISHED, true, true);
+		config.set("calculationCutoff", 30);
+		config.set("currencyThreshold", 10000000);
+		config.set("useTeleportationSpells", true);
+		config.set("useTeleportationItems", useTeleportationItems);
+		config.set("includeBankPath", includeBankPath);
+		when(client.getDBTableRows(DBTableID.Quest.ID)).thenReturn(List.of());
+		when(client.getGameState()).thenReturn(GameState.LOGGED_IN);
+		when(client.getClientThread()).thenReturn(Thread.currentThread());
+		when(client.getBoostedSkillLevel(any(Skill.class))).thenReturn(99);
+		pathfinderConfig.setItemStateService(itemState);
+		itemState.noteBankContainer(bank);
+		pathfinderConfig.refresh();
+	}
+
+	private boolean varrockTeleportUsable(BankVisitState bankVisited)
+	{
+		return Arrays.stream(pathfinderConfig.getUsableTeleports(bankVisited))
+			.anyMatch(t -> VARROCK_TELEPORT.equals(t.getDisplayInfo()));
+	}
+}

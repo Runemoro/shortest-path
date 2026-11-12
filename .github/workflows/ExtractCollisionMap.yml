@@ -1,0 +1,162 @@
+name: Extract Collision Map
+
+on:
+  # This workflow is triggered manually or on Wednesdays at 2320 UTC
+  # This should be after Jagex updates the cache
+  schedule:
+    - cron: '20 23 * * 3' # Every Wednesday at 23:20 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collision-map-extract
+  cancel-in-progress: false
+
+env:
+  KAHIP_VERSION: "3.23"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Pinned: this job writes straight to master on a schedule, so a rename or removal of the
+      # routingCuts/routingComponents tasks in the tooling repository must not break it silently.
+      # Bump the ref when the tooling tasks or the generator classes they share with this repository change.
+      - name: Checkout tooling repository
+        uses: actions/checkout@v7
+        with:
+          repository: osrs-pathfinding/shortest-path-tooling
+          ref: 4f617372fc38259a32fddd7d3d56c61456f2c903
+          path: tooling
+
+      - name: Checkout runelite
+        uses: actions/checkout@v7
+        with:
+          repository: runelite/runelite
+          path: runelite
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v6
+        with:
+          distribution: "temurin"
+          java-version: "11"
+
+      # Caches the Gradle wrapper and dependencies shared by the runelite
+      # build, the tooling routingCuts task and the plugin test gate.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Get the cache
+        run: |
+          ./tooling/collision-map-update/download-latest-cache.sh
+
+      # Replace the following in the key file
+      # Replace the words "mapsquare" with "region" and "key" with "keys" in the keys.json file
+      # The patterns are quote-delimited so they cannot match twice ("keys" -> "keyss")
+      - name: Patch the key file
+        run: |
+          sed -i 's/"mapsquare"/"region"/g' keys.json
+          sed -i 's/"key"/"keys"/g' keys.json
+
+      - name: Insert CollisionMapDumper.java
+        run: |
+          cp ./tooling/collision-map-update/CollisionMapDumper.java runelite/cache/src/main/java/net/runelite/cache
+
+      - name: Patch Runelite build.gradle.kts
+        run: |
+          cp ./tooling/collision-map-update/build.gradle.kts.patch runelite/cache
+          cd runelite/cache
+          git apply build.gradle.kts.patch
+
+      - name: Build Runelite with Gradle
+        run: |
+          cd runelite
+          ./gradlew :cache:shadowJar -x test --dependency-verification=off
+
+      - name: Copy jar file to the root directory
+        run: |
+          find runelite/cache/build/libs -name "*-all.jar" -exec cp {} ./cache.jar \;
+
+      - name: Export collision map
+        run: |
+          java -jar cache.jar --cachedir ./cache --xteapath ./keys.json --outputdir "output"
+
+      - name: Zip output directory
+        run: |
+          cd output
+          zip -r collision-map.zip .
+          mv collision-map.zip ../src/main/resources/collision-map.zip
+
+      # The exact pathfinder's routing cuts and the routing component layer are derived from
+      # the collision map, so both are regenerated with it and committed in the same commit.
+      - name: Restore KaHIP
+        id: kahip-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/kahip-bin
+          key: kahip-${{ env.KAHIP_VERSION }}-${{ runner.os }}
+
+      - name: Build KaHIP
+        if: steps.kahip-cache.outputs.cache-hit != 'true'
+        run: |
+          src="$RUNNER_TEMP/kahip-src"
+          git clone --depth 1 --branch "v${KAHIP_VERSION}" https://github.com/KaHIP/KaHIP.git "$src"
+          cmake -S "$src" -B "$src/build" -DCMAKE_BUILD_TYPE=Release -DNOMPI=On -DNONATIVEOPTIMIZATIONS=On
+          cmake --build "$src/build" --target node_separator --parallel
+          mkdir -p "$RUNNER_TEMP/kahip-bin"
+          cp "$(find "$src/build" -type f -name node_separator | head -n 1)" "$RUNNER_TEMP/kahip-bin/node_separator"
+
+      - name: Generate routing cuts
+        run: |
+          cd tooling
+          ./gradlew routingCuts \
+            -PshortestPathDir=.. \
+            -PkahipNodeSeparator="$RUNNER_TEMP/kahip-bin/node_separator" \
+            -ProutingCutsOutput="$GITHUB_WORKSPACE/src/test/resources/routing-cuts.bin"
+
+      # The layer fingerprints the collision data, so this step must stay after every step that
+      # writes collision-map.zip or anything SplitFlagMap.fromResources reads from it.
+      - name: Generate routing components
+        run: |
+          cd tooling
+          ./gradlew routingComponents \
+            -PshortestPathDir=.. \
+            -ProutingCutsFile="$GITHUB_WORKSPACE/src/test/resources/routing-cuts.bin" \
+            -ProutingComponentsOutput="$GITHUB_WORKSPACE/src/main/resources/routing-components.bin"
+
+      # Gate: a corrupt or truncated export must never reach master. The zip integrity check
+      # catches a broken archive and `test -s` catches an empty output. The test suite below loads
+      # collision-map.zip from the real resources and checks the committed layer against the
+      # committed map and cuts. That check is only a consistency check of the committed inputs
+      # (the layer was just produced by the same generator code, so it cannot catch a generator
+      # bug); a semantically broken map is caught by the rest of the suite.
+      - name: Verify generated artifacts
+        run: |
+          unzip -t src/main/resources/collision-map.zip > /dev/null
+          test -s src/test/resources/routing-cuts.bin
+          test -s src/main/resources/routing-components.bin
+          ls -lh src/main/resources/collision-map.zip src/test/resources/routing-cuts.bin src/main/resources/routing-components.bin
+
+      - name: Build and test plugin with new data
+        run: ./gradlew jar test --stacktrace
+
+      - name: Clean up the directories
+        run: |
+          rm -rf runelite cache output cache.jar keys.json cache.zip tooling
+
+      # `add` is an explicit pathspec so the commit can only ever contain the
+      # three generated artifacts, regardless of what else is left in the
+      # workspace.
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v11
+        with:
+          default_author: github_actions
+          add: "src/main/resources/collision-map.zip src/test/resources/routing-cuts.bin src/main/resources/routing-components.bin"
+          message: "Update collision map"

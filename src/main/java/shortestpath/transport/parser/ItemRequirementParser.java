@@ -1,0 +1,137 @@
+package shortestpath.transport.parser;
+
+import java.util.*;
+import java.util.regex.Pattern;
+
+import lombok.extern.slf4j.Slf4j;
+import shortestpath.*;
+import shortestpath.requirement.model.*;
+
+/**
+ * Parses item requirements from TSV field values.
+ *
+ * <p>
+ * Format: {@code ITEM_NAME=quantity} with AND (&amp;) and OR (|) operators
+ * </p>
+ * <p>
+ * Example: {@code AIR_RUNE=3&FIRE_RUNE=2} (need both)
+ * </p>
+ * <p>
+ * Example: {@code AIR_RUNE=1|WATER_RUNE=1} (need either)
+ * </p>
+ * <p>
+ * Each OR alternative keeps its own quantity, for example
+ * {@code SHANTAY_PASS=1|COINS=5} is satisfied by one Shantay pass or by 5 coins.
+ * </p>
+ */
+@Slf4j
+public class ItemRequirementParser implements FieldParser<TransportItems>
+{
+	private static final String DELIM_STATE = "=";
+	private static final String DELIM_AND = "&";
+	private static final String DELIM_OR = "|";
+	private static final String UNLOCK_PREFIX = "UNLOCK_";
+
+	@Override
+	public TransportItems parse(String value)
+	{
+		if (value == null || value.isEmpty())
+		{
+			return null;
+		}
+
+		// Normalize the input
+		String normalized = value.replace(" ", "")
+			.replace(DELIM_AND + DELIM_AND, DELIM_AND)
+			.replace(DELIM_OR + DELIM_OR, DELIM_OR)
+			.toUpperCase();
+
+		List<ItemRequirement> requirements = new ArrayList<>();
+
+		try
+		{
+			// Split by AND to get individual requirements
+			String[] andParts = normalized.split(DELIM_AND);
+
+			for (String andPart : andParts)
+			{
+				ItemRequirement requirement = parseRequirement(andPart);
+				requirements.add(requirement);
+			}
+
+			return requirements.isEmpty() ? null : new TransportItems(requirements);
+		}
+		catch (NumberFormatException e)
+		{
+			log.error("Invalid item or quantity: {}", value);
+			return null;
+		}
+	}
+
+	/**
+	 * Parses a single requirement which may have OR alternatives.
+	 * Example: "AIR_RUNE=3|DUST_RUNE=3"
+	 */
+	private ItemRequirement parseRequirement(String part)
+	{
+		String[] orParts = part.split(Pattern.quote(DELIM_OR));
+		if (orParts.length == 0)
+		{
+			throw new NumberFormatException("Invalid format: " + part);
+		}
+
+		List<ItemRequirement.Branch> branches = new ArrayList<>();
+
+		for (String orPart : orParts)
+		{
+			String[] itemAndQuantity = orPart.split(DELIM_STATE);
+			if (itemAndQuantity.length != 2)
+			{
+				throw new NumberFormatException("Invalid format: " + part);
+			}
+
+			String itemName = itemAndQuantity[0];
+			int quantity = Integer.parseInt(itemAndQuantity[1]);
+
+			if (itemName.startsWith(UNLOCK_PREFIX))
+			{
+				if (quantity < 1)
+				{
+					throw new IllegalArgumentException("An unlock token needs a positive quantity: " + orPart);
+				}
+				Unlock unlock = Unlock.fromName(itemName);
+				if (unlock == null)
+				{
+					// A typo'd unlock name must fail loudly rather than silently
+					// dropping the whole Items cell like an unknown item name.
+					throw new IllegalArgumentException("Unknown unlock token: " + orPart);
+				}
+				branches.add(new ItemRequirement.Branch(null, null, null, quantity, unlock));
+				continue;
+			}
+
+			ItemVariations variation = ItemVariations.fromName(itemName);
+			if (variation != null)
+			{
+				branches.add(new ItemRequirement.Branch(
+					copyOrNull(variation.getIds()),
+					copyOrNull(ItemVariations.staves(variation)),
+					copyOrNull(ItemVariations.offhands(variation)),
+					quantity));
+			}
+			else
+			{
+				// Try parsing as raw item ID
+				branches.add(new ItemRequirement.Branch(
+					new int[]{Integer.parseInt(itemName)}, null, null, quantity));
+			}
+		}
+
+		return new ItemRequirement(branches);
+	}
+
+	private static int[] copyOrNull(int[] ids)
+	{
+		return Util.concatenate(new int[][]{ids});
+	}
+}
